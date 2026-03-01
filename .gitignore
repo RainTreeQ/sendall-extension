@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+
+# 构建产物
+*.zip
+*.crx
+*.log
+
+# 项目私有配置与文档 (不开源)
+app/docs/
+app/CLAUDE.md
+CLAUDE.md
