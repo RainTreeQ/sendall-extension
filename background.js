@@ -224,6 +224,46 @@ async function probeConversationTitle(tabId, platformName) {
             if (c && !genericGemini.test(c) && c.length <= 120) return c;
           }
 
+          const firstMessageSelectors = [
+            '[role="log"] [data-message-author="user"]',
+            '[role="log"] [data-author="user"]',
+            'main [role="log"] .message-content',
+            'main [role="log"] [class*="message"]',
+            'main [class*="chat"] [class*="content"]',
+            'main [class*="turn"]',
+            '[role="log"] > div',
+            'main article',
+            'main [class*="bubble"]'
+          ];
+          const maxSnippetLen = 32;
+          const takeFirstMessage = (nodes) => {
+            for (const node of nodes) {
+              const text = normalize(node?.textContent || node?.innerText);
+              if (!text || text.length < 2 || genericGemini.test(text)) continue;
+              if (text.length > 400) continue;
+              const snippet = text.length <= maxSnippetLen ? text : text.slice(0, maxSnippetLen) + '…';
+              return snippet;
+            }
+            return '';
+          };
+          for (const sel of firstMessageSelectors) {
+            try {
+              const nodes = document.querySelectorAll(sel);
+              const out = takeFirstMessage(nodes);
+              if (out) return out;
+            } catch (e) {}
+          }
+          const inputEl = document.querySelector('rich-textarea .ql-editor') || document.querySelector('.ql-editor[contenteditable="true"]') || document.querySelector('div[contenteditable="true"][role="textbox"]');
+          if (inputEl) {
+            let area = inputEl.closest('form')?.previousElementSibling || inputEl.closest('main')?.querySelector('[role="log"]') || inputEl.closest('section')?.previousElementSibling;
+            if (area) {
+              const text = normalize(area?.textContent || area?.innerText);
+              if (text && text.length >= 2 && text.length <= 400 && !genericGemini.test(text)) {
+                return text.length <= maxSnippetLen ? text : text.slice(0, maxSnippetLen) + '…';
+              }
+            }
+          }
+
           return stripped && stripped.length <= 120 ? stripped : '';
         }
 
