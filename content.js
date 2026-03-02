@@ -74,8 +74,23 @@ if (!window.__aiBroadcastLoaded) {
       return actual.includes(expected.slice(0, Math.min(expected.length, 24)));
     }
 
+    /** Stricter check for Gemini: require nearly full text (avoid false success on partial insert). */
+    function contentLooksInjectedStrict(el, text) {
+      const expected = normalizeText(text);
+      const actual = normalizeText(getContent(el));
+      if (!expected) return actual.length === 0;
+      if (!actual) return false;
+      if (actual === expected) return true;
+      if (actual.length < expected.length * 0.95) return false;
+      return actual.includes(expected) || expected.includes(actual);
+    }
+
     async function verifyContent(el, text, timeout = 120, interval = 20) {
       return waitForCheck(() => contentLooksInjected(el, text), timeout, interval);
+    }
+
+    async function verifyContentStrict(el, text, timeout = 200, interval = 25) {
+      return waitForCheck(() => contentLooksInjectedStrict(el, text), timeout, interval);
     }
 
     // ── React textarea/input ─────────────────────────────────────────────────
@@ -182,6 +197,8 @@ if (!window.__aiBroadcastLoaded) {
     }
 
     // ── Gemini-specific injection: no clipboard/paste events ────────────────
+    const GEMINI_CHUNK_SIZE = 1200;
+
     function notifyGeminiFramework(el, text) {
       el.dispatchEvent(new InputEvent('input', {
         bubbles: true,
@@ -196,31 +213,66 @@ if (!window.__aiBroadcastLoaded) {
       }
     }
 
+    /** Insert text in chunks to avoid execCommand/Quill truncation on long content. */
+    async function insertTextInChunks(el, text, options) {
+      const { logger } = options || {};
+      const len = text.length;
+      if (len <= 0) return;
+      if (len <= GEMINI_CHUNK_SIZE) {
+        document.execCommand('insertText', false, text);
+        return;
+      }
+      for (let i = 0; i < len; i += GEMINI_CHUNK_SIZE) {
+        const chunk = text.slice(i, i + GEMINI_CHUNK_SIZE);
+        document.execCommand('insertText', false, chunk);
+        await sleep(12);
+      }
+    }
+
     async function setGeminiInput(el, text, options) {
       const { logger } = options;
 
       el.focus();
-      await sleep(16);
+      await sleep(50);
 
       const richTextarea = el.closest('rich-textarea') || el.parentElement;
       const quill = richTextarea?.__quill || el.__quill;
+
       if (quill) {
         quill.setText('');
-        quill.insertText(0, text, 'user');
+        if (text.length <= GEMINI_CHUNK_SIZE) {
+          quill.insertText(0, text, 'user');
+        } else {
+          for (let i = 0; i < text.length; i += GEMINI_CHUNK_SIZE) {
+            const chunk = text.slice(i, i + GEMINI_CHUNK_SIZE);
+            quill.insertText(i, chunk, 'user');
+            await sleep(10);
+          }
+        }
         quill.setSelection(text.length, 0);
         notifyGeminiFramework(el, text);
-        await sleep(30);
-        if (await verifyContent(el, text, 200, 25)) {
+        await sleep(40);
+        if (await verifyContentStrict(el, text, 300, 30)) {
           return { strategy: 'gemini-quill', fallbackUsed: false };
         }
+        quill.setText('');
+        await sleep(20);
       }
 
       document.execCommand('selectAll', false, null);
       document.execCommand('delete', false, null);
-      document.execCommand('insertText', false, text);
-      if (await verifyContent(el, text)) {
+      await insertTextInChunks(el, text, options);
+      if (await verifyContentStrict(el, text, 250, 25)) {
         notifyGeminiFramework(el, text);
         return { strategy: 'gemini-insertText', fallbackUsed: Boolean(quill) };
+      }
+
+      document.execCommand('selectAll', false, null);
+      document.execCommand('delete', false, null);
+      await insertTextInChunks(el, text, options);
+      if (await verifyContentStrict(el, text, 250, 25)) {
+        notifyGeminiFramework(el, text);
+        return { strategy: 'gemini-insertText-retry', fallbackUsed: true };
       }
 
       el.innerHTML = '';
@@ -228,7 +280,7 @@ if (!window.__aiBroadcastLoaded) {
       p.textContent = text;
       el.appendChild(p);
       notifyGeminiFramework(el, text);
-      if (await verifyContent(el, text)) {
+      if (await verifyContentStrict(el, text, 200, 25)) {
         return { strategy: 'gemini-direct-dom', fallbackUsed: true };
       }
 
