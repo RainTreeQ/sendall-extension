@@ -246,7 +246,7 @@ export default function Popup() {
         </button>
       </div>
 
-      <div className="max-h-[190px] space-y-1.5 overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-200 dark:scrollbar-thumb-zinc-700">
+      <div className="max-h-[190px] space-y-1.5 overflow-y-auto px-4 pt-1.5 pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-200 dark:scrollbar-thumb-zinc-700">
         {tabsLoading ? (
           <div className="flex items-center justify-center gap-2 rounded-xl px-4 py-8 text-sm text-gray-400 dark:text-zinc-500">
             <span
@@ -275,7 +275,7 @@ export default function Popup() {
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), toggleTab(tab.id))}
                   className={`group relative flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 transition-all duration-200 ${
                     selected 
-                      ? 'bg-white shadow-sm ring-1 ring-black/5 dark:bg-zinc-800 dark:ring-white/10' 
+                      ? 'bg-white shadow-sm ring-1 ring-black/30 dark:bg-zinc-800 dark:ring-white/30' 
                       : 'border border-transparent hover:bg-gray-100 dark:hover:bg-zinc-800/50'
                   }`}
                 >
@@ -335,11 +335,11 @@ export default function Popup() {
           />
           <div className="flex items-center justify-between px-3 pb-3">
             <div className="flex items-center gap-1.5">
-              <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-700/50">
+              <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors">
                 <Switch checked={autoSend} onCheckedChange={(v) => { setAutoSend(v); chrome.storage?.local?.set({ autoSend: v }); }} />
                 <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{t('auto_send')}</span>
               </label>
-              <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-700/50">
+              <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors">
                 <Switch checked={newChat} onCheckedChange={(v) => { setNewChat(v); chrome.storage?.local?.set({ newChat: v }); }} />
                 <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{t('new_chat')}</span>
               </label>
@@ -356,7 +356,7 @@ export default function Popup() {
               className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
                 !sendDisabled 
                   ? 'bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:scale-105 hover:shadow-[0_4px_14px_rgba(0,0,0,0.35)] active:scale-95 dark:bg-white dark:text-black dark:shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-500'
               }`}
             >
               {sending ? (

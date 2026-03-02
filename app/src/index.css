@@ -21,6 +21,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-switch-on: var(--switch-on);
+  --color-switch-off: var(--switch-off);
   --radius-lg: var(--radius);
   --font-sans: var(--font-sans);
   --font-serif: var(--font-serif);
@@ -50,11 +51,20 @@
     --input: oklch(0.9329 0.0124 301.2783);
     --ring: oklch(0.6104 0.0767 299.7335);
     --switch-on: oklch(0.38 0.02 260);
+    --switch-off: var(--muted);
     --radius: 0.5rem;
     --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
     --font-serif: "Lora", Georgia, serif;
     --font-mono: "Fira Code", "Courier New", monospace;
     --tracking-normal: 0em;
+  }
+
+  /* 深色模式：仅靠 prefers-color-scheme 时（如扩展弹窗无 .dark 类）也提供开关高亮；有 .dark 时由下方 .dark 覆盖 */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --switch-on: oklch(0.55 0.02 260);
+      --switch-off: oklch(0.34 0.028 291);
+    }
   }
 
   .dark {
@@ -78,6 +88,7 @@
     --input: oklch(0.2847 0.0346 291.2726);
     --ring: oklch(0.7058 0.0777 302.0489);
     --switch-on: oklch(0.55 0.02 260);
+    --switch-off: oklch(0.34 0.028 291);
   }
 
   body {
