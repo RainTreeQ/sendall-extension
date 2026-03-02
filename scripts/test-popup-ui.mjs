@@ -54,6 +54,7 @@ async function main() {
   await page.addInitScript(() => {
     window.chrome = {
       runtime: {
+        id: 'test-extension-id',
         sendMessage: (msg) =>
           Promise.resolve(
             msg.type === 'GET_AI_TABS' ? { tabs: [] } : { results: [], summary: {} }
@@ -71,7 +72,7 @@ async function main() {
   await page.goto(`${base}/popup.html`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(800);
 
-  const header = page.locator('text=Broadcast').first();
+  const header = page.locator('text=广发').first();
   await header.waitFor({ state: 'visible', timeout: 5000 });
 
   const textarea = page.getByPlaceholder(/Message AI Agents/i);

@@ -1,6 +1,6 @@
 const FALLBACK_MESSAGES = {
   en: {
-    popup_title: 'Broadcast',
+    popup_title: '广发',
     refresh: 'Refresh',
     active_sessions: 'Active Sessions',
     select_all: 'Select All',
@@ -22,7 +22,7 @@ const FALLBACK_MESSAGES = {
     tab_n: 'Tab $1',
   },
   zh_CN: {
-    popup_title: '广播',
+    popup_title: '广发',
     refresh: '刷新',
     active_sessions: '活跃会话',
     select_all: '全选',
@@ -81,4 +81,3 @@ export function t(key, substitutions) {
   const template = dict[key] || FALLBACK_MESSAGES.en[key] || String(key)
   return applySubstitutions(template, substitutions)
 }
-

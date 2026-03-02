@@ -1,4 +1,4 @@
-// AI Broadcast - Background Service Worker v4
+// 广发 - Background Service Worker v4
 
 const DEFAULT_FLAGS = {
   debugLogs: false,
@@ -51,7 +51,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (Object.keys(patch).length > 0) {
     await chrome.storage.local.set(patch);
   }
-  console.log('AI Broadcast extension installed');
+  console.log('广发 extension installed');
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

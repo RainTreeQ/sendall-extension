@@ -1,4 +1,4 @@
-// AI Broadcast - Popup Script
+// 广发 - Popup Script
 
 // When extension is uninstalled/disabled while popup is open, close popup to avoid orphaned blank frame
 function isExtensionContextValid() {

@@ -63,7 +63,7 @@ export function Testimonials() {
               variants={fadeInUp}
               className="text-lg text-muted-foreground"
             >
-              听听正在使用 AI Broadcast Extension 的开发者和专家怎么说。
+              听听正在使用 广发 的开发者和专家怎么说。
             </motion.p>
           </div>
 

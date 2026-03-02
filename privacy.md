@@ -1,8 +1,8 @@
 # Privacy Policy
 
-**AI Broadcast Extension**
+**广发**
 
-This Privacy Policy describes how your personal information is handled in the AI Broadcast Extension for Chrome and Edge.
+This Privacy Policy describes how your personal information is handled in the 广发 extension for Chrome and Edge.
 
 ## Data Collection
 We do **not** collect, use, save, or have access to any of your personal data recorded in the extension. 

@@ -16,7 +16,7 @@ export function Header() {
           <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-background">
             <Send className="h-3.5 w-3.5" strokeWidth={2.4} />
           </span>
-          <span className="text-lg">AI Broadcast</span>
+          <span className="text-lg">广发</span>
         </Link>
         <nav className="flex items-center gap-2">
           <Button

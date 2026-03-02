@@ -46,7 +46,7 @@ function HeroProductMock() {
             <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/30" />
           </div>
           <div className="flex-1 rounded-lg bg-background/80 py-1.5 px-3 text-center text-xs text-muted-foreground">
-            chrome://extensions — AI Broadcast
+            chrome://extensions — 广发
           </div>
         </div>
         <div className="relative flex justify-end bg-muted/20 p-6 min-h-[280px]">
@@ -66,7 +66,7 @@ function HeroProductMock() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                   <LogoIcon className="h-4 w-4" />
                 </div>
-                <span className="text-sm font-semibold text-foreground">Broadcast</span>
+                <span className="text-sm font-semibold text-foreground">广发</span>
               </div>
               <div className="h-7 w-7 rounded-full bg-muted" />
             </header>
@@ -122,7 +122,7 @@ export function Hero() {
         <div className="text-center max-w-4xl mx-auto space-y-8">
           <motion.div variants={fadeInUp} className="flex justify-center">
             <Badge variant="secondary" className="px-4 py-1.5 rounded-full text-sm">
-              🚀 AI Broadcast Extension
+              🚀 广发
             </Badge>
           </motion.div>
 
@@ -165,7 +165,7 @@ export function Hero() {
         >
           <img
             src="/screenshot.png"
-            alt="AI Broadcast 扩展：ChatGPT、Claude、Gemini 三端同步 Hello World 与 Broadcast 面板"
+            alt="广发 扩展：ChatGPT、Claude、Gemini 三端同步 Hello World 与 广发 面板"
             className="w-full h-auto object-contain block"
           />
         </motion.div>

@@ -1,4 +1,4 @@
-# Contributing to AI Broadcast Extension
+# Contributing to 广发
 
 感谢你对本项目的关注。贡献前请先构建并本地验证扩展与 Popup 行为。
 

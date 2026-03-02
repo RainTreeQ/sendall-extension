@@ -1,0 +1,5 @@
+{
+  "aggressiveCompression": false,
+  "ignoredFiles": ["assets/hero-earth.png", "assets/screenshot.png"],
+  "minKBReduced": 10
+}

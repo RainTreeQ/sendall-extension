@@ -1,15 +1,15 @@
 {
   "extName": {
-    "message": "AI Broadcast — 多屏同步"
+    "message": "广发"
   },
   "extDescription": {
     "message": "一次输入，同步发送到所有分屏 AI Agent（ChatGPT、Claude、Gemini 等）"
   },
   "actionTitle": {
-    "message": "AI Broadcast"
+    "message": "广发"
   },
   "popup_title": {
-    "message": "广播"
+    "message": "广发"
   },
   "refresh": {
     "message": "刷新"
@@ -107,4 +107,3 @@
     }
   }
 }
-

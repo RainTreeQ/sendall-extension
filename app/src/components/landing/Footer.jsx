@@ -51,9 +51,9 @@ export function Footer() {
           <div className="col-span-2 lg:col-span-2 space-y-6">
             <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                AI
+                广
               </div>
-              Broadcast
+              广发
             </h2>
             <p className="text-muted-foreground leading-relaxed max-w-sm">
               提升浏览器开发效率十倍的终极利器。专注于并发测试与多开自动化。
@@ -80,7 +80,7 @@ export function Footer() {
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} AI Broadcast Extension. All rights reserved.
+            © {new Date().getFullYear()} 广发. All rights reserved.
           </p>
           
           <div className="flex items-center gap-6">

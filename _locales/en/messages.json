@@ -1,15 +1,15 @@
 {
   "extName": {
-    "message": "AI Broadcast — Multi-screen Sync"
+    "message": "广发"
   },
   "extDescription": {
     "message": "Type once, broadcast to all split-screen AI agents (ChatGPT, Claude, Gemini, etc.)"
   },
   "actionTitle": {
-    "message": "AI Broadcast"
+    "message": "广发"
   },
   "popup_title": {
-    "message": "Broadcast"
+    "message": "广发"
   },
   "refresh": {
     "message": "Refresh"
@@ -107,4 +107,3 @@
     }
   }
 }
-

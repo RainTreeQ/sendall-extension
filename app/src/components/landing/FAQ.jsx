@@ -15,7 +15,7 @@ import {
 export function FAQ() {
   const faqs = [
     {
-      question: "什么是 AI Broadcast Extension？",
+      question: "什么是 广发？",
       answer: "它是一个基于浏览器插件技术（Manifest V3）的多屏同步工具。允许你将一个主控浏览器实例的操作（如输入、点击、滚动），毫秒级同步到任意数量的受控浏览器实例中，非常适合需要多开账号、自动化测试等场景。"
     },
     {

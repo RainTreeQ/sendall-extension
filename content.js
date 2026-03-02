@@ -1,4 +1,4 @@
-// AI Broadcast - Content Script v7
+// 广发 - Content Script v7
 // Faster input path, structured timings, and guarded fallbacks
 
 if (!window.__aiBroadcastLoaded) {

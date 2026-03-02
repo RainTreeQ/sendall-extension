@@ -8,7 +8,7 @@ export function Footer() {
     <footer className="w-full border-t border-border bg-background">
       <div className="container flex flex-col items-center justify-between gap-4 py-8 px-4 md:flex-row">
         <p className="text-sm text-muted-foreground">
-          AI Broadcast · 一切设计来自设计系统颜色与组件
+          广发 · 一切设计来自设计系统颜色与组件
         </p>
         <nav className="flex gap-6">
           <Link
