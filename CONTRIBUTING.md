@@ -1,6 +1,6 @@
 # Contributing to SendAll
 
-感谢你对本项目的关注。贡献前请先构建并本地验证扩展与 Popup 行为。
+感谢你对本项目的关注。贡献前请先本地验证扩展行为；若改动 `app/` 下的 React 页面，再额外执行构建验证。
 
 ## 开发环境
 
@@ -10,10 +10,10 @@
 
 ## 构建与加载扩展
 
-1. 构建 Popup 与设计系统站点：`cd app && npm run build`
-2. 在 Chrome（或 Chromium 系浏览器）打开 `chrome://extensions/`，开启「开发者模式」
-3. 点击「加载已解压的扩展程序」，选择**本仓库根目录**（确保包含 `app/dist/`）
-4. 弹窗入口为 `app/dist/popup.html`
+1. 在 Chrome（或 Chromium 系浏览器）打开 `chrome://extensions/`，开启「开发者模式」
+2. 点击「加载已解压的扩展程序」，选择**本仓库根目录**
+3. 弹窗入口为 `popup.html`（无需先构建）
+4. 若需构建 `app/` 下的 React 页面：`cd app && npm run build`
 
 ## 代码与设计约定
 

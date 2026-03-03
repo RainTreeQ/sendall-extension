@@ -52,6 +52,7 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 3. Turn on **Developer mode** / 开启右上角 **开发者模式**。
 4. Click **Load unpacked** / 点击 **加载已解压的扩展程序**。
 5. Select the **project root folder** (the one containing `manifest.json`) / 选择解压后的**项目根目录**（包含 `manifest.json` 的文件夹）。
+6. No build step is required for basic use. / 普通使用无需先执行构建命令。
 
 ## 🎯 Usage / 使用说明
 
@@ -72,7 +73,7 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 
 | 模块 | 文件 | 生效方式 |
 |------|------|----------|
-| Popup UI | `app/src/popup/`, `app/src/components/ui/`, `app/src/index.css` | `cd app && npm run build` 后重载扩展 |
+| Popup UI | `popup.html`, `popup.js` | 保存后到 chrome://extensions 点击「重新加载」 |
 | 后台 / 广播逻辑 | `background.js` | 保存后到 chrome://extensions 点击「重新加载」 |
 | 注入与平台适配 | `content.js` | 同上 |
 | 扩展配置与权限 | `manifest.json` | 同上 |
