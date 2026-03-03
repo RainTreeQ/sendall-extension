@@ -461,69 +461,85 @@ async function broadcastToTabs(payload) {
     queueDelayMs: Math.max(0, startedAt - clientTs)
   });
 
-  for (const tabId of tabIds) {
+  async function processTab(tabId) {
     const tabStartedAt = now();
     try {
-      // ── Step 1: Navigate to new chat if needed (done HERE, not in content script) ──
       if (newChat) {
         const tab = await chrome.tabs.get(tabId);
         const platformName = getPlatformName(tab.url);
         const newUrl = NEW_CHAT_URLS[platformName];
-
         if (newUrl) {
           await chrome.tabs.update(tabId, { url: newUrl });
           await waitForTabLoad(tabId);
-          await sleep(800); // extra settle time for JS frameworks to boot
+          await sleep(800);
         }
       }
-
-      // ── Step 2: Ensure content script is ready ──
       await ensureContentReady(tabId, requestId, debug, logger);
-
-      // ── Step 3: Send inject message (no navigation inside content script) ──
+      const injectOnly = autoSend;
       const response = await chrome.tabs.sendMessage(tabId, {
         type: 'INJECT_MESSAGE',
         text,
-        autoSend,
-        newChat: false,  // navigation already done above
+        autoSend: injectOnly ? false : autoSend,
+        newChat: false,
         requestId,
         debug,
         fastPathEnabled
       });
-      const tabDuration = now() - tabStartedAt;
-      const merged = {
-        tabId,
-        ...response
-      };
-      merged.timings = normalizeResultTimings(merged, tabDuration);
-      results.push(merged);
-      logger.debug('tab-success', {
-        tabId,
-        platform: merged.platform || 'Unknown',
-        stage: merged.stage || 'done',
-        timings: merged.timings,
-        strategy: merged.strategy || 'n/a',
-        fallbackUsed: Boolean(merged.fallbackUsed)
-      });
+      const merged = { tabId, ...response };
+      merged.timings = normalizeResultTimings(merged, now() - tabStartedAt);
+      return merged;
     } catch (err) {
-      const tabDuration = now() - tabStartedAt;
-      const failed = {
+      logger.error('tab-failure', { tabId, error: err.message });
+      return {
         tabId,
         success: false,
         error: err.message,
         stage: 'inject',
         strategy: 'n/a',
         fallbackUsed: false,
-        timings: {
-          findInputMs: 0,
-          injectMs: 0,
-          sendMs: 0,
-          totalMs: tabDuration
-        }
+        timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: now() - tabStartedAt }
       };
-      results.push(failed);
-      logger.error('tab-failure', { tabId, error: err.message, timings: failed.timings });
     }
+  }
+
+  const settled = await Promise.allSettled(tabIds.map(processTab));
+  for (let i = 0; i < settled.length; i++) {
+    const outcome = settled[i];
+    const res = outcome.status === 'fulfilled' ? outcome.value : {
+      tabId: tabIds[i],
+      success: false,
+      error: outcome.reason?.message || String(outcome.reason),
+      stage: 'inject',
+      strategy: 'n/a',
+      fallbackUsed: false,
+      timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: 0 }
+    };
+    results.push(res);
+  }
+
+  if (autoSend && results.some(r => r.success)) {
+    const sendStart = now();
+    const sendPromises = results.filter(r => r.success).map(async (r) => {
+      try {
+        const sendRes = await chrome.tabs.sendMessage(r.tabId, {
+          type: 'SEND_NOW',
+          requestId,
+          debug
+        });
+        const sendMs = sendRes?.sendMs ?? (now() - sendStart);
+        if (r.timings) {
+          r.timings.sendMs = sendMs;
+          r.timings.totalMs = (r.timings.findInputMs || 0) + (r.timings.injectMs || 0) + sendMs;
+        }
+        return r;
+      } catch (e) {
+        r.success = false;
+        r.error = e?.message || String(e);
+        r.stage = 'send';
+        return r;
+      }
+    });
+    await Promise.allSettled(sendPromises);
   }
 
   const totalMs = now() - startedAt;

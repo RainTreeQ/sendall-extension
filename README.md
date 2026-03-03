@@ -17,22 +17,23 @@
 | English | 中文 |
 |--------|------|
 | **One input, sync everywhere** — Type once, send to all open AI tabs. | **多端同步输入** — 一次输入，自动分发给所有打开的 AI 助手。 |
+| **Simultaneous send** — Two-phase broadcast: inject to all tabs first, then trigger send at once. | **同步发送** — 两阶段广播：先注入全部标签，再统一触发发送，各平台近乎同时发出。 |
 | **Auto Send** — Submit to each AI without clicking Send in every tab. | **自动发送** — 无需在各标签页手动点击发送。 |
 | **New Chat** — Optionally start a new conversation on each platform. | **新对话** — 可选在各平台开启新对话。 |
 | **Minimal UI, keyboard-first** — Vercel-style design, `Ctrl+Enter` to send. | **极简拟物 UI** — 全键盘支持，Ctrl+Enter 发送。 |
 
 ## 🚀 Supported Platforms / 支持平台
 
-- ChatGPT (OpenAI)
-- Claude (Anthropic)
-- Gemini (Google)
-- Grok (xAI)
-- DeepSeek
-- Copilot (Microsoft)
-- Mistral
-- 豆包 Doubao (字节跳动)
-- 通义千问 Qianwen (阿里云)
-- Kimi (月之暗面)
+| Platform | 官网 / Official URL |
+|----------|---------------------|
+| ChatGPT (OpenAI) | chatgpt.com, chat.openai.com |
+| Claude (Anthropic) | claude.ai |
+| Gemini (Google) | gemini.google.com |
+| Grok (xAI) | grok.com |
+| DeepSeek | chat.deepseek.com |
+| 豆包 Doubao (字节跳动) | www.doubao.com |
+| 通义千问 Qianwen (阿里云) | www.qianwen.com, tongyi.aliyun.com |
+| Kimi (月之暗面) | kimi.moonshot.cn, kimi.ai |
 
 ---
 
@@ -69,10 +70,12 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 
 **Which files affect what** / **哪些修改会生效**
 
-- **Popup UI** (logo, styles, layout): edit `app/src/popup/Popup.jsx`, then run `npm run build` in `app/`, and reload the extension.
-  **弹窗界面**：改 `app/src/popup/Popup.jsx` 等，在 `app/` 下执行 `npm run build` 后到扩展管理页「重新加载」。
-- **Background, content script, manifest, icons**: edit `background.js`, `content.js`, `manifest.json`, `icons/` in the repo root; reload the extension to apply.
-  **后台 / 注入脚本、manifest、图标**：改根目录对应文件，保存后重载扩展即生效。
+| 模块 | 文件 | 生效方式 |
+|------|------|----------|
+| Popup UI | `app/src/popup/`, `app/src/components/ui/`, `app/src/index.css` | `cd app && npm run build` 后重载扩展 |
+| 后台 / 广播逻辑 | `background.js` | 保存后到 chrome://extensions 点击「重新加载」 |
+| 注入与平台适配 | `content.js` | 同上 |
+| 扩展配置与权限 | `manifest.json` | 同上 |
 
 See [app/docs/L3-EXTENSION-INTEGRATION.md](app/docs/L3-EXTENSION-INTEGRATION.md) for details. 详见该文档。
 

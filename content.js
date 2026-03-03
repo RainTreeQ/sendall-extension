@@ -348,6 +348,63 @@ if (!window.__aiBroadcastLoaded) {
     }
 
     // ── Platforms ────────────────────────────────────────────────────────────
+    const qianwenFindInput = () => waitFor(() => {
+      const input = document.querySelector('.chatTextarea-DVN_3Y div[contenteditable="true"][data-slate-editor="true"]') ||
+        document.querySelector('.chatInput-dXdYNh [contenteditable="true"]') ||
+        document.querySelector('.inputContainer-SHGMBo [contenteditable="true"]') ||
+        document.querySelector('div[contenteditable="true"][data-slate-editor="true"]');
+      return input || null;
+    });
+    const qianwenInject = async (el, text, options) => {
+      await closeQianwenTaskAssistant();
+      if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
+      const { logger } = options || {};
+      try {
+        if (await trySlateBeforeInput(el, text)) return { strategy: 'slate-beforeinput', fallbackUsed: false };
+      } catch (e) {
+        logger?.debug?.('slate-beforeinput-fail', { error: e?.message });
+      }
+      return setContentEditable(el, text, options);
+    };
+    const qianwenSend = async (el) => {
+      const container = el?.closest('.inputContainer-SHGMBo') || el?.closest('.functionArea-ZVlxpM') || el?.closest('.inputOutWrap-fg2bG9') || document;
+      let btn = await waitFor(() => {
+        const enabled = container.querySelector?.('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)') ||
+          document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)');
+        return enabled || null;
+      }, 3000, 40);
+      if (!btn) {
+        await closeQianwenTaskAssistant();
+        await sleep(120);
+        btn = await waitFor(() => document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)'), 2000, 40);
+      }
+      if (btn) btn.click();
+      else { el?.focus(); pressEnterOn(el); }
+    };
+
+    const kimiFindInput = () => waitFor(() =>
+      document.querySelector('textarea[placeholder]') ||
+      document.querySelector('div[contenteditable="true"][role="textbox"]') ||
+      document.querySelector('div[contenteditable="true"]') ||
+      document.querySelector('textarea')
+    );
+    const kimiInject = async (el, text, options) => {
+      if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
+      return setContentEditable(el, text, options);
+    };
+    const kimiSend = async (el) => {
+      const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
+      const inContainer = (sel) => container.querySelector && container.querySelector(sel);
+      const btn = await waitFor(() => {
+        const found = inContainer('button[type="submit"]') || inContainer('button[aria-label*="发送"]') ||
+          inContainer('button[aria-label*="Send"]') || inContainer('button') ||
+          document.querySelector('button[type="submit"]') || document.querySelector('button[aria-label*="发送"]');
+        return found && !found.disabled ? found : null;
+      }, 3500, 40);
+      if (btn) btn.click();
+      else { el?.focus(); pressEnterOn(el); }
+    };
+
     const platforms = {
       'chatgpt.com': {
         name: 'ChatGPT',
@@ -501,161 +558,25 @@ if (!window.__aiBroadcastLoaded) {
           return setContentEditable(el, text, options);
         },
         async send(el) {
-          const btn = await waitFor(() => {
-            const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
-            const inContainer = (sel) => container.querySelector && container.querySelector(sel);
-            const found = inContainer('button[type="submit"]') ||
-                          inContainer('button[aria-label*="发送"]') ||
-                          inContainer('button[aria-label*="Send"]') ||
-                          inContainer('button[data-testid*="send"]') ||
-                          inContainer('button') ||
-                          document.querySelector('button[type="submit"]') ||
-                          document.querySelector('button[aria-label*="发送"]') ||
-                          document.querySelector('button[aria-label*="Send"]');
-            return found && !found.disabled ? found : null;
-          }, 4000, 40);
+          const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
+          const inContainer = (sel) => container.querySelector && container.querySelector(sel);
+          const tryBtn = () => {
+            const c = inContainer('button[type="submit"]') || inContainer('button[aria-label*="发送"]') ||
+              inContainer('button[aria-label*="Send"]') || inContainer('button[data-testid*="send"]');
+            if (c && !c.disabled) return c;
+            const d = document.querySelector('button[type="submit"]') || document.querySelector('button[aria-label*="发送"]');
+            return d && !d.disabled ? d : null;
+          };
+          const btn = tryBtn() || await waitFor(tryBtn, 3000, 30);
           if (btn) btn.click();
           else { el?.focus(); pressEnterOn(el); }
         }
       },
 
-      'tongyi.aliyun.com': {
-        name: 'Qianwen',
-        findInput: () => waitFor(() => {
-          const input = document.querySelector('.chatTextarea-DVN_3Y div[contenteditable="true"][data-slate-editor="true"]') ||
-            document.querySelector('.chatInput-dXdYNh [contenteditable="true"]') ||
-            document.querySelector('.inputContainer-SHGMBo [contenteditable="true"]') ||
-            document.querySelector('div[contenteditable="true"][data-slate-editor="true"]');
-          return input || null;
-        }),
-        async inject(el, text, options) {
-          await closeQianwenTaskAssistant();
-          if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
-          const { logger } = options || {};
-          try {
-            if (await trySlateBeforeInput(el, text)) return { strategy: 'slate-beforeinput', fallbackUsed: false };
-          } catch (e) {
-            logger?.debug?.('slate-beforeinput-fail', { error: e?.message });
-          }
-          return setContentEditable(el, text, options);
-        },
-        async send(el) {
-          const container = el?.closest('.inputContainer-SHGMBo') || el?.closest('.functionArea-ZVlxpM') || el?.closest('.inputOutWrap-fg2bG9') || document;
-          let btn = await waitFor(() => {
-            const enabled = container.querySelector?.('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)') ||
-              document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)');
-            return enabled || null;
-          }, 3000, 40);
-          if (!btn) {
-            await closeQianwenTaskAssistant();
-            await sleep(150);
-            btn = await waitFor(() => {
-              const enabled = document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)');
-              return enabled || null;
-            }, 2000, 40);
-          }
-          if (btn) btn.click();
-          else { el?.focus(); pressEnterOn(el); }
-        }
-      },
-
-      'qianwen.com': {
-        name: 'Qianwen',
-        findInput: () => waitFor(() => {
-          const input = document.querySelector('.chatTextarea-DVN_3Y div[contenteditable="true"][data-slate-editor="true"]') ||
-            document.querySelector('.chatInput-dXdYNh [contenteditable="true"]') ||
-            document.querySelector('.inputContainer-SHGMBo [contenteditable="true"]') ||
-            document.querySelector('div[contenteditable="true"][data-slate-editor="true"]');
-          return input || null;
-        }),
-        async inject(el, text, options) {
-          await closeQianwenTaskAssistant();
-          if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
-          const { logger } = options || {};
-          try {
-            if (await trySlateBeforeInput(el, text)) return { strategy: 'slate-beforeinput', fallbackUsed: false };
-          } catch (e) {
-            logger?.debug?.('slate-beforeinput-fail', { error: e?.message });
-          }
-          return setContentEditable(el, text, options);
-        },
-        async send(el) {
-          const container = el?.closest('.inputContainer-SHGMBo') || el?.closest('.functionArea-ZVlxpM') || el?.closest('.inputOutWrap-fg2bG9') || document;
-          let btn = await waitFor(() => {
-            const enabled = container.querySelector?.('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)') ||
-              document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)');
-            return enabled || null;
-          }, 3000, 40);
-          if (!btn) {
-            await closeQianwenTaskAssistant();
-            await sleep(150);
-            btn = await waitFor(() => {
-              const enabled = document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)');
-              return enabled || null;
-            }, 2000, 40);
-          }
-          if (btn) btn.click();
-          else { el?.focus(); pressEnterOn(el); }
-        }
-      },
-
-      'moonshot.cn': {
-        name: 'Kimi',
-        findInput: () => waitFor(() =>
-          document.querySelector('textarea[placeholder]') ||
-          document.querySelector('div[contenteditable="true"][role="textbox"]') ||
-          document.querySelector('div[contenteditable="true"]') ||
-          document.querySelector('textarea')
-        ),
-        async inject(el, text, options) {
-          if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
-          return setContentEditable(el, text, options);
-        },
-        async send(el) {
-          const btn = await waitFor(() => {
-            const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
-            const inContainer = (sel) => container.querySelector && container.querySelector(sel);
-            const found = inContainer('button[type="submit"]') ||
-                          inContainer('button[aria-label*="发送"]') ||
-                          inContainer('button[aria-label*="Send"]') ||
-                          inContainer('button') ||
-                          document.querySelector('button[type="submit"]') ||
-                          document.querySelector('button[aria-label*="发送"]');
-            return found && !found.disabled ? found : null;
-          }, 4000, 40);
-          if (btn) btn.click();
-          else { el?.focus(); pressEnterOn(el); }
-        }
-      },
-
-      'kimi.ai': {
-        name: 'Kimi',
-        findInput: () => waitFor(() =>
-          document.querySelector('textarea[placeholder]') ||
-          document.querySelector('div[contenteditable="true"][role="textbox"]') ||
-          document.querySelector('div[contenteditable="true"]') ||
-          document.querySelector('textarea')
-        ),
-        async inject(el, text, options) {
-          if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
-          return setContentEditable(el, text, options);
-        },
-        async send(el) {
-          const btn = await waitFor(() => {
-            const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
-            const inContainer = (sel) => container.querySelector && container.querySelector(sel);
-            const found = inContainer('button[type="submit"]') ||
-                          inContainer('button[aria-label*="发送"]') ||
-                          inContainer('button[aria-label*="Send"]') ||
-                          inContainer('button') ||
-                          document.querySelector('button[type="submit"]') ||
-                          document.querySelector('button[aria-label*="发送"]');
-            return found && !found.disabled ? found : null;
-          }, 4000, 40);
-          if (btn) btn.click();
-          else { el?.focus(); pressEnterOn(el); }
-        }
-      }
+      'tongyi.aliyun.com': { name: 'Qianwen', findInput: qianwenFindInput, inject: qianwenInject, send: qianwenSend },
+      'qianwen.com': { name: 'Qianwen', findInput: qianwenFindInput, inject: qianwenInject, send: qianwenSend },
+      'moonshot.cn': { name: 'Kimi', findInput: kimiFindInput, inject: kimiInject, send: kimiSend },
+      'kimi.ai': { name: 'Kimi', findInput: kimiFindInput, inject: kimiInject, send: kimiSend }
     };
 
     function getPlatform() {
@@ -669,6 +590,33 @@ if (!window.__aiBroadcastLoaded) {
       if (message.type === 'PING') {
         const platform = getPlatform();
         sendResponse({ success: true, platform: platform ? platform.name : 'Unknown' });
+        return true;
+      }
+
+      if (message.type === 'SEND_NOW') {
+        const requestId = message.requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+        const debug = Boolean(message.debug);
+        const logger = createLogger(requestId, debug);
+        const platform = getPlatform();
+        if (!platform) {
+          sendResponse({ success: false, sendMs: 0 });
+          return true;
+        }
+        (async () => {
+          const t0 = now();
+          try {
+            const input = await platform.findInput();
+            if (!input) {
+              sendResponse({ success: false, sendMs: now() - t0 });
+              return;
+            }
+            await platform.send(input, { logger, debug });
+            sendResponse({ success: true, sendMs: now() - t0 });
+          } catch (e) {
+            logger.error('send-now-failure', { error: e?.message });
+            sendResponse({ success: false, sendMs: now() - t0 });
+          }
+        })();
         return true;
       }
 

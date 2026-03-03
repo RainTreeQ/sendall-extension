@@ -18,7 +18,7 @@
 ## 代码与设计约定
 
 - **设计系统**：所有 UI 必须使用设计系统语义色与组件（见 `app/src/index.css`、`app/src/components/ui/`）。禁止在页面或组件中硬编码色值；颜色使用语义 token（如 `background`、`primary`、`muted-foreground`），组件使用 `@/components/ui`。
-- **扩展逻辑**：`background.js`、`content.js` 保持纯 JS，与 Popup 通过 `chrome.runtime.sendMessage` 通信；消息协议见 `background.js`（`GET_AI_TABS`、`BROADCAST_MESSAGE`）。
+- **扩展逻辑**：`background.js`、`content.js` 保持纯 JS，与 Popup 通过 `chrome.runtime.sendMessage` 通信；消息协议见 `background.js`（`GET_AI_TABS`、`BROADCAST_MESSAGE`）。自动发送采用两阶段：先 `INJECT_MESSAGE`（autoSend: false）并行注入全部标签，再 `SEND_NOW` 并行触发发送。
 - **Lint**：在 `app` 目录运行 `npm run lint`，修复 ESLint 报错。
 
 ## 测试
