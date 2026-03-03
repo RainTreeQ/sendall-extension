@@ -33,7 +33,7 @@
 | DeepSeek | chat.deepseek.com |
 | 豆包 Doubao (字节跳动) | www.doubao.com |
 | 通义千问 Qianwen (阿里云) | www.qianwen.com, tongyi.aliyun.com |
-| Kimi (月之暗面) | kimi.moonshot.cn, kimi.ai |
+| Kimi (月之暗面) | kimi.com, kimi.moonshot.cn, kimi.ai |
 
 ---
 

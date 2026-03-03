@@ -576,7 +576,8 @@ if (!window.__aiBroadcastLoaded) {
       'tongyi.aliyun.com': { name: 'Qianwen', findInput: qianwenFindInput, inject: qianwenInject, send: qianwenSend },
       'qianwen.com': { name: 'Qianwen', findInput: qianwenFindInput, inject: qianwenInject, send: qianwenSend },
       'moonshot.cn': { name: 'Kimi', findInput: kimiFindInput, inject: kimiInject, send: kimiSend },
-      'kimi.ai': { name: 'Kimi', findInput: kimiFindInput, inject: kimiInject, send: kimiSend }
+      'kimi.ai': { name: 'Kimi', findInput: kimiFindInput, inject: kimiInject, send: kimiSend },
+      'kimi.com': { name: 'Kimi', findInput: kimiFindInput, inject: kimiInject, send: kimiSend }
     };
 
     function getPlatform() {

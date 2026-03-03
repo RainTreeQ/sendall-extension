@@ -55,6 +55,16 @@ const PLATFORMS = [
       'textarea',
     ],
   },
+  {
+    name: 'Kimi',
+    url: 'https://www.kimi.com/',
+    selectors: [
+      'textarea[placeholder]',
+      'div[contenteditable="true"][role="textbox"]',
+      'div[contenteditable="true"]',
+      'textarea',
+    ],
+  },
 ];
 
 async function checkSelectors(page, selectors) {

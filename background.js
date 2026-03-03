@@ -107,7 +107,8 @@ const AI_PATTERNS = [
   'tongyi.aliyun.com',
   'qianwen.com',
   'moonshot.cn',
-  'kimi.ai'
+  'kimi.ai',
+  'kimi.com'
 ];
 
 const PLATFORM_NAMES = {
@@ -123,7 +124,8 @@ const PLATFORM_NAMES = {
   'tongyi.aliyun.com': 'Qianwen',
   'qianwen.com': 'Qianwen',
   'moonshot.cn': 'Kimi',
-  'kimi.ai': 'Kimi'
+  'kimi.ai': 'Kimi',
+  'kimi.com': 'Kimi'
 };
 
 const GENERIC_TITLE_PATTERNS = {
@@ -150,7 +152,7 @@ const NEW_CHAT_URLS = {
   'Mistral':  null,
   'Doubao':   'https://www.doubao.com/chat',
   'Qianwen':  'https://www.qianwen.com/',
-  'Kimi':     'https://kimi.moonshot.cn/',
+  'Kimi':     'https://www.kimi.com/',
 };
 
 function getPlatformName(url) {
