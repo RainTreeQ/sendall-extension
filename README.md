@@ -1,8 +1,8 @@
 # SendAll
 
-**Broadcast one message to all AI chat windows at once.** A Chrome/Edge extension for power users who juggle ChatGPT, Claude, Gemini, and more.
+**Broadcast one message to all AI chat windows at once.** A Chrome/Edge extension for power users who juggle ChatGPT, Claude, Gemini, Grok, DeepSeek, Qianwen, Kimi, Doubao, and Mistral.
 
-**一键将同一条消息同步广播到所有 AI 会话窗口。** 专为重度 AI 用户与效率极客设计的浏览器扩展。
+**一键将同一条消息同步广播到所有 AI 会话窗口。** 支持 ChatGPT、Claude、Gemini、Grok、DeepSeek、千问、Kimi、豆包、Mistral，专为重度 AI 用户与效率极客设计。
 
 <!-- Use a fixed width to avoid GitHub scaling blur; source image is 1024px for Retina displays -->
 <img src="assets/hero-earth.png" alt="SendAll — Multi-screen Sync" width="800" />
@@ -18,6 +18,7 @@
 |--------|------|
 | **One input, sync everywhere** — Type once, send to all open AI tabs. | **多端同步输入** — 一次输入，自动分发给所有打开的 AI 助手。 |
 | **Simultaneous send** — Two-phase broadcast: inject to all tabs first, then trigger send at once. | **同步发送** — 两阶段广播：先注入全部标签，再统一触发发送，各平台近乎同时发出。 |
+| **Smart loading feedback** — Send button uses a soft timeout (~9s); if longer, UI exits loading and keeps progress in background. | **智能加载反馈** — 发送按钮采用软超时（约 9 秒）；超时后停止 loading，并在后台持续更新广播进度。 |
 | **Auto Send** — Submit to each AI without clicking Send in every tab. | **自动发送** — 无需在各标签页手动点击发送。 |
 | **New Chat** — Optionally start a new conversation on each platform. | **新对话** — 可选在各平台开启新对话。 |
 | **Minimal UI, keyboard-first** — Vercel-style design, `Ctrl+Enter` to send. | **极简拟物 UI** — 全键盘支持，Ctrl+Enter 发送。 |
@@ -31,6 +32,7 @@
 | Gemini (Google) | gemini.google.com |
 | Grok (xAI) | grok.com |
 | DeepSeek | chat.deepseek.com |
+| Mistral | chat.mistral.ai |
 | 豆包 Doubao (字节跳动) | www.doubao.com |
 | 通义千问 Qianwen (阿里云) | www.qianwen.com, tongyi.aliyun.com |
 | Kimi (月之暗面) | kimi.com, kimi.moonshot.cn, kimi.ai |
@@ -67,6 +69,17 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 
 ---
 
+## ⚠️ Behavior Notes / 行为说明
+
+- English: Some sites only expose the message input after login; if not logged in, detection may fail.
+- 中文：部分平台必须登录后才会出现输入框；未登录时可能出现“未检测到”。
+- English: The send button loading has a soft timeout (about 9 seconds). If exceeded, popup shows background-progress text and continues processing.
+- 中文：发送按钮 loading 有软超时（约 9 秒）。超过后会显示“后台处理中”提示，并继续广播流程。
+- English: Microsoft Copilot / Bing is intentionally out of scope in current versions.
+- 中文：当前版本明确不支持 Microsoft Copilot / Bing。
+
+---
+
 ## 📂 Development / 开发说明
 
 **Which files affect what** / **哪些修改会生效**
@@ -80,6 +93,12 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 | 扩展配置与权限 | `manifest.json` | 同上 |
 
 See [app/docs/L3-EXTENSION-INTEGRATION.md](app/docs/L3-EXTENSION-INTEGRATION.md) for details. 详见该文档。
+
+**Release checklist** / **发布前检查**
+
+- `npm run build`
+- `npm run test:popup`
+- `npm run release:stage`（确保 `app/dist/` 构建产物被纳入提交）
 
 ---
 

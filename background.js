@@ -9,6 +9,8 @@ function now() {
   return Date.now();
 }
 
+const BROADCAST_HARD_TIMEOUT_MS = 15000;
+
 function createLogger(scope, requestId, debug) {
   const prefix = `[AIB][${scope}][${requestId}]`;
   return {
@@ -101,7 +103,6 @@ const AI_PATTERNS = [
   'gemini.google.com',
   'grok.com',
   'deepseek.com',
-  'copilot.microsoft.com',
   'chat.mistral.ai',
   'doubao.com',
   'tongyi.aliyun.com',
@@ -118,7 +119,6 @@ const PLATFORM_NAMES = {
   'gemini.google.com': 'Gemini',
   'grok.com': 'Grok',
   'deepseek.com': 'DeepSeek',
-  'copilot.microsoft.com': 'Copilot',
   'chat.mistral.ai': 'Mistral',
   'doubao.com': 'Doubao',
   'tongyi.aliyun.com': 'Qianwen',
@@ -134,7 +134,6 @@ const GENERIC_TITLE_PATTERNS = {
   Gemini: [/^google gemini$/i, /^gemini$/i, /^new\s*chat$/i, /^gemini\s*[-–—|]/i, /[-–—|]\s*gemini$/i, /^gemini\s*[-–—|].*gemini$/i],
   Grok: [/^grok$/i, /^new chat$/i],
   DeepSeek: [/^deepseek$/i, /^new chat$/i],
-  Copilot: [/^microsoft copilot$/i, /^copilot$/i],
   Mistral: [/^mistral ai$/i, /^mistral$/i, /^new chat$/i],
   Doubao: [/^豆包$/i, /^doubao$/i, /^new chat$/i],
   Qianwen: [/^通义千问$/i, /^千问$/i, /^qianwen$/i, /^new chat$/i],
@@ -148,7 +147,6 @@ const NEW_CHAT_URLS = {
   'Gemini':   'https://gemini.google.com/app',
   'Grok':     'https://grok.com/',
   'DeepSeek': 'https://chat.deepseek.com/',
-  'Copilot':  null,
   'Mistral':  null,
   'Doubao':   'https://www.doubao.com/chat',
   'Qianwen':  'https://www.qianwen.com/',
@@ -294,7 +292,6 @@ async function probeConversationTitle(tabId, platformName) {
           Claude: ['nav a[aria-current="page"]', 'main h1'],
           Grok: ['nav a[aria-current="page"]', 'main h1'],
           DeepSeek: ['nav a[aria-current="page"]', 'main h1'],
-          Copilot: ['nav a[aria-current="page"]', 'main h1'],
           Mistral: ['nav a[aria-current="page"]', 'main h1'],
           Doubao: ['nav a[aria-current="page"]', 'main h1', 'header h1'],
           Qianwen: ['nav a[aria-current="page"]', 'main h1', 'header h1'],
@@ -455,14 +452,43 @@ async function broadcastToTabs(payload) {
   } = payload;
   const logger = createLogger('background', requestId, debug);
   const startedAt = now();
-  const results = [];
+  const totalTabs = tabIds.length;
+  const resultMap = new Map();
+  let completedCount = 0;
+  let successCount = 0;
+  let failCount = 0;
+  let finalized = false;
+
+  const emitProgress = (extra = {}) => {
+    chrome.runtime.sendMessage({
+      type: 'BROADCAST_PROGRESS',
+      requestId,
+      total: totalTabs,
+      completed: completedCount,
+      successCount,
+      failCount,
+      pendingCount: Math.max(0, totalTabs - completedCount),
+      ...extra
+    }).catch(() => {});
+  };
+
+  const recordResult = (tabId, result) => {
+    if (finalized || resultMap.has(tabId)) return;
+    resultMap.set(tabId, result);
+    completedCount += 1;
+    if (result.success) successCount += 1;
+    else failCount += 1;
+    emitProgress({ done: false, timedOut: false });
+  };
+
   logger.info('broadcast-start', {
-    tabCount: tabIds.length,
+    tabCount: totalTabs,
     autoSend,
     newChat,
     fastPathEnabled,
     queueDelayMs: Math.max(0, startedAt - clientTs)
   });
+  emitProgress({ done: false, timedOut: false });
 
   async function processTab(tabId) {
     const tabStartedAt = now();
@@ -536,31 +562,69 @@ async function broadcastToTabs(payload) {
     }
   }
 
-  const settled = await Promise.allSettled(tabIds.map(processTab));
-  for (let i = 0; i < settled.length; i++) {
-    const outcome = settled[i];
-    const res = outcome.status === 'fulfilled' ? outcome.value : {
-      tabId: tabIds[i],
-      success: false,
-      error: outcome.reason?.message || String(outcome.reason),
-      stage: 'inject',
-      strategy: 'n/a',
-      fallbackUsed: false,
-      timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: 0 }
-    };
-    results.push(res);
+  const tasks = tabIds.map((tabId) => (async () => {
+    try {
+      const res = await processTab(tabId);
+      recordResult(tabId, res);
+    } catch (err) {
+      recordResult(tabId, {
+        tabId,
+        success: false,
+        error: err?.message || String(err),
+        stage: 'inject',
+        strategy: 'n/a',
+        fallbackUsed: false,
+        timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: 0 }
+      });
+    }
+  })());
+
+  const raceResult = await Promise.race([
+    Promise.allSettled(tasks).then(() => 'done'),
+    sleep(BROADCAST_HARD_TIMEOUT_MS).then(() => 'timeout')
+  ]);
+  const timedOut = raceResult === 'timeout';
+  finalized = true;
+
+  if (timedOut) {
+    for (const tabId of tabIds) {
+      if (resultMap.has(tabId)) continue;
+      resultMap.set(tabId, {
+        tabId,
+        success: false,
+        error: '广播超时',
+        stage: 'timeout',
+        strategy: 'n/a',
+        fallbackUsed: false,
+        timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: BROADCAST_HARD_TIMEOUT_MS }
+      });
+      completedCount += 1;
+      failCount += 1;
+    }
   }
+  emitProgress({ done: true, timedOut });
+
+  const results = tabIds.map((tabId) => resultMap.get(tabId) || {
+    tabId,
+    success: false,
+    error: '未知错误',
+    stage: 'inject',
+    strategy: 'n/a',
+    fallbackUsed: false,
+    timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: 0 }
+  });
 
   const totalMs = now() - startedAt;
-  const successCount = results.filter(r => r.success).length;
-  const failCount = results.length - successCount;
+  const finalSuccessCount = results.filter(r => r.success).length;
+  const finalFailCount = results.length - finalSuccessCount;
   const p95TabMs = Math.round(percentile(results.map(r => r.timings?.totalMs || 0), 95));
   const summary = {
     requestId,
     totalMs,
     p95TabMs,
-    successCount,
-    failCount
+    successCount: finalSuccessCount,
+    failCount: finalFailCount,
+    timedOut
   };
   logger.info('broadcast-end', summary);
   return { results, summary };

@@ -10,8 +10,6 @@
     "https://chat.openai.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*",
-    "https://www.bing.com/*",
-    "https://copilot.microsoft.com/*",
     "https://chat.mistral.ai/*",
     "https://grok.com/*",
     "https://*.deepseek.com/*",

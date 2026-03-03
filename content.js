@@ -471,15 +471,63 @@ if (!window.__aiBroadcastLoaded) {
         ),
         inject: (el, text, options) => setGeminiInput(el, text, options),
         async send(el, options) {
-          await sleep(50);
+          const logger = options?.logger;
+          await sleep(80);
+          const before = normalizeText(getContent(el));
+
+          const keySend = async () => {
+            const target = el || document.activeElement;
+            if (!target) return false;
+
+            target.focus();
+            pressEnterOn(target);
+            await sleep(220);
+            let after = normalizeText(getContent(target));
+            if (!before || after !== before) return true;
+
+            target.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'Enter',
+              code: 'Enter',
+              keyCode: 13,
+              which: 13,
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              ctrlKey: true
+            }));
+            await sleep(220);
+            after = normalizeText(getContent(target));
+            if (!before || after !== before) return true;
+
+            target.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'Enter',
+              code: 'Enter',
+              keyCode: 13,
+              which: 13,
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              metaKey: true
+            }));
+            await sleep(220);
+            after = normalizeText(getContent(target));
+            return !before || after !== before;
+          };
+
           const btn = await waitFor(() => {
             for (const selector of [
               'button[aria-label="Send message"]',
               'button[aria-label="Send"]',
+              'button[aria-label*="发送"]',
+              'button[aria-label*="提交"]',
+              'button[aria-label="Submit"]',
+              'button[aria-label*="Submit"]',
               'button.send-button',
               'button[data-test-id="send-button"]',
+              'button[data-testid*="send"]',
               'button[mattooltip="Send message"]',
               'button[mattooltip="Send"]',
+              'button[mattooltip*="Submit"]',
               'button[jsname="Qx7uuf"]'
             ]) {
               const found = document.querySelector(selector);
@@ -490,17 +538,29 @@ if (!window.__aiBroadcastLoaded) {
                            || el?.closest('[role="complementary"]')?.parentElement;
             if (container) {
               for (const b of container.querySelectorAll('button:not([disabled])')) {
-                const hint = (b.getAttribute('aria-label') || b.getAttribute('mattooltip') || '').toLowerCase();
-                if (hint.includes('send')) return b;
+                const hint = `${b.getAttribute('aria-label') || ''} ${b.getAttribute('mattooltip') || ''} ${b.getAttribute('title') || ''}`.toLowerCase();
+                if (hint.includes('send') || hint.includes('submit') || hint.includes('发送') || hint.includes('提交')) return b;
               }
             }
             return null;
-          }, 5000, 50);
+          }, 6500, 50);
+
           if (btn) {
             btn.click();
+            if (!before) return true;
+            await sleep(220);
+            const afterClick = normalizeText(getContent(el));
+            if (afterClick !== before) return true;
+            logger?.debug('gemini-send-click-no-change');
           } else {
-            options.logger.debug('gemini-send-button-not-found', { hasInput: Boolean(el) });
+            logger?.debug('gemini-send-button-not-found', { hasInput: Boolean(el) });
           }
+
+          const keySendOk = await keySend();
+          if (keySendOk) return true;
+
+          logger?.debug('gemini-send-failed-after-key-fallback');
+          return false;
         }
       },
 
@@ -720,7 +780,11 @@ if (!window.__aiBroadcastLoaded) {
               sendResponse({ success: false, sendMs: now() - t0, error: '找不到输入框' });
               return;
             }
-            await platform.send(input, { logger, debug });
+            const sent = await platform.send(input, { logger, debug });
+            if (sent === false) {
+              sendResponse({ success: false, sendMs: now() - t0, error: '发送动作未执行' });
+              return;
+            }
             sendResponse({ success: true, sendMs: now() - t0 });
           } catch (e) {
             logger.error('send-now-failure', { error: e?.message });
@@ -762,6 +826,7 @@ if (!window.__aiBroadcastLoaded) {
           let stage = 'findInput';
           let strategy = 'n/a';
           let fallbackUsed = false;
+          let sent = false;
           const startedAt = now();
 
           logger.info('inject-start', {
@@ -794,7 +859,13 @@ if (!window.__aiBroadcastLoaded) {
             if (autoSend) {
               stage = 'send';
               const sendStartedAt = now();
-              await platform.send(input, { logger, debug });
+              const sendResult = await platform.send(input, { logger, debug, text });
+              if (sendResult === false) {
+                const sendErr = new Error('发送动作未执行');
+                sendErr.stage = 'send';
+                throw sendErr;
+              }
+              sent = true;
               timings.sendMs = now() - sendStartedAt;
             }
 
@@ -808,7 +879,7 @@ if (!window.__aiBroadcastLoaded) {
             sendResponse({
               success: true,
               platform: platform.name,
-              sent: autoSend,
+              sent,
               timings,
               strategy,
               fallbackUsed

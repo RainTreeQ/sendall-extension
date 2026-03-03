@@ -69,4 +69,4 @@ function Badge({ className, variant = "default", style, asChild = false, ...prop
   )
 }
 
-export { Badge, badgeVariants }
+export { Badge }

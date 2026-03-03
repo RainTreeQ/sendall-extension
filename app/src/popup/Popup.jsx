@@ -34,13 +34,14 @@ const PLATFORM_STYLES = {
   Gemini: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
   Grok: "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
   DeepSeek: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/25 dark:text-indigo-300",
-  Copilot: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-400",
   Mistral: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
   Doubao: "bg-zinc-200 text-zinc-800 dark:bg-zinc-500/20 dark:text-zinc-300",
   Qianwen: "bg-violet-100 text-violet-700 dark:bg-violet-500/25 dark:text-violet-300",
   Kimi: "bg-zinc-200 text-zinc-800 dark:bg-zinc-500/20 dark:text-zinc-300",
   Unknown: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
 }
+
+const SEND_LOADING_SOFT_TIMEOUT_MS = 9000
 
 export default function Popup() {
   const [aiTabs, setAiTabs] = useState([])
@@ -53,6 +54,7 @@ export default function Popup() {
   const [sending, setSending] = useState(false)
   const [refreshSpinning, setRefreshSpinning] = useState(false)
   const messageInputRef = useRef(null)
+  const activeRequestIdRef = useRef(null)
 
   const selectedSet = new Set(selectedTabIds)
   const hasSelection = selectedTabIds.length > 0
@@ -75,7 +77,7 @@ export default function Popup() {
     function isExtensionContextValid() {
       try {
         return typeof chrome !== 'undefined' && chrome.runtime?.id
-      } catch (_) {
+      } catch {
         return false
       }
     }
@@ -84,7 +86,9 @@ export default function Popup() {
         clearInterval(t)
         try {
           window.close()
-        } catch (_) {}
+        } catch {
+          // noop
+        }
       }
     }, 500)
     return () => clearInterval(t)
@@ -139,6 +143,33 @@ export default function Popup() {
 
   const clearStatus = useCallback(() => setStatuses([]), [])
 
+  const setProgressStatus = useCallback((completed, total, ok, fail, pending) => {
+    setStatuses([{
+      message: t('broadcast_progress_line', [String(completed), String(total), String(ok), String(fail), String(pending)]),
+      type: 'pending',
+    }])
+  }, [])
+
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.runtime?.onMessage) return
+
+    const handleProgress = (message) => {
+      if (!message || message.type !== 'BROADCAST_PROGRESS') return false
+      if (!activeRequestIdRef.current || message.requestId !== activeRequestIdRef.current) return false
+
+      const total = Number(message.total) || 0
+      const completed = Number(message.completed) || 0
+      const ok = Number(message.successCount) || 0
+      const fail = Number(message.failCount) || 0
+      const pending = Number(message.pendingCount) || Math.max(0, total - completed)
+      setProgressStatus(completed, total, ok, fail, pending)
+      return false
+    }
+
+    chrome.runtime.onMessage.addListener(handleProgress)
+    return () => chrome.runtime.onMessage.removeListener(handleProgress)
+  }, [setProgressStatus])
+
   const handleSend = useCallback(async () => {
     const text = messageText.trim()
     if (!text || selectedTabIds.length === 0) return
@@ -150,24 +181,16 @@ export default function Popup() {
     const clientTs = Date.now()
     const runtimeFlags = await chrome.storage.local.get(['debugLogs'])
     const debug = Boolean(runtimeFlags?.debugLogs)
+    activeRequestIdRef.current = requestId
 
-    addStatus(t('broadcasting_to_n', [String(tabIds.length)]), 'pending')
+    setProgressStatus(0, tabIds.length, 0, 0, tabIds.length)
 
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'BROADCAST_MESSAGE',
-        text,
-        autoSend,
-        newChat,
-        tabIds,
-        requestId,
-        clientTs,
-        debug,
-      })
+    const finishWithResponse = (response) => {
+      if (activeRequestIdRef.current !== requestId) return
 
       clearStatus()
-      const results = response.results || []
-      const summary = response.summary || {
+      const results = response?.results || []
+      const summary = response?.summary || {
         requestId,
         totalMs: 0,
         p95TabMs: 0,
@@ -191,20 +214,58 @@ export default function Popup() {
       if (successCount === results.length && results.length > 0) {
         setMessageText('')
         if (messageInputRef.current) messageInputRef.current.value = ''
-        // 新建窗口后同步刷新会话列表标题（给新页面一点时间更新 DOM 标题）
         if (newChat) {
           setTimeout(() => loadTabs(), 800)
         }
       }
 
       console.log(`[AIB][popup][${summary.requestId}] summary`, summary)
-    } catch (err) {
-      clearStatus()
-      addStatus(t('status_failed_simple', [String(err?.message || t('unknown'))]), 'error')
-    } finally {
+      activeRequestIdRef.current = null
       setSending(false)
     }
-  }, [messageText, selectedTabIds, autoSend, newChat, aiTabs, addStatus, clearStatus, loadTabs])
+
+    const finishWithError = (err) => {
+      if (activeRequestIdRef.current !== requestId) return
+      clearStatus()
+      addStatus(t('status_failed_simple', [String(err?.message || t('unknown'))]), 'error')
+      activeRequestIdRef.current = null
+      setSending(false)
+    }
+
+    try {
+      const responsePromise = chrome.runtime.sendMessage({
+        type: 'BROADCAST_MESSAGE',
+        text,
+        autoSend,
+        newChat,
+        tabIds,
+        requestId,
+        clientTs,
+        debug,
+      })
+      const softTimeoutToken = Symbol('soft-timeout')
+      const raced = await Promise.race([
+        responsePromise,
+        new Promise((resolve) => setTimeout(() => resolve(softTimeoutToken), SEND_LOADING_SOFT_TIMEOUT_MS)),
+      ])
+
+      if (raced === softTimeoutToken) {
+        if (activeRequestIdRef.current === requestId) {
+          setSending(false)
+          setStatuses([{
+            message: t('broadcast_continues_background', [String(tabIds.length)]),
+            type: 'pending',
+          }])
+        }
+        responsePromise.then(finishWithResponse).catch(finishWithError)
+        return
+      }
+
+      finishWithResponse(raced)
+    } catch (err) {
+      finishWithError(err)
+    }
+  }, [messageText, selectedTabIds, autoSend, newChat, aiTabs, addStatus, clearStatus, loadTabs, setProgressStatus])
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -316,12 +377,12 @@ export default function Popup() {
               {statuses.map((s, i) => (
                 <div
                   key={i}
-                  className={`flex items-center gap-2 text-[11px] font-medium tracking-wide animate-in fade-in slide-in-from-bottom-1 duration-300 ${
-                    s.type === 'success' ? 'text-emerald-500' : s.type === 'error' ? 'text-red-500' : 'text-gray-400 dark:text-zinc-500'
-                  }`}
+                  className="flex items-center gap-2 text-[11px] font-medium tracking-wide text-gray-400 dark:text-zinc-500 animate-in fade-in slide-in-from-bottom-1 duration-300"
                 >
                   <span
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full bg-current ${s.type === 'pending' || s.type === 'success' ? 'animate-pulse' : ''}`}
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                      s.type === 'success' ? 'bg-emerald-500' : s.type === 'error' ? 'bg-red-500' : 'bg-gray-400 dark:bg-zinc-500'
+                    } ${s.type === 'pending' || s.type === 'success' ? 'animate-pulse' : ''}`}
                   />
                   <span>{s.message}</span>
                 </div>

@@ -105,7 +105,6 @@
     --plat-gemini-bg: oklch(0.75 0.12 250); --plat-gemini-fg: oklch(0.45 0.15 250);
     --plat-grok-bg: oklch(0.92 0.01 0); --plat-grok-fg: oklch(0.25 0.02 0);
     --plat-deepseek-bg: oklch(0.80 0.10 260); --plat-deepseek-fg: oklch(0.46 0.13 260);
-    --plat-copilot-bg: oklch(0.75 0.1 250); --plat-copilot-fg: oklch(0.5 0.12 250);
     --plat-mistral-bg: oklch(0.82 0.08 25); --plat-mistral-fg: oklch(0.5 0.12 25);
     --plat-doubao-bg: oklch(0.20 0.01 260); --plat-doubao-fg: oklch(0.98 0 0);
     --plat-qianwen-bg: oklch(0.89 0.07 305); --plat-qianwen-fg: oklch(0.46 0.14 305);
@@ -118,7 +117,6 @@
     --plat-gemini-bg: oklch(0.32 0.1 250); --plat-gemini-fg: oklch(0.7 0.12 250);
     --plat-grok-bg: oklch(0.28 0.02 0); --plat-grok-fg: oklch(0.85 0.02 0);
     --plat-deepseek-bg: oklch(0.35 0.08 260); --plat-deepseek-fg: oklch(0.78 0.10 260);
-    --plat-copilot-bg: oklch(0.32 0.08 250); --plat-copilot-fg: oklch(0.65 0.12 250);
     --plat-mistral-bg: oklch(0.35 0.06 25); --plat-mistral-fg: oklch(0.78 0.1 25);
     --plat-doubao-bg: oklch(0.18 0.01 260); --plat-doubao-fg: oklch(0.98 0 0);
     --plat-qianwen-bg: oklch(0.37 0.09 305); --plat-qianwen-fg: oklch(0.86 0.09 305);
@@ -133,7 +131,6 @@
   .platform-badge.platform-Gemini { background: var(--plat-gemini-bg); color: var(--plat-gemini-fg); }
   .platform-badge.platform-Grok { background: var(--plat-grok-bg); color: var(--plat-grok-fg); }
   .platform-badge.platform-DeepSeek { background: var(--plat-deepseek-bg); color: var(--plat-deepseek-fg); }
-  .platform-badge.platform-Copilot { background: var(--plat-copilot-bg); color: var(--plat-copilot-fg); }
   .platform-badge.platform-Mistral { background: var(--plat-mistral-bg); color: var(--plat-mistral-fg); }
   .platform-badge.platform-Doubao { background: var(--plat-doubao-bg); color: var(--plat-doubao-fg); }
   .platform-badge.platform-Qianwen { background: var(--plat-qianwen-bg); color: var(--plat-qianwen-fg); }
