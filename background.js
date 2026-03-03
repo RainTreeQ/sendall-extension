@@ -102,7 +102,12 @@ const AI_PATTERNS = [
   'grok.com',
   'deepseek.com',
   'copilot.microsoft.com',
-  'chat.mistral.ai'
+  'chat.mistral.ai',
+  'doubao.com',
+  'tongyi.aliyun.com',
+  'qianwen.com',
+  'moonshot.cn',
+  'kimi.ai'
 ];
 
 const PLATFORM_NAMES = {
@@ -113,7 +118,12 @@ const PLATFORM_NAMES = {
   'grok.com': 'Grok',
   'deepseek.com': 'DeepSeek',
   'copilot.microsoft.com': 'Copilot',
-  'chat.mistral.ai': 'Mistral'
+  'chat.mistral.ai': 'Mistral',
+  'doubao.com': 'Doubao',
+  'tongyi.aliyun.com': 'Qianwen',
+  'qianwen.com': 'Qianwen',
+  'moonshot.cn': 'Kimi',
+  'kimi.ai': 'Kimi'
 };
 
 const GENERIC_TITLE_PATTERNS = {
@@ -123,7 +133,10 @@ const GENERIC_TITLE_PATTERNS = {
   Grok: [/^grok$/i, /^new chat$/i],
   DeepSeek: [/^deepseek$/i, /^new chat$/i],
   Copilot: [/^microsoft copilot$/i, /^copilot$/i],
-  Mistral: [/^mistral ai$/i, /^mistral$/i, /^new chat$/i]
+  Mistral: [/^mistral ai$/i, /^mistral$/i, /^new chat$/i],
+  Doubao: [/^豆包$/i, /^doubao$/i, /^new chat$/i],
+  Qianwen: [/^通义千问$/i, /^千问$/i, /^qianwen$/i, /^new chat$/i],
+  Kimi: [/^kimi$/i, /^new chat$/i]
 };
 
 // New chat URLs per platform
@@ -132,9 +145,12 @@ const NEW_CHAT_URLS = {
   'Claude':   'https://claude.ai/new',
   'Gemini':   'https://gemini.google.com/app',
   'Grok':     'https://grok.com/',
-  'DeepSeek': null,
+  'DeepSeek': 'https://chat.deepseek.com/',
   'Copilot':  null,
   'Mistral':  null,
+  'Doubao':   'https://www.doubao.com/chat',
+  'Qianwen':  'https://www.qianwen.com/',
+  'Kimi':     'https://kimi.moonshot.cn/',
 };
 
 function getPlatformName(url) {
@@ -190,7 +206,10 @@ async function probeConversationTitle(tabId, platformName) {
           ChatGPT: [/\s*[-–—|]\s*chatgpt\s*$/i, /^chatgpt\s*[-–—|]\s*/i],
           Claude: [/\s*[-–—|]\s*claude\s*$/i, /^claude\s*[-–—|]\s*/i],
           Grok: [/\s*[-–—|]\s*grok\s*$/i, /^grok\s*[-–—|]\s*/i],
-          DeepSeek: [/\s*[-–—|]\s*deepseek\s*$/i, /^deepseek\s*[-–—|]\s*/i]
+          DeepSeek: [/\s*[-–—|]\s*deepseek\s*$/i, /^deepseek\s*[-–—|]\s*/i],
+          Doubao: [/\s*[-–—|]\s*豆包\s*$/i, /^豆包\s*[-–—|]\s*/i, /\s*[-–—|]\s*doubao\s*$/i, /^doubao\s*[-–—|]\s*/i],
+          Qianwen: [/\s*[-–—|]\s*千问\s*$/i, /^千问\s*[-–—|]\s*/i, /\s*[-–—|]\s*通义\s*$/i, /^通义\s*[-–—|]\s*/i],
+          Kimi: [/\s*[-–—|]\s*kimi\s*$/i, /^kimi\s*[-–—|]\s*/i]
         };
         const genericGemini = /^(?:google\s*)?gemini$|^new\s*chat$/i;
 
@@ -273,7 +292,10 @@ async function probeConversationTitle(tabId, platformName) {
           Grok: ['nav a[aria-current="page"]', 'main h1'],
           DeepSeek: ['nav a[aria-current="page"]', 'main h1'],
           Copilot: ['nav a[aria-current="page"]', 'main h1'],
-          Mistral: ['nav a[aria-current="page"]', 'main h1']
+          Mistral: ['nav a[aria-current="page"]', 'main h1'],
+          Doubao: ['nav a[aria-current="page"]', 'main h1', 'header h1'],
+          Qianwen: ['nav a[aria-current="page"]', 'main h1', 'header h1'],
+          Kimi: ['nav a[aria-current="page"]', 'main h1', 'header h1']
         };
         const platformSelectors = selectorMap[platform] || ['main h1', 'header h1'];
         const byDom = pick(platformSelectors);

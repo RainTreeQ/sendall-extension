@@ -30,7 +30,7 @@ if (!window.__aiBroadcastLoaded) {
       };
     }
 
-    async function waitFor(fn, timeout = 6000, interval = 80) {
+    async function waitFor(fn, timeout = 6000, interval = 50) {
       const deadline = now() + timeout;
       while (now() < deadline) {
         try {
@@ -108,7 +108,7 @@ if (!window.__aiBroadcastLoaded) {
 
     async function tryInsertText(el, text) {
       el.focus();
-      await sleep(16);
+      await sleep(12);
       document.execCommand('selectAll', false, null);
       document.execCommand('delete', false, null);
       const ok = document.execCommand('insertText', false, text);
@@ -126,7 +126,7 @@ if (!window.__aiBroadcastLoaded) {
     async function tryClipboardPaste(el, text) {
       await navigator.clipboard.writeText(text);
       el.focus();
-      await sleep(16);
+      await sleep(12);
       document.execCommand('selectAll', false, null);
       document.execCommand('delete', false, null);
       document.execCommand('paste');
@@ -135,7 +135,7 @@ if (!window.__aiBroadcastLoaded) {
 
     async function tryDataTransferPaste(el, text) {
       el.focus();
-      await sleep(16);
+      await sleep(12);
       document.execCommand('selectAll', false, null);
       document.execCommand('delete', false, null);
       const dt = new DataTransfer();
@@ -154,6 +154,37 @@ if (!window.__aiBroadcastLoaded) {
       p.textContent = text;
       el.appendChild(p);
       el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      return verifyContent(el, text);
+    }
+
+    /** Slate editor: dispatch beforeinput insertText so React state updates. */
+    async function trySlateBeforeInput(el, text) {
+      el.focus();
+      await sleep(20);
+      const sel = window.getSelection();
+      if (sel && el.childNodes.length > 0) {
+        try {
+          sel.selectAllChildren(el);
+          el.dispatchEvent(new InputEvent('beforeinput', {
+            inputType: 'deleteContentBackward',
+            bubbles: true,
+            cancelable: true
+          }));
+          await sleep(10);
+        } catch (_) {}
+      }
+      const chunkSize = text.length > 30 ? 3 : 1;
+      for (let i = 0; i < text.length; i += chunkSize) {
+        const chunk = text.slice(i, i + chunkSize);
+        el.dispatchEvent(new InputEvent('beforeinput', {
+          inputType: 'insertText',
+          data: chunk,
+          bubbles: true,
+          cancelable: true
+        }));
+        await sleep(chunkSize > 1 ? 2 : 1);
+      }
+      el.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true }));
       return verifyContent(el, text);
     }
 
@@ -233,7 +264,7 @@ if (!window.__aiBroadcastLoaded) {
       const { logger } = options;
 
       el.focus();
-      await sleep(50);
+      await sleep(40);
 
       const richTextarea = el.closest('rich-textarea') || el.parentElement;
       const quill = richTextarea?.__quill || el.__quill;
@@ -251,12 +282,12 @@ if (!window.__aiBroadcastLoaded) {
         }
         quill.setSelection(text.length, 0);
         notifyGeminiFramework(el, text);
-        await sleep(40);
+        await sleep(30);
         if (await verifyContentStrict(el, text, 300, 30)) {
           return { strategy: 'gemini-quill', fallbackUsed: false };
         }
         quill.setText('');
-        await sleep(20);
+        await sleep(16);
       }
 
       document.execCommand('selectAll', false, null);
@@ -286,6 +317,19 @@ if (!window.__aiBroadcastLoaded) {
 
       logger.debug('gemini-inject-failed-after-fallbacks');
       throw new Error('Gemini 输入注入失败');
+    }
+
+    async function closeQianwenTaskAssistant() {
+      const tag = document.querySelector('.tagBtn-OADWVI.selected-OsA38F') ||
+        document.querySelector('.operateLine-jbfAd6 .tagBtn-OADWVI.selected-OsA38F');
+      if (tag && tag.textContent && tag.textContent.includes('任务助理')) {
+        const closeIcon = tag.querySelector('[data-icon-type="qwpcicon-close2"]');
+        const target = closeIcon || tag;
+        target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+        target.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+        target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        await sleep(120);
+      }
     }
 
     // ── Enter — only keydown, no keypress/keyup ─────────────────────────────
@@ -370,7 +414,7 @@ if (!window.__aiBroadcastLoaded) {
         ),
         inject: (el, text, options) => setGeminiInput(el, text, options),
         async send(el, options) {
-          await sleep(60);
+          await sleep(50);
           const btn = await waitFor(() => {
             for (const selector of [
               'button[aria-label="Send message"]',
@@ -433,14 +477,183 @@ if (!window.__aiBroadcastLoaded) {
           document.querySelector('textarea')
         ),
         inject: (el, text) => Promise.resolve(setReactValue(el, text)),
-        async send() {
+        async send(el) {
           const btn = await waitFor(() => {
             const found = document.querySelector('button[type="submit"]') ||
-                          document.querySelector('[aria-label*="send"]');
+                          document.querySelector('[aria-label*="send"]') ||
+                          document.querySelector('[aria-label*="Send"]');
             return found && !found.disabled ? found : null;
           }, 2000, 40);
           if (btn) btn.click();
-          else pressEnterOn(null);
+          else { el?.focus(); pressEnterOn(el); }
+        }
+      },
+
+      'doubao.com': {
+        name: 'Doubao',
+        findInput: () => waitFor(() =>
+          document.querySelector('textarea[placeholder]') ||
+          document.querySelector('div[contenteditable="true"]') ||
+          document.querySelector('textarea')
+        ),
+        async inject(el, text, options) {
+          if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
+          return setContentEditable(el, text, options);
+        },
+        async send(el) {
+          const btn = await waitFor(() => {
+            const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
+            const inContainer = (sel) => container.querySelector && container.querySelector(sel);
+            const found = inContainer('button[type="submit"]') ||
+                          inContainer('button[aria-label*="发送"]') ||
+                          inContainer('button[aria-label*="Send"]') ||
+                          inContainer('button[data-testid*="send"]') ||
+                          inContainer('button') ||
+                          document.querySelector('button[type="submit"]') ||
+                          document.querySelector('button[aria-label*="发送"]') ||
+                          document.querySelector('button[aria-label*="Send"]');
+            return found && !found.disabled ? found : null;
+          }, 4000, 40);
+          if (btn) btn.click();
+          else { el?.focus(); pressEnterOn(el); }
+        }
+      },
+
+      'tongyi.aliyun.com': {
+        name: 'Qianwen',
+        findInput: () => waitFor(() => {
+          const input = document.querySelector('.chatTextarea-DVN_3Y div[contenteditable="true"][data-slate-editor="true"]') ||
+            document.querySelector('.chatInput-dXdYNh [contenteditable="true"]') ||
+            document.querySelector('.inputContainer-SHGMBo [contenteditable="true"]') ||
+            document.querySelector('div[contenteditable="true"][data-slate-editor="true"]');
+          return input || null;
+        }),
+        async inject(el, text, options) {
+          await closeQianwenTaskAssistant();
+          if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
+          const { logger } = options || {};
+          try {
+            if (await trySlateBeforeInput(el, text)) return { strategy: 'slate-beforeinput', fallbackUsed: false };
+          } catch (e) {
+            logger?.debug?.('slate-beforeinput-fail', { error: e?.message });
+          }
+          return setContentEditable(el, text, options);
+        },
+        async send(el) {
+          const container = el?.closest('.inputContainer-SHGMBo') || el?.closest('.functionArea-ZVlxpM') || el?.closest('.inputOutWrap-fg2bG9') || document;
+          let btn = await waitFor(() => {
+            const enabled = container.querySelector?.('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)') ||
+              document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)');
+            return enabled || null;
+          }, 3000, 40);
+          if (!btn) {
+            await closeQianwenTaskAssistant();
+            await sleep(150);
+            btn = await waitFor(() => {
+              const enabled = document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)');
+              return enabled || null;
+            }, 2000, 40);
+          }
+          if (btn) btn.click();
+          else { el?.focus(); pressEnterOn(el); }
+        }
+      },
+
+      'qianwen.com': {
+        name: 'Qianwen',
+        findInput: () => waitFor(() => {
+          const input = document.querySelector('.chatTextarea-DVN_3Y div[contenteditable="true"][data-slate-editor="true"]') ||
+            document.querySelector('.chatInput-dXdYNh [contenteditable="true"]') ||
+            document.querySelector('.inputContainer-SHGMBo [contenteditable="true"]') ||
+            document.querySelector('div[contenteditable="true"][data-slate-editor="true"]');
+          return input || null;
+        }),
+        async inject(el, text, options) {
+          await closeQianwenTaskAssistant();
+          if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
+          const { logger } = options || {};
+          try {
+            if (await trySlateBeforeInput(el, text)) return { strategy: 'slate-beforeinput', fallbackUsed: false };
+          } catch (e) {
+            logger?.debug?.('slate-beforeinput-fail', { error: e?.message });
+          }
+          return setContentEditable(el, text, options);
+        },
+        async send(el) {
+          const container = el?.closest('.inputContainer-SHGMBo') || el?.closest('.functionArea-ZVlxpM') || el?.closest('.inputOutWrap-fg2bG9') || document;
+          let btn = await waitFor(() => {
+            const enabled = container.querySelector?.('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)') ||
+              document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)');
+            return enabled || null;
+          }, 3000, 40);
+          if (!btn) {
+            await closeQianwenTaskAssistant();
+            await sleep(150);
+            btn = await waitFor(() => {
+              const enabled = document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)');
+              return enabled || null;
+            }, 2000, 40);
+          }
+          if (btn) btn.click();
+          else { el?.focus(); pressEnterOn(el); }
+        }
+      },
+
+      'moonshot.cn': {
+        name: 'Kimi',
+        findInput: () => waitFor(() =>
+          document.querySelector('textarea[placeholder]') ||
+          document.querySelector('div[contenteditable="true"][role="textbox"]') ||
+          document.querySelector('div[contenteditable="true"]') ||
+          document.querySelector('textarea')
+        ),
+        async inject(el, text, options) {
+          if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
+          return setContentEditable(el, text, options);
+        },
+        async send(el) {
+          const btn = await waitFor(() => {
+            const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
+            const inContainer = (sel) => container.querySelector && container.querySelector(sel);
+            const found = inContainer('button[type="submit"]') ||
+                          inContainer('button[aria-label*="发送"]') ||
+                          inContainer('button[aria-label*="Send"]') ||
+                          inContainer('button') ||
+                          document.querySelector('button[type="submit"]') ||
+                          document.querySelector('button[aria-label*="发送"]');
+            return found && !found.disabled ? found : null;
+          }, 4000, 40);
+          if (btn) btn.click();
+          else { el?.focus(); pressEnterOn(el); }
+        }
+      },
+
+      'kimi.ai': {
+        name: 'Kimi',
+        findInput: () => waitFor(() =>
+          document.querySelector('textarea[placeholder]') ||
+          document.querySelector('div[contenteditable="true"][role="textbox"]') ||
+          document.querySelector('div[contenteditable="true"]') ||
+          document.querySelector('textarea')
+        ),
+        async inject(el, text, options) {
+          if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
+          return setContentEditable(el, text, options);
+        },
+        async send(el) {
+          const btn = await waitFor(() => {
+            const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
+            const inContainer = (sel) => container.querySelector && container.querySelector(sel);
+            const found = inContainer('button[type="submit"]') ||
+                          inContainer('button[aria-label*="发送"]') ||
+                          inContainer('button[aria-label*="Send"]') ||
+                          inContainer('button') ||
+                          document.querySelector('button[type="submit"]') ||
+                          document.querySelector('button[aria-label*="发送"]');
+            return found && !found.disabled ? found : null;
+          }, 4000, 40);
+          if (btn) btn.click();
+          else { el?.focus(); pressEnterOn(el); }
         }
       }
     };

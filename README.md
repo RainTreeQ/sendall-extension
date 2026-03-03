@@ -28,6 +28,11 @@
 - Gemini (Google)
 - Grok (xAI)
 - DeepSeek
+- Copilot (Microsoft)
+- Mistral
+- 豆包 Doubao (字节跳动)
+- 通义千问 Qianwen (阿里云)
+- Kimi (月之暗面)
 
 ---
 
