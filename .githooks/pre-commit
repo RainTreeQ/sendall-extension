@@ -6,3 +6,9 @@ npm run build
 
 echo "[pre-commit] Staging app/dist output..."
 git add -A app/dist
+
+echo "[pre-commit] Auto-updating version + README..."
+node scripts/precommit-automation.mjs
+
+echo "[pre-commit] Staging metadata files..."
+git add README.md manifest.json package.json app/package.json

@@ -41,6 +41,9 @@ const PLATFORM_STYLES = {
 }
 
 const SEND_LOADING_SOFT_TIMEOUT_MS = 9000
+const DRAFT_STORAGE_KEY = 'popupDraft'
+const DRAFT_LOCAL_STORAGE_KEY = 'popupDraftLocal'
+const DRAFT_SAVE_DEBOUNCE_MS = 400
 const CONTEXT_ERROR_PATTERNS = [
   'Extension context invalidated',
   'Could not establish connection. Receiving end does not exist.',
@@ -75,6 +78,29 @@ function closePopupSafely() {
   }, 50)
 }
 
+function readDraftFromLocalStorage() {
+  try {
+    if (!window.localStorage) return null
+    const value = window.localStorage.getItem(DRAFT_LOCAL_STORAGE_KEY)
+    return typeof value === 'string' ? value : null
+  } catch {
+    return null
+  }
+}
+
+function writeDraftToLocalStorage(value) {
+  try {
+    if (!window.localStorage) return
+    if (value && value.length > 0) {
+      window.localStorage.setItem(DRAFT_LOCAL_STORAGE_KEY, value)
+    } else {
+      window.localStorage.removeItem(DRAFT_LOCAL_STORAGE_KEY)
+    }
+  } catch {
+    // noop
+  }
+}
+
 export default function Popup() {
   const [aiTabs, setAiTabs] = useState([])
   const [selectedTabIds, setSelectedTabIds] = useState([])
@@ -87,6 +113,9 @@ export default function Popup() {
   const [refreshSpinning, setRefreshSpinning] = useState(false)
   const messageInputRef = useRef(null)
   const activeRequestIdRef = useRef(null)
+  const draftHydratedRef = useRef(false)
+  const draftSaveTimerRef = useRef(null)
+  const latestMessageRef = useRef('')
 
   const selectedSet = new Set(selectedTabIds)
   const hasSelection = selectedTabIds.length > 0
@@ -101,14 +130,120 @@ export default function Popup() {
     return true
   }, [])
 
-  // Load saved preferences
-  useEffect(() => {
+  const persistDraftToStorage = useCallback(async (draftText) => {
     if (typeof chrome === 'undefined' || !chrome.storage?.local) return
-    chrome.storage.local.get(['autoSend', 'newChat'], (data) => {
-      if (data.autoSend) setAutoSend(true)
-      if (data.newChat) setNewChat(true)
-    })
+    try {
+      await chrome.storage.local.set({ [DRAFT_STORAGE_KEY]: draftText })
+    } catch (error) {
+      if (!isRuntimeContextError(error) && isExtensionContextValid()) {
+        console.warn('Draft storage sync failed:', error)
+      }
+    }
   }, [])
+
+  const clearDraftEverywhere = useCallback(async () => {
+    writeDraftToLocalStorage('')
+    if (typeof chrome === 'undefined' || !chrome.storage?.local) return
+    try {
+      await chrome.storage.local.remove(DRAFT_STORAGE_KEY)
+    } catch (error) {
+      if (!isRuntimeContextError(error) && isExtensionContextValid()) {
+        console.warn('Draft clear failed:', error)
+      }
+    }
+  }, [])
+
+  // Load saved preferences + draft
+  useEffect(() => {
+    let cancelled = false
+    const localDraft = readDraftFromLocalStorage()
+    const hasLocalDraft = localDraft !== null
+    if (hasLocalDraft) {
+      latestMessageRef.current = localDraft
+      setMessageText(localDraft)
+    }
+
+    ;(async () => {
+      if (typeof chrome === 'undefined' || !chrome.storage?.local) {
+        draftHydratedRef.current = true
+        return
+      }
+      try {
+        const data = await chrome.storage.local.get(['autoSend', 'newChat', DRAFT_STORAGE_KEY])
+        if (cancelled) return
+        if (data.autoSend) setAutoSend(true)
+        if (data.newChat) setNewChat(true)
+
+        const storageDraft = typeof data[DRAFT_STORAGE_KEY] === 'string' ? data[DRAFT_STORAGE_KEY] : ''
+        if (!hasLocalDraft && storageDraft.length > 0) {
+          latestMessageRef.current = storageDraft
+          setMessageText(storageDraft)
+          writeDraftToLocalStorage(storageDraft)
+        }
+      } catch (error) {
+        if (cancelled) return
+        if (!handleContextLoss(error)) {
+          console.error('Error loading popup preferences:', error)
+        }
+      } finally {
+        draftHydratedRef.current = true
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [handleContextLoss])
+
+  useEffect(() => {
+    latestMessageRef.current = messageText
+    if (!draftHydratedRef.current) return
+
+    writeDraftToLocalStorage(messageText)
+    if (draftSaveTimerRef.current) {
+      clearTimeout(draftSaveTimerRef.current)
+      draftSaveTimerRef.current = null
+    }
+    draftSaveTimerRef.current = setTimeout(() => {
+      draftSaveTimerRef.current = null
+      void persistDraftToStorage(messageText)
+    }, DRAFT_SAVE_DEBOUNCE_MS)
+
+    return () => {
+      if (draftSaveTimerRef.current) {
+        clearTimeout(draftSaveTimerRef.current)
+        draftSaveTimerRef.current = null
+      }
+    }
+  }, [messageText, persistDraftToStorage])
+
+  useEffect(() => {
+    const flushDraftNow = () => {
+      if (!draftHydratedRef.current) return
+      if (draftSaveTimerRef.current) {
+        clearTimeout(draftSaveTimerRef.current)
+        draftSaveTimerRef.current = null
+      }
+      const latestDraft = latestMessageRef.current
+      writeDraftToLocalStorage(latestDraft)
+      void persistDraftToStorage(latestDraft)
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushDraftNow()
+    }
+
+    window.addEventListener('beforeunload', flushDraftNow)
+    window.addEventListener('pagehide', flushDraftNow)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('beforeunload', flushDraftNow)
+      window.removeEventListener('pagehide', flushDraftNow)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      flushDraftNow()
+    }
+  }, [persistDraftToStorage])
 
   // When extension is uninstalled/disabled while popup is open, close popup to avoid orphaned blank frame
   useEffect(() => {
@@ -241,7 +376,13 @@ export default function Popup() {
       })
 
       if (successCount === results.length && results.length > 0) {
+        if (draftSaveTimerRef.current) {
+          clearTimeout(draftSaveTimerRef.current)
+          draftSaveTimerRef.current = null
+        }
+        latestMessageRef.current = ''
         setMessageText('')
+        void clearDraftEverywhere()
         if (messageInputRef.current) messageInputRef.current.value = ''
         if (newChat) {
           setTimeout(() => loadTabs(), 800)
@@ -310,7 +451,7 @@ export default function Popup() {
     } catch (err) {
       finishWithError(err)
     }
-  }, [messageText, selectedTabIds, autoSend, newChat, aiTabs, addStatus, clearStatus, loadTabs, setProgressStatus, handleContextLoss])
+  }, [messageText, selectedTabIds, autoSend, newChat, aiTabs, addStatus, clearStatus, loadTabs, setProgressStatus, handleContextLoss, clearDraftEverywhere])
 
   const handleKeyDown = useCallback(
     (e) => {

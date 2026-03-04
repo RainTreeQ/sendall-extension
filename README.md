@@ -23,6 +23,13 @@
 | **New Chat** — Optionally start a new conversation on each platform. | **新对话** — 可选在各平台开启新对话。 |
 | **Minimal UI, keyboard-first** — Vercel-style design, `Ctrl+Enter` to send. | **极简拟物 UI** — 全键盘支持，Ctrl+Enter 发送。 |
 
+## 🔄 Recent Updates / 自动更新
+
+<!-- AUTO_README_UPDATES_START -->
+- 2026-03-04 10:11 | v1.9.0 (MINOR) | Core / Popup UI / Manifest/Permissions / Tooling | `.githooks/pre-commit`, `app/src/popup/Popup.jsx`, `manifest.json`, `package.json`, `scripts/precommit-automation.mjs` <!-- auto:3de90e0794dd -->
+<!-- AUTO_README_UPDATES_END -->
+
+---
 ## 🚀 Supported Platforms / 支持平台
 
 | Platform | 官网 / Official URL |
