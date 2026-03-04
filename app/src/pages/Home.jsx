@@ -5,7 +5,7 @@ import { Hero } from "@/components/layout/Hero";
  */
 export function Home() {
   return (
-    <main className="min-h-[calc(100vh-8rem)]">
+    <main id="main-content" className="min-h-[calc(100vh-8rem)]">
       <Hero />
     </main>
   );

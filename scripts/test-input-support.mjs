@@ -57,6 +57,17 @@ const PLATFORMS = [
     ],
   },
   {
+    name: 'Qianwen',
+    url: 'https://www.qianwen.com/',
+    selectors: [
+      '.chatTextarea-DVN_3Y div[contenteditable="true"][data-slate-editor="true"]',
+      '.chatInput-dXdYNh [contenteditable="true"]',
+      '.inputContainer-SHGMBo [contenteditable="true"]',
+      'div[contenteditable="true"][data-slate-editor="true"]',
+      'div[contenteditable="true"][role="textbox"]',
+    ],
+  },
+  {
     name: 'Kimi',
     url: 'https://www.kimi.com/',
     selectors: [

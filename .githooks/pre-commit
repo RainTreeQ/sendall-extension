@@ -4,8 +4,20 @@ set -e
 echo "[pre-commit] Building extension bundle..."
 npm run build
 
+echo "[pre-commit] Capturing popup screenshot..."
+npm run capture:screenshot
+
 echo "[pre-commit] Staging app/dist output..."
 git add -A app/dist
+
+echo "[pre-commit] Staging screenshot assets..."
+git add \
+  assets/screenshot.png \
+  assets/screenshot-light.png \
+  assets/screenshot-dark.png \
+  app/public/screenshot.png \
+  app/public/screenshot-light.png \
+  app/public/screenshot-dark.png
 
 echo "[pre-commit] Auto-updating version + README..."
 node scripts/precommit-automation.mjs

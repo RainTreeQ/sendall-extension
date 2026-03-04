@@ -144,7 +144,7 @@ if (!window.__aiBroadcastLoaded) {
       document.execCommand('delete', false, null);
       const ok = document.execCommand('insertText', false, text);
       const verified = await verifyContent(el, text);
-      if (verified && ok) {
+      if (verified) {
         el.dispatchEvent(new InputEvent('input', {
           bubbles: true,
           inputType: 'insertText',
@@ -380,20 +380,80 @@ if (!window.__aiBroadcastLoaded) {
 
     // ── Platforms ────────────────────────────────────────────────────────────
     const qianwenFindInput = () => waitFor(() => {
-      const input = document.querySelector('.chatTextarea-DVN_3Y div[contenteditable="true"][data-slate-editor="true"]') ||
-        document.querySelector('.chatInput-dXdYNh [contenteditable="true"]') ||
-        document.querySelector('.inputContainer-SHGMBo [contenteditable="true"]') ||
-        document.querySelector('div[contenteditable="true"][data-slate-editor="true"]');
-      return input || null;
+      const candidates = [
+        ...document.querySelectorAll('.chatTextarea-DVN_3Y div[contenteditable="true"][data-slate-editor="true"]'),
+        ...document.querySelectorAll('.chatInput-dXdYNh [contenteditable="true"]'),
+        ...document.querySelectorAll('.inputContainer-SHGMBo [contenteditable="true"]'),
+        ...document.querySelectorAll('div[contenteditable="true"][data-slate-editor="true"]'),
+        ...document.querySelectorAll('div[contenteditable="true"][role="textbox"]')
+      ];
+
+      if (!candidates.length) return null;
+
+      const unique = [];
+      const seen = new Set();
+      for (const candidate of candidates) {
+        if (!candidate || seen.has(candidate)) continue;
+        seen.add(candidate);
+        unique.push(candidate);
+      }
+
+      const isVisible = (node) => {
+        if (!node) return false;
+        const style = window.getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+        const rect = node.getBoundingClientRect();
+        return rect.width > 120 && rect.height > 20 && rect.bottom > 0;
+      };
+
+      const scoreInput = (node) => {
+        if (!node || !isVisible(node)) return -1;
+        if (node.getAttribute('contenteditable') !== 'true') return -1;
+        if (node.getAttribute('aria-disabled') === 'true') return -1;
+
+        const rect = node.getBoundingClientRect();
+        const role = (node.getAttribute('role') || '').toLowerCase();
+        const hasSlate = node.getAttribute('data-slate-editor') === 'true';
+        const container = node.closest('.inputContainer-SHGMBo') || node.closest('.chatInput-dXdYNh') || node.closest('.chatTextarea-DVN_3Y');
+        const root = container || document;
+        const sendButton = root.querySelector?.('.operateBtn-JsB9e2:not(.disabled-ZaDDJC), button[type="submit"]:not([disabled]), button[aria-label*="发送"]:not([disabled]), button[aria-label*="Send"]:not([disabled])') ||
+          document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC), button[type="submit"]:not([disabled]), button[aria-label*="发送"]:not([disabled]), button[aria-label*="Send"]:not([disabled])');
+
+        let score = 0;
+        if (hasSlate) score += 8;
+        if (role === 'textbox') score += 4;
+        if (container) score += 5;
+        if (sendButton) score += 5;
+        if (rect.top > 0 && rect.top < window.innerHeight) score += 2;
+        if (rect.bottom > window.innerHeight * 0.45) score += 2;
+        score += Math.min(4, Math.round(rect.width / 300));
+        return score;
+      };
+
+      let best = null;
+      let bestScore = -1;
+      for (const candidate of unique) {
+        const score = scoreInput(candidate);
+        if (score > bestScore) {
+          bestScore = score;
+          best = candidate;
+        }
+      }
+
+      return bestScore >= 0 ? best : null;
     });
     const qianwenInject = async (el, text, options) => {
       await closeQianwenTaskAssistant();
       if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
       const { logger } = options || {};
-      try {
-        if (await trySlateBeforeInput(el, text)) return { strategy: 'slate-beforeinput', fallbackUsed: false };
-      } catch (e) {
-        logger?.debug?.('slate-beforeinput-fail', { error: e?.message });
+      const isSlate = el.getAttribute('data-slate-editor') === 'true' || Boolean(el.closest('[data-slate-editor="true"]'));
+      if (isSlate) {
+        return runStrategies(el, [
+          { name: 'slate-insertText', fallbackUsed: false, run: () => tryInsertText(el, text) },
+          { name: 'slate-beforeinput', fallbackUsed: true, run: () => trySlateBeforeInput(el, text) },
+          { name: 'slate-clipboard-paste', fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
+          { name: 'slate-datatransfer-paste', fallbackUsed: true, run: () => tryDataTransferPaste(el, text) }
+        ], logger);
       }
       return setContentEditable(el, text, options);
     };

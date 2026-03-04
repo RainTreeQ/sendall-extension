@@ -1,11 +1,12 @@
 {
   "name": "ai-broadcast-extension",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
     "prepare": "npm run hooks:install",
     "build": "npm run build --prefix app",
+    "capture:screenshot": "node scripts/capture-popup-screenshot.mjs",
     "build:icons": "node scripts/build-icons.mjs",
     "hooks:install": "git config --local core.hooksPath .githooks",
     "release:stage": "npm run build && git add -A app/dist && git status --short -- app/dist",

@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-04 17:56 | v2.2.0 (MINOR) | Core / UI Components / Content Script / Tooling | `.githooks/pre-commit`, `app/src/App.jsx`, `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx`, `app/src/index.css`, +8 <!-- auto:2becda24e69a -->
 - 2026-03-04 10:39 | v2.1.0 (MINOR) | Core / UI Components | `app/package.json`, `app/src/App.jsx`, `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx`, `app/src/components/ui/badge.jsx`, +7 <!-- auto:9ea54d0811b3 -->
 - 2026-03-04 10:11 | v1.9.0 (MINOR) | Core / Popup UI / Manifest/Permissions / Tooling | `.githooks/pre-commit`, `app/src/popup/Popup.jsx`, `manifest.json`, `package.json`, `scripts/precommit-automation.mjs` <!-- auto:3de90e0794dd -->
 <!-- AUTO_README_UPDATES_END -->
@@ -85,6 +86,20 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 - 中文：发送按钮 loading 有软超时（约 9 秒）。超过后会显示“后台处理中”提示，并继续广播流程。
 - English: Microsoft Copilot / Bing is intentionally out of scope in current versions.
 - 中文：当前版本明确不支持 Microsoft Copilot / Bing。
+
+---
+
+## 🌐 Website Pages / 网站页面
+
+| 页面 | 路径 | 用途 |
+|------|------|------|
+| Landing Page / 落地页 | `/` | 对外线上页面，展示功能价值、安装入口、收费与支持信息 |
+| Design System / 设计系统 | `/design-system` | 项目内部页面，用于组件规范与视觉对齐，不作为营销落地页 |
+
+本地预览命令：
+
+- `npm run dev --prefix app`
+- 打开 `http://localhost:5173/`（落地页）或 `http://localhost:5173/design-system`（设计系统）
 
 ---
 

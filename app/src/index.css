@@ -89,29 +89,31 @@
   }
 
   :root {
-    --plat-gpt-bg: oklch(0.2100 0.0048 247.9); --plat-gpt-fg: oklch(0.9850 0 0);
-    --plat-claude-bg: oklch(0.8700 0.0420 64.2); --plat-claude-fg: oklch(0.4120 0.0730 64.4);
-    --plat-gemini-bg: oklch(0.8520 0.0390 250.6); --plat-gemini-fg: oklch(0.4300 0.0770 250.4);
-    --plat-grok-bg: oklch(0.9250 0.0020 247.9); --plat-grok-fg: oklch(0.2920 0.0052 247.9);
-    --plat-deepseek-bg: oklch(0.8440 0.0500 272.7); --plat-deepseek-fg: oklch(0.4380 0.0890 272.4);
-    --plat-mistral-bg: oklch(0.8680 0.0410 49.0); --plat-mistral-fg: oklch(0.4240 0.0750 49.8);
-    --plat-doubao-bg: oklch(0.2100 0.0048 247.9); --plat-doubao-fg: oklch(0.9850 0 0);
-    --plat-qianwen-bg: oklch(0.9020 0.0360 313.5); --plat-qianwen-fg: oklch(0.4460 0.0910 313.2);
-    --plat-kimi-bg: oklch(0.2100 0.0048 247.9); --plat-kimi-fg: oklch(0.9850 0 0);
-    --plat-unknown-bg: oklch(0.9020 0.0020 247.9); --plat-unknown-fg: oklch(0.5150 0.0055 247.9);
+    /* Match popup PLATFORM_STYLES (light mode) */
+    --plat-gpt-bg: #e4e4e7; --plat-gpt-fg: #27272a;
+    --plat-claude-bg: #ffedd5; --plat-claude-fg: #c2410c;
+    --plat-gemini-bg: #dbeafe; --plat-gemini-fg: #1d4ed8;
+    --plat-grok-bg: #e5e7eb; --plat-grok-fg: #1f2937;
+    --plat-deepseek-bg: #e0e7ff; --plat-deepseek-fg: #4338ca;
+    --plat-mistral-bg: #fef3c7; --plat-mistral-fg: #b45309;
+    --plat-doubao-bg: #e4e4e7; --plat-doubao-fg: #27272a;
+    --plat-qianwen-bg: #ede9fe; --plat-qianwen-fg: #6d28d9;
+    --plat-kimi-bg: #e4e4e7; --plat-kimi-fg: #27272a;
+    --plat-unknown-bg: #f3f4f6; --plat-unknown-fg: #4b5563;
   }
 
   .dark {
-    --plat-gpt-bg: oklch(0.2820 0.0054 247.9); --plat-gpt-fg: oklch(0.9700 0 0);
-    --plat-claude-bg: oklch(0.3820 0.0540 64.3); --plat-claude-fg: oklch(0.8250 0.0630 64.2);
-    --plat-gemini-bg: oklch(0.3700 0.0580 250.4); --plat-gemini-fg: oklch(0.8120 0.0690 250.1);
-    --plat-grok-bg: oklch(0.3140 0.0062 247.9); --plat-grok-fg: oklch(0.8420 0.0041 247.9);
-    --plat-deepseek-bg: oklch(0.3900 0.0700 272.2); --plat-deepseek-fg: oklch(0.8220 0.0760 272.2);
-    --plat-mistral-bg: oklch(0.3940 0.0580 48.8); --plat-mistral-fg: oklch(0.8200 0.0700 49.3);
-    --plat-doubao-bg: oklch(0.2820 0.0054 247.9); --plat-doubao-fg: oklch(0.9700 0 0);
-    --plat-qianwen-bg: oklch(0.4060 0.0790 313.5); --plat-qianwen-fg: oklch(0.8480 0.0810 313.4);
-    --plat-kimi-bg: oklch(0.2820 0.0054 247.9); --plat-kimi-fg: oklch(0.9700 0 0);
-    --plat-unknown-bg: oklch(0.3220 0.0065 247.9); --plat-unknown-fg: oklch(0.7020 0.0064 247.9);
+    /* Match popup PLATFORM_STYLES (dark mode) */
+    --plat-gpt-bg: rgb(113 113 122 / 0.2); --plat-gpt-fg: #d4d4d8;
+    --plat-claude-bg: rgb(249 115 22 / 0.2); --plat-claude-fg: #fb923c;
+    --plat-gemini-bg: rgb(59 130 246 / 0.2); --plat-gemini-fg: #60a5fa;
+    --plat-grok-bg: #374151; --plat-grok-fg: #d1d5db;
+    --plat-deepseek-bg: rgb(99 102 241 / 0.25); --plat-deepseek-fg: #a5b4fc;
+    --plat-mistral-bg: rgb(245 158 11 / 0.2); --plat-mistral-fg: #fbbf24;
+    --plat-doubao-bg: rgb(113 113 122 / 0.2); --plat-doubao-fg: #d4d4d8;
+    --plat-qianwen-bg: rgb(139 92 246 / 0.25); --plat-qianwen-fg: #c4b5fd;
+    --plat-kimi-bg: rgb(113 113 122 / 0.2); --plat-kimi-fg: #d4d4d8;
+    --plat-unknown-bg: #1f2937; --plat-unknown-fg: #9ca3af;
   }
 }
 
