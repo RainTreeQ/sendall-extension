@@ -1,4 +1,4 @@
-// 广发 - Background Service Worker v4
+// Sendol - Background Service Worker v4
 
 try {
   importScripts('shared/platform-registry.js');
@@ -250,7 +250,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (Object.keys(patch).length > 0) {
     await chrome.storage.local.set(patch);
   }
-  console.log('广发 extension installed');
+  console.log('Sendol extension installed');
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

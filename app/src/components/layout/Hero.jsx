@@ -10,7 +10,7 @@ const COPY = {
     title1: "一次输入，",
     title2: "同时对比不同 AI 的回答",
     subtitle:
-      "SendAll 帮你把多个 AI 输入聚合在一个弹窗中。只需输入一次，即可一键多发，同时支持自动发送与开启新对话。",
+      "Sendol 帮你把多个 AI 输入聚合在一个弹窗中。只需输入一次，即可一键多发，同时支持自动发送与开启新对话。",
     ctaPricing: "查看收费方案",
     ctaSupport: "支持项目",
     ctaInstall: "安装与使用指南",
@@ -19,7 +19,7 @@ const COPY = {
     statDraft: "草稿保护",
     statModeValue: "手动/自动/新对话",
     statDraftValue: "意外关闭自动恢复",
-    popupScreenshotAlt: "SendAll 扩展弹窗演示",
+    popupScreenshotAlt: "Sendol 扩展弹窗演示",
     featureTitle: "核心功能",
     featureDesc: "化繁为简：输入、勾选、发送，就这么简单。",
     featureOneTitle: "一次输入，多端同步",
@@ -67,7 +67,7 @@ const COPY = {
     title1: "Type Once,",
     title2: "Ask Every AI Instantly",
     subtitle:
-      "SendAll brings your favorite AI tabs into one unified popup. Write your prompt once and broadcast it everywhere, with optional auto-send and new chat features.",
+      "Sendol brings your favorite AI tabs into one unified popup. Write your prompt once and broadcast it everywhere, with optional auto-send and new chat features.",
     ctaPricing: "View Pricing",
     ctaSupport: "Support the Creator",
     ctaInstall: "Install Guide",
@@ -76,7 +76,7 @@ const COPY = {
     statDraft: "Draft Protection",
     statModeValue: "Manual/Auto/New",
     statDraftValue: "Auto-restores on close",
-    popupScreenshotAlt: "SendAll extension popup interface",
+    popupScreenshotAlt: "Sendol extension popup interface",
     featureTitle: "Core Features",
     featureDesc: "Keeping it beautifully simple: write, select, and send.",
     featureOneTitle: "One Prompt, Multiple AI",
@@ -216,7 +216,7 @@ export function Hero() {
                 </a>
               </Button>
               <Button asChild variant="ghost" size="lg">
-                <a href="https://github.com/RainTreeQ/sendall-extension#-installation--安装" target="_blank" rel="noreferrer">
+                <a href="https://github.com/RainTreeQ/sendol-extension#-installation--安装" target="_blank" rel="noreferrer">
                   {copy.ctaInstall}
                   <ArrowUpRight className="h-4 w-4" />
                 </a>
@@ -314,7 +314,7 @@ export function Hero() {
                 <p>{copy.communityBody1}</p>
                 <p>{copy.communityBody2}</p>
                 <Button asChild variant="outline" className="mt-3 w-full">
-                  <a href="https://github.com/RainTreeQ/sendall-extension" target="_blank" rel="noreferrer">{copy.communityBtn}</a>
+                  <a href="https://github.com/RainTreeQ/sendol-extension" target="_blank" rel="noreferrer">{copy.communityBtn}</a>
                 </Button>
               </CardContent>
             </Card>
@@ -329,7 +329,7 @@ export function Hero() {
                 <p>{copy.proBody1}</p>
                 <p>{copy.proBody2}</p>
                 <Button asChild className="mt-3 w-full">
-                  <a href="https://github.com/RainTreeQ/sendall-extension/issues" target="_blank" rel="noreferrer">{copy.proBtn}</a>
+                  <a href="https://github.com/RainTreeQ/sendol-extension/issues" target="_blank" rel="noreferrer">{copy.proBtn}</a>
                 </Button>
               </CardContent>
             </Card>
@@ -375,7 +375,7 @@ export function Hero() {
                 <p>{copy.supportCtaBody2}</p>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button asChild size="sm">
-                    <a href="https://github.com/RainTreeQ/sendall-extension#-installation--安装" target="_blank" rel="noreferrer">
+                    <a href="https://github.com/RainTreeQ/sendol-extension#-installation--安装" target="_blank" rel="noreferrer">
                       {copy.ctaInstall}
                       <ArrowUpRight className="h-4 w-4" />
                     </a>

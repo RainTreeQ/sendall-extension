@@ -1,14 +1,14 @@
-# SendAll
+# Sendol
 
 **Broadcast one message to all AI chat windows at once.** A Chrome/Edge extension for power users who juggle ChatGPT, Claude, Gemini, Grok, DeepSeek, Qianwen, Kimi, Doubao, and Mistral.
 
 **一键将同一条消息同步广播到所有 AI 会话窗口。** 支持 ChatGPT、Claude、Gemini、Grok、DeepSeek、千问、Kimi、豆包、Mistral，专为重度 AI 用户与效率极客设计。
 
 <!-- Use a fixed width to avoid GitHub scaling blur; source image is 1024px for Retina displays -->
-<img src="assets/hero-earth.png" alt="SendAll — Multi-screen Sync" width="800" />
+<img src="assets/hero-earth.png" alt="Sendol — Multi-screen Sync" width="800" />
 
 <!-- Keep screenshot width fixed to reduce GitHub compression blur -->
-<img src="assets/screenshot.png" alt="SendAll popup — ChatGPT / Claude / Gemini multi-tab sync" width="800" />
+<img src="assets/screenshot.png" alt="Sendol popup — ChatGPT / Claude / Gemini multi-tab sync" width="800" />
 
 ---
 
@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-05 17:59 | v2.4.0 (MINOR) | Core / i18n / Background / Content Script / Tooling | `.vscode/extensions.json`, `_locales/en/messages.json`, `_locales/zh_CN/messages.json`, `app/design-system.html`, `app/index.html`, `app/popup.html`, +10 <!-- auto:9093ccbf19c3 -->
 - 2026-03-05 16:03 | v2.3.0 (MINOR) | Core / UI Components / Popup UI / Background / Content Script / Manifest/Permissions / Tooling | `.githooks/pre-commit`, `.gitignore`, `app/.gitignore`, `app/design-system.html`, `app/package.json`, `app/src/App.jsx`, +23 <!-- auto:19378aadd9b5 -->
 - 2026-03-04 17:56 | v2.2.0 (MINOR) | Core / UI Components / Content Script / Tooling | `.githooks/pre-commit`, `app/src/App.jsx`, `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx`, `app/src/index.css`, +8 <!-- auto:2becda24e69a -->
 - 2026-03-04 10:39 | v2.1.0 (MINOR) | Core / UI Components | `app/package.json`, `app/src/App.jsx`, `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx`, `app/src/components/ui/badge.jsx`, +7 <!-- auto:9ea54d0811b3 -->
@@ -58,7 +59,7 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 
 1. **Get the code** / **获取代码**
    - Click **Code** → **Download ZIP**, then unzip.
-   - 或 Git 克隆：`git clone https://github.com/RainTreeQ/sendall-extension.git`
+   - 或 Git 克隆：`git clone https://github.com/RainTreeQ/sendol-extension.git`
 2. **Open extensions** / **打开扩展页面**
    - Chrome: `chrome://extensions/`
    - Edge: `edge://extensions/`
@@ -72,7 +73,7 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 | Step | English | 中文 |
 |------|--------|------|
 | 1 | Open the AI sites you need (e.g. ChatGPT, Claude, Gemini) in separate tabs. | 在浏览器中打开需要使用的 AI 平台页面。 |
-| 2 | Click the **SendAll** icon in the toolbar. | 点击浏览器右上角的 广发 图标。 |
+| 2 | Click the **Sendol** icon in the toolbar. | 点击浏览器右上角的 Sendol 图标。 |
 | 3 | The extension scans and lists all detected AI tabs. | 插件会自动扫描并列出当前支持的 AI 窗口。 |
 | 4 | Type your message in the input box. | 在输入框内输入内容。 |
 | 5 | (Optional) Enable **Auto Send** and/or **New Chat**. | （可选）勾选「自动发送」「新对话」。 |

@@ -72,7 +72,7 @@ async function main() {
   await page.goto(`${base}/popup.html`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(800);
 
-  const header = page.getByText(/SendAll|广发/).first();
+  const header = page.locator('header span', { hasText: 'Sendol' }).first();
   await header.waitFor({ state: 'visible', timeout: 5000 });
 
   const textarea = page.locator('textarea').first();

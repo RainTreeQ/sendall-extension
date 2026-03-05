@@ -1,4 +1,4 @@
-# Contributing to SendAll
+# Contributing to Sendol
 
 感谢你对本项目的关注。贡献前请先本地验证扩展行为；若改动 `app/` 下的 React 页面，再额外执行构建验证。
 

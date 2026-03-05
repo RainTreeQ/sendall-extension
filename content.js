@@ -1,4 +1,4 @@
-// 广发 - Content Script v7
+// Sendol - Content Script v7
 // Faster input path, structured timings, and guarded fallbacks
 
 if (!window.__aiBroadcastLoaded) {
@@ -50,7 +50,7 @@ if (!window.__aiBroadcastLoaded) {
       return null;
     }
 
-    async function waitForCheck(check, timeout = 120, interval = 20) {
+    async function waitForCheck(check, timeout = 280, interval = 25) {
       const deadline = now() + timeout;
       while (now() < deadline) {
         try {
@@ -146,7 +146,7 @@ if (!window.__aiBroadcastLoaded) {
       return actual.includes(expected) || expected.includes(actual);
     }
 
-    async function verifyContent(el, text, timeout = 120, interval = 20) {
+    async function verifyContent(el, text, timeout = 280, interval = 25) {
       return waitForCheck(() => contentLooksInjected(el, text), timeout, interval);
     }
 
@@ -162,16 +162,29 @@ if (!window.__aiBroadcastLoaded) {
       const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
       if (setter) setter.call(el, value);
       else el.value = value;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
+      // Invalidate React's internal value tracker so it detects the change
+      const tracker = el._valueTracker;
+      if (tracker) tracker.setValue('');
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
       return { strategy: 'react-value', fallbackUsed: false };
     }
 
     async function tryInsertText(el, text) {
       el.focus();
-      await sleep(12);
+      await sleep(16);
+      // Clear existing content
       document.execCommand('selectAll', false, null);
       document.execCommand('delete', false, null);
+      await sleep(8);
+      // Dispatch beforeinput so modern editors (Lexical, ProseMirror) can intercept
+      el.dispatchEvent(new InputEvent('beforeinput', {
+        inputType: 'insertText',
+        data: text,
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }));
       document.execCommand('insertText', false, text);
       const verified = await verifyContent(el, text);
       if (verified) {

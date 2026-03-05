@@ -1,15 +1,15 @@
 {
   "extName": {
-    "message": "SendAll"
+    "message": "Sendol"
   },
   "extDescription": {
     "message": "Type once, broadcast to all split-screen AI agents (ChatGPT, Claude, Gemini, etc.)"
   },
   "actionTitle": {
-    "message": "SendAll"
+    "message": "Sendol"
   },
   "popup_title": {
-    "message": "SendAll"
+    "message": "Sendol"
   },
   "refresh": {
     "message": "Refresh"

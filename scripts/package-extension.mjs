@@ -185,7 +185,7 @@ function main() {
   const lines = entries.map((entry) => `${entry.bytes.toString().padStart(7, ' ')}  ${entry.path}`)
   writeFileSync(fileListPath, lines.join('\n') + '\n', 'utf8')
 
-  const zipPath = join(RELEASE_DIR, `sendall-extension-v${manifest.version}.zip`)
+  const zipPath = join(RELEASE_DIR, `sendol-extension-v${manifest.version}.zip`)
   try {
     rmSync(zipPath, { force: true })
     execFileSync('zip', ['-rq', zipPath, '.'], { cwd: PACKAGE_DIR, stdio: 'ignore' })

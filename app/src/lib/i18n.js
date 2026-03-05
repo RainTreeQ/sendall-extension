@@ -1,6 +1,6 @@
 const FALLBACK_MESSAGES = {
   en: {
-    popup_title: 'SendAll',
+    popup_title: 'Sendol',
     refresh: 'Refresh',
     active_sessions: 'Available AI Tabs',
     select_all: 'Select All',
@@ -35,7 +35,7 @@ const FALLBACK_MESSAGES = {
     tab_n: 'Tab $1',
   },
   zh_CN: {
-    popup_title: 'SendAll',
+    popup_title: 'Sendol',
     refresh: '刷新',
     active_sessions: '可用的 AI 页面',
     select_all: '全选',

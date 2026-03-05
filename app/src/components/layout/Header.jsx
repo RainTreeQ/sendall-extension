@@ -68,7 +68,7 @@ export function Header() {
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background shadow-[0_8px_16px_-12px_rgba(0,0,0,0.75)] [--logo-divider:#000] dark:[--logo-divider:var(--color-zinc-100)]">
             <LogoIcon className="h-4 w-4" />
           </span>
-          <span className="text-base tracking-tight">SendAll</span>
+          <span className="text-base tracking-tight">Sendol</span>
         </Link>
 
         <nav aria-label={copy.mainNav} className="flex items-center gap-1.5">
@@ -118,7 +118,7 @@ export function Header() {
               aria-label={copy.language}
               value={locale}
               onChange={(event) => setLocale(event.target.value)}
-              className="h-8 w-8 sm:w-[100px] cursor-pointer appearance-none sm:appearance-auto rounded-xl border border-border bg-card pl-8 sm:pl-7 pr-0 sm:pr-8 text-foreground text-xs font-medium outline-none transition focus:border-ring shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_10px_20px_-18px_rgba(0,0,0,0.62)] hover:bg-accent dark:shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_10px_20px_-18px_rgba(0,0,0,0.9)] [&>option]:text-foreground"
+              className="h-8 w-8 sm:h-8 sm:min-w-0 sm:w-auto sm:pl-8 sm:pr-3 cursor-pointer appearance-none sm:appearance-auto rounded-xl border border-border bg-card text-card-foreground pl-8 pr-0 text-foreground text-xs font-semibold outline-none transition focus:border-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_10px_20px_-18px_rgba(0,0,0,0.62)] hover:bg-accent dark:shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_10px_20px_-18px_rgba(0,0,0,0.9)] [&>option]:text-foreground"
             >
               {supportedLocales.map((item) => (
                 <option key={item.code} value={item.code}>
@@ -135,7 +135,7 @@ export function Header() {
             <a href="/#support">{copy.support}</a>
           </Button>
           <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex">
-            <a href="https://github.com/RainTreeQ/sendall-extension" target="_blank" rel="noreferrer">
+            <a href="https://github.com/RainTreeQ/sendol-extension" target="_blank" rel="noreferrer">
               {copy.github}
               <ArrowUpRight className="h-3.5 w-3.5" />
             </a>

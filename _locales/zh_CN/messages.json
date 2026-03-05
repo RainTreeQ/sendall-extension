@@ -1,15 +1,15 @@
 {
   "extName": {
-    "message": "广发"
+    "message": "Sendol"
   },
   "extDescription": {
     "message": "一次输入，同步发送到所有分屏 AI Agent（ChatGPT、Claude、Gemini 等）"
   },
   "actionTitle": {
-    "message": "广发"
+    "message": "Sendol"
   },
   "popup_title": {
-    "message": "广发"
+    "message": "Sendol"
   },
   "refresh": {
     "message": "刷新"

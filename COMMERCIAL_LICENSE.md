@@ -1,10 +1,10 @@
-# Commercial Licensing (SendAll)
+# Commercial Licensing (Sendol)
 
 This repository is dual-licensed:
 
 - Open-source license: **GNU AGPL-3.0-or-later** (see [LICENSE](LICENSE))
 - Commercial license: available from the copyright holder for users who need
-  to use SendAll in proprietary / closed-source scenarios.
+  to use Sendol in proprietary / closed-source scenarios.
 
 ## Scope
 
@@ -19,7 +19,7 @@ under MIT terms for the code that was released at that time.
 You likely need a commercial license if you want to:
 
 - distribute a closed-source derivative based on `v2.0.0+` code, or
-- embed SendAll code into proprietary products without AGPL obligations, or
+- embed Sendol code into proprietary products without AGPL obligations, or
 - obtain business terms (SLA, indemnity, custom terms, etc.).
 
 ## How to Request

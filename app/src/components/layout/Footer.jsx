@@ -8,14 +8,14 @@ export function Footer() {
   const { locale } = useSiteSettings();
   const copy = locale === "zh-CN"
     ? {
-      subtitle: "SendAll · 开源核心 + Pro 功能",
+      subtitle: "Sendol · 开源核心 + Pro 功能",
       pricing: "定价",
       support: "支持",
       github: "GitHub",
       footerNav: "页脚导航",
     }
     : {
-      subtitle: "SendAll · Open Source Core + Pro Features",
+      subtitle: "Sendol · Open Source Core + Pro Features",
       pricing: "Pricing",
       support: "Support",
       github: "GitHub",
@@ -44,7 +44,7 @@ export function Footer() {
             <Heart className="h-3.5 w-3.5" />
           </a>
           <a
-            href="https://github.com/RainTreeQ/sendall-extension"
+            href="https://github.com/RainTreeQ/sendol-extension"
             target="_blank"
             rel="noreferrer"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"

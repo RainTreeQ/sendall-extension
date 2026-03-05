@@ -1,9 +1,9 @@
-# Trademark Policy (SendAll)
+# Trademark Policy (Sendol)
 
 This policy applies to project branding, including:
 
-- the name **SendAll**,
-- the SendAll logo/icon,
+- the name **Sendol**,
+- the Sendol logo/icon,
 - related brand assets and visual identity.
 
 ## No Trademark License via Code License
@@ -15,7 +15,7 @@ copyrighted code, but **does not grant trademark rights**.
 
 You may:
 
-- refer to SendAll nominatively (for example, "compatible with SendAll"),
+- refer to Sendol nominatively (for example, "compatible with Sendol"),
 - link to this repository,
 - discuss forks and modifications clearly and honestly.
 
@@ -23,9 +23,9 @@ You may:
 
 You may not:
 
-- use "SendAll" as your product name for a fork or derivative in a way that
+- use "Sendol" as your product name for a fork or derivative in a way that
   implies official status,
-- use the SendAll logo/icon in a way that causes source confusion,
+- use the Sendol logo/icon in a way that causes source confusion,
 - claim endorsement, partnership, or certification by this project when none
   exists.
 
@@ -35,8 +35,8 @@ If you fork this project, use a clearly distinct name and branding.
 
 Example:
 
-- Good: "YourBrand Broadcast (forked from SendAll)"
-- Not allowed: "SendAll Pro", "Official SendAll Plus" (without permission)
+- Good: "YourBrand Broadcast (forked from Sendol)"
+- Not allowed: "Sendol Pro", "Official Sendol Plus" (without permission)
 
 ## Requests
 
