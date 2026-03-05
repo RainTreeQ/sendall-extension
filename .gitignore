@@ -5,13 +5,14 @@ dist/
 .DS_Store
 
 # Keep prebuilt extension popup bundle in repo for direct "Download ZIP" usage
-!app/dist/
-!app/dist/**
+!app/dist-extension/
+!app/dist-extension/**
 
 # 构建产物
 *.zip
 *.crx
 *.log
+release/
 
 # 项目私有配置与文档 (不开源)
 app/docs/

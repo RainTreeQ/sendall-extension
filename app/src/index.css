@@ -98,6 +98,7 @@
     --plat-mistral-bg: #fef3c7; --plat-mistral-fg: #b45309;
     --plat-doubao-bg: #e4e4e7; --plat-doubao-fg: #27272a;
     --plat-qianwen-bg: #ede9fe; --plat-qianwen-fg: #6d28d9;
+    --plat-yuanbao-bg: #d1fae5; --plat-yuanbao-fg: #047857;
     --plat-kimi-bg: #e4e4e7; --plat-kimi-fg: #27272a;
     --plat-unknown-bg: #f3f4f6; --plat-unknown-fg: #4b5563;
   }
@@ -112,6 +113,7 @@
     --plat-mistral-bg: rgb(245 158 11 / 0.2); --plat-mistral-fg: #fbbf24;
     --plat-doubao-bg: rgb(113 113 122 / 0.2); --plat-doubao-fg: #d4d4d8;
     --plat-qianwen-bg: rgb(139 92 246 / 0.25); --plat-qianwen-fg: #c4b5fd;
+    --plat-yuanbao-bg: rgb(16 185 129 / 0.25); --plat-yuanbao-fg: #6ee7b7;
     --plat-kimi-bg: rgb(113 113 122 / 0.2); --plat-kimi-fg: #d4d4d8;
     --plat-unknown-bg: #1f2937; --plat-unknown-fg: #9ca3af;
   }
@@ -152,6 +154,7 @@
   .platform-badge.platform-Mistral { background: var(--plat-mistral-bg); color: var(--plat-mistral-fg); }
   .platform-badge.platform-Doubao { background: var(--plat-doubao-bg); color: var(--plat-doubao-fg); }
   .platform-badge.platform-Qianwen { background: var(--plat-qianwen-bg); color: var(--plat-qianwen-fg); }
+  .platform-badge.platform-Yuanbao { background: var(--plat-yuanbao-bg); color: var(--plat-yuanbao-fg); }
   .platform-badge.platform-Kimi { background: var(--plat-kimi-bg); color: var(--plat-kimi-fg); }
   .platform-badge.platform-Unknown { background: var(--plat-unknown-bg); color: var(--plat-unknown-fg); }
 

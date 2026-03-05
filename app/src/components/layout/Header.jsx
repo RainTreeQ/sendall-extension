@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Globe, Monitor, Moon, Sun } from "lucide-react";
 import { useSiteSettings } from "@/lib/site-settings";
@@ -25,20 +25,15 @@ function LogoIcon({ className }) {
  * 页面顶栏。仅使用设计系统颜色与组件。
  */
 export function Header() {
-  const location = useLocation();
-  const isDesignSystem = location.pathname.startsWith("/design-system");
   const { locale, setLocale, supportedLocales, themeMode, setThemeMode } = useSiteSettings();
 
   const copy = locale === "zh-CN"
     ? {
       landing: "落地页",
-      backLanding: "返回落地页",
-      systemInternal: "设计系统（内部）",
       pro: "专业版",
       github: "GitHub",
       pricing: "定价",
       support: "支持",
-      internalTag: "内部页面",
       mainNav: "主导航",
       language: "语言",
       theme: "主题",
@@ -48,13 +43,10 @@ export function Header() {
     }
     : {
       landing: "Landing",
-      backLanding: "Back to Landing",
-      systemInternal: "Design System (Internal)",
       pro: "Pro",
       github: "GitHub",
       pricing: "Pricing",
       support: "Support",
-      internalTag: "Internal",
       mainNav: "Main Navigation",
       language: "Language",
       theme: "Theme",
@@ -73,7 +65,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/80 bg-background/85 backdrop-blur-xl">
       <div className="container flex h-14 items-center justify-between gap-2 px-4 md:px-6">
         <Link to="/" className="flex items-center gap-2 font-semibold text-foreground">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background shadow-[0_8px_16px_-12px_rgba(0,0,0,0.75)] [--logo-divider:#000] dark:[--logo-divider:theme(colors.zinc.100)]">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background shadow-[0_8px_16px_-12px_rgba(0,0,0,0.75)] [--logo-divider:#000] dark:[--logo-divider:var(--color-zinc-100)]">
             <LogoIcon className="h-4 w-4" />
           </span>
           <span className="text-base tracking-tight">SendAll</span>
@@ -121,12 +113,12 @@ export function Header() {
           </div>
 
           <label className="relative block">
-            <Globe className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Globe className="pointer-events-none absolute left-1/2 sm:left-3 top-1/2 h-4 w-4 sm:h-3.5 sm:w-3.5 -translate-x-1/2 sm:translate-x-0 -translate-y-1/2 text-muted-foreground" />
             <select
               aria-label={copy.language}
               value={locale}
               onChange={(event) => setLocale(event.target.value)}
-              className="h-8 w-[104px] rounded-lg border border-border bg-card pl-7 pr-2 text-xs font-medium text-foreground outline-none transition focus:border-ring"
+              className="h-8 w-8 sm:w-[100px] cursor-pointer appearance-none sm:appearance-auto rounded-xl border border-border bg-card pl-8 sm:pl-7 pr-0 sm:pr-8 text-foreground text-xs font-medium outline-none transition focus:border-ring shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_10px_20px_-18px_rgba(0,0,0,0.62)] hover:bg-accent dark:shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_10px_20px_-18px_rgba(0,0,0,0.9)] [&>option]:text-foreground"
             >
               {supportedLocales.map((item) => (
                 <option key={item.code} value={item.code}>
@@ -136,31 +128,11 @@ export function Header() {
             </select>
           </label>
 
-          {isDesignSystem ? (
-            <>
-              <span className="hidden h-8 items-center rounded-lg border border-border bg-muted px-2.5 text-[11px] font-medium text-muted-foreground md:inline-flex">
-                {copy.systemInternal}
-              </span>
-              <Button asChild variant="secondary" size="sm">
-                <Link to="/">{copy.backLanding}</Link>
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button asChild variant="secondary" size="sm">
-                <Link to="/" aria-current="page">{copy.landing}</Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
-                <a href="/#pricing">{copy.pricing}</a>
-              </Button>
-              <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
-                <a href="/#support">{copy.support}</a>
-              </Button>
-            </>
-          )}
-
-          <Button asChild variant="ghost" size="sm" className="hidden xl:inline-flex">
-            <Link to="/design-system" aria-current={isDesignSystem ? "page" : undefined}>{copy.internalTag}</Link>
+          <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
+            <a href="/#pricing">{copy.pricing}</a>
+          </Button>
+          <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
+            <a href="/#support">{copy.support}</a>
           </Button>
           <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex">
             <a href="https://github.com/RainTreeQ/sendall-extension" target="_blank" rel="noreferrer">

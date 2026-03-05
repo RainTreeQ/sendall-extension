@@ -1,19 +1,16 @@
 #!/usr/bin/env node
 /**
  * Auto-capture popup screenshots for landing hero and README.
- * Inputs: app/dist/popup.html (must exist, run build first)
+ * Inputs: app/dist-extension/popup.html (must exist, run extension build first)
  * Outputs:
  *   Light:
  *    - assets/screenshot.png (legacy alias)
  *    - assets/screenshot-light.png
  *    - app/public/screenshot.png (legacy alias)
  *    - app/public/screenshot-light.png
- *    - app/dist/screenshot.png (legacy alias)
- *    - app/dist/screenshot-light.png
  *   Dark:
  *    - assets/screenshot-dark.png
  *    - app/public/screenshot-dark.png
- *    - app/dist/screenshot-dark.png
  */
 
 import { chromium } from "playwright";
@@ -24,7 +21,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const root = join(__dirname, "..");
-const distDir = join(root, "app", "dist");
+const distDir = join(root, "app", "dist-extension");
 
 const outputTargets = {
   light: [
@@ -32,13 +29,10 @@ const outputTargets = {
     join(root, "assets", "screenshot-light.png"),
     join(root, "app", "public", "screenshot.png"),
     join(root, "app", "public", "screenshot-light.png"),
-    join(root, "app", "dist", "screenshot.png"),
-    join(root, "app", "dist", "screenshot-light.png"),
   ],
   dark: [
     join(root, "assets", "screenshot-dark.png"),
     join(root, "app", "public", "screenshot-dark.png"),
-    join(root, "app", "dist", "screenshot-dark.png"),
   ],
 };
 
@@ -152,7 +146,7 @@ function writeFiles(targets, buffer) {
 
 async function main() {
   if (!existsSync(join(distDir, "popup.html"))) {
-    console.error("[capture:screenshot] Missing app/dist/popup.html. Run npm run build first.");
+    console.error("[capture:screenshot] Missing app/dist-extension/popup.html. Run npm run build:extension first.");
     process.exit(1);
   }
 

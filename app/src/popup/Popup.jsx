@@ -1,8 +1,16 @@
 /* global chrome */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Switch } from '@/components/ui/switch'
-import { RefreshCw, ArrowUp, Check } from 'lucide-react'
+import { RefreshCw, ArrowUp, Check, ImagePlus } from 'lucide-react'
 import { t } from '@/lib/i18n'
+import {
+  clearDraftFromStorage,
+  getPopupBootstrapState,
+  persistDraftToStorage as persistDraftToUnifiedStorage,
+  readDraftFromLocalMirror,
+  setPopupSettingsPatch,
+  writeDraftToLocalMirror,
+} from '@/lib/extension-storage'
 
 /** Logo: 圆形竖着分三份 — 圆 + 两条竖线 */
 function LogoIcon({ className }) {
@@ -36,13 +44,12 @@ const PLATFORM_STYLES = {
   Mistral: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
   Doubao: "bg-zinc-200 text-zinc-800 dark:bg-zinc-500/20 dark:text-zinc-300",
   Qianwen: "bg-violet-100 text-violet-700 dark:bg-violet-500/25 dark:text-violet-300",
+  Yuanbao: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/25 dark:text-emerald-300",
   Kimi: "bg-zinc-200 text-zinc-800 dark:bg-zinc-500/20 dark:text-zinc-300",
   Unknown: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
 }
 
-const SEND_LOADING_SOFT_TIMEOUT_MS = 9000
-const DRAFT_STORAGE_KEY = 'popupDraft'
-const DRAFT_LOCAL_STORAGE_KEY = 'popupDraftLocal'
+const SEND_LOADING_SOFT_TIMEOUT_MS = 50000
 const DRAFT_SAVE_DEBOUNCE_MS = 400
 const CONTEXT_ERROR_PATTERNS = [
   'Extension context invalidated',
@@ -78,29 +85,6 @@ function closePopupSafely() {
   }, 50)
 }
 
-function readDraftFromLocalStorage() {
-  try {
-    if (!window.localStorage) return null
-    const value = window.localStorage.getItem(DRAFT_LOCAL_STORAGE_KEY)
-    return typeof value === 'string' ? value : null
-  } catch {
-    return null
-  }
-}
-
-function writeDraftToLocalStorage(value) {
-  try {
-    if (!window.localStorage) return
-    if (value && value.length > 0) {
-      window.localStorage.setItem(DRAFT_LOCAL_STORAGE_KEY, value)
-    } else {
-      window.localStorage.removeItem(DRAFT_LOCAL_STORAGE_KEY)
-    }
-  } catch {
-    // noop
-  }
-}
-
 export default function Popup() {
   const [aiTabs, setAiTabs] = useState([])
   const [selectedTabIds, setSelectedTabIds] = useState([])
@@ -110,6 +94,7 @@ export default function Popup() {
   const [statuses, setStatuses] = useState([])
   const [tabsLoading, setTabsLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [locatingUpload, setLocatingUpload] = useState(false)
   const [refreshSpinning, setRefreshSpinning] = useState(false)
   const messageInputRef = useRef(null)
   const activeRequestIdRef = useRef(null)
@@ -121,6 +106,7 @@ export default function Popup() {
   const hasSelection = selectedTabIds.length > 0
   const hasText = messageText.trim().length > 0
   const sendDisabled = !(hasSelection && hasText) || sending
+  const locateUploadDisabled = !hasSelection || tabsLoading || sending || locatingUpload
   const selectAllLabel =
     aiTabs.length > 0 && selectedTabIds.length === aiTabs.length ? t('deselect_all') : t('select_all')
 
@@ -131,9 +117,8 @@ export default function Popup() {
   }, [])
 
   const persistDraftToStorage = useCallback(async (draftText) => {
-    if (typeof chrome === 'undefined' || !chrome.storage?.local) return
     try {
-      await chrome.storage.local.set({ [DRAFT_STORAGE_KEY]: draftText })
+      await persistDraftToUnifiedStorage(draftText)
     } catch (error) {
       if (!isRuntimeContextError(error) && isExtensionContextValid()) {
         console.warn('Draft storage sync failed:', error)
@@ -142,10 +127,9 @@ export default function Popup() {
   }, [])
 
   const clearDraftEverywhere = useCallback(async () => {
-    writeDraftToLocalStorage('')
-    if (typeof chrome === 'undefined' || !chrome.storage?.local) return
+    writeDraftToLocalMirror('')
     try {
-      await chrome.storage.local.remove(DRAFT_STORAGE_KEY)
+      await clearDraftFromStorage()
     } catch (error) {
       if (!isRuntimeContextError(error) && isExtensionContextValid()) {
         console.warn('Draft clear failed:', error)
@@ -156,7 +140,7 @@ export default function Popup() {
   // Load saved preferences + draft
   useEffect(() => {
     let cancelled = false
-    const localDraft = readDraftFromLocalStorage()
+    const localDraft = readDraftFromLocalMirror()
     const hasLocalDraft = localDraft !== null
     if (hasLocalDraft) {
       latestMessageRef.current = localDraft
@@ -164,21 +148,16 @@ export default function Popup() {
     }
 
     ;(async () => {
-      if (typeof chrome === 'undefined' || !chrome.storage?.local) {
-        draftHydratedRef.current = true
-        return
-      }
       try {
-        const data = await chrome.storage.local.get(['autoSend', 'newChat', DRAFT_STORAGE_KEY])
+        const { popupSettings, storageDraft } = await getPopupBootstrapState()
         if (cancelled) return
-        if (data.autoSend) setAutoSend(true)
-        if (data.newChat) setNewChat(true)
+        setAutoSend(Boolean(popupSettings.autoSend))
+        setNewChat(Boolean(popupSettings.newChat))
 
-        const storageDraft = typeof data[DRAFT_STORAGE_KEY] === 'string' ? data[DRAFT_STORAGE_KEY] : ''
         if (!hasLocalDraft && storageDraft.length > 0) {
           latestMessageRef.current = storageDraft
           setMessageText(storageDraft)
-          writeDraftToLocalStorage(storageDraft)
+          writeDraftToLocalMirror(storageDraft)
         }
       } catch (error) {
         if (cancelled) return
@@ -199,7 +178,7 @@ export default function Popup() {
     latestMessageRef.current = messageText
     if (!draftHydratedRef.current) return
 
-    writeDraftToLocalStorage(messageText)
+    writeDraftToLocalMirror(messageText)
     if (draftSaveTimerRef.current) {
       clearTimeout(draftSaveTimerRef.current)
       draftSaveTimerRef.current = null
@@ -225,7 +204,7 @@ export default function Popup() {
         draftSaveTimerRef.current = null
       }
       const latestDraft = latestMessageRef.current
-      writeDraftToLocalStorage(latestDraft)
+      writeDraftToLocalMirror(latestDraft)
       void persistDraftToStorage(latestDraft)
     }
 
@@ -338,6 +317,72 @@ export default function Popup() {
     return () => chrome.runtime.onMessage.removeListener(handleProgress)
   }, [setProgressStatus])
 
+  const handleLocateUpload = useCallback(async () => {
+    if (selectedTabIds.length === 0 || locatingUpload || sending) return
+
+    clearStatus()
+    setLocatingUpload(true)
+    const tabIds = [...selectedTabIds]
+    const requestId = createRequestId()
+    const clientTs = Date.now()
+    addStatus(t('locate_upload_start', [String(tabIds.length)]), 'pending')
+
+    let debug = false
+    try {
+      const runtimeFlags = await chrome.storage.local.get(['debugLogs'])
+      debug = Boolean(runtimeFlags?.debugLogs)
+    } catch (error) {
+      if (handleContextLoss(error)) {
+        setLocatingUpload(false)
+        return
+      }
+      clearStatus()
+      addStatus(t('locate_upload_failed_simple', [String(error?.message || t('unknown'))]), 'error')
+      setLocatingUpload(false)
+      return
+    }
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'LOCATE_UPLOAD_ENTRIES',
+        tabIds,
+        requestId,
+        clientTs,
+        debug,
+      })
+      clearStatus()
+
+      const results = Array.isArray(response?.results) ? response.results : []
+      if (results.length === 0 && response?.error) {
+        addStatus(t('locate_upload_failed_simple', [String(response.error)]), 'error')
+      }
+
+      results.forEach((result) => {
+        const tabInfo = aiTabs.find((tab) => tab.id === result.tabId)
+        const name = tabInfo ? tabInfo.platformName : t('tab_n', [String(result.tabId)])
+        if (result.success && result.found) {
+          addStatus(t('locate_upload_found', [name]), 'success')
+          return
+        }
+        if (result.success) {
+          addStatus(t('locate_upload_not_found', [name]), 'pending')
+          return
+        }
+        addStatus(t('locate_upload_failed', [name, String(result.error || t('unknown'))]), 'error')
+      })
+
+      if (response?.summary?.timedOut) {
+        addStatus(t('locate_upload_timed_out'), 'error')
+      }
+    } catch (error) {
+      if (handleContextLoss(error)) return
+      clearStatus()
+      addStatus(t('locate_upload_failed_simple', [String(error?.message || t('unknown'))]), 'error')
+    } finally {
+      setLocatingUpload(false)
+    }
+  }, [selectedTabIds, locatingUpload, sending, clearStatus, addStatus, handleContextLoss, aiTabs])
+
   const handleSend = useCallback(async () => {
     const text = messageText.trim()
     if (!text || selectedTabIds.length === 0) return
@@ -361,6 +406,7 @@ export default function Popup() {
         successCount: 0,
         failCount: 0,
       }
+      const safety = summary?.safety || null
       let successCount = 0
 
       results.forEach((result) => {
@@ -368,12 +414,15 @@ export default function Popup() {
         const name = tabInfo ? tabInfo.platformName : t('tab_n', [String(result.tabId)])
         if (result.success) {
           successCount++
-          const msg = autoSend ? t('status_sent', [name]) : t('status_drafted', [name])
+          const msg = result.sent === true ? t('status_sent', [name]) : t('status_drafted', [name])
           addStatus(msg, 'success')
         } else {
           addStatus(t('status_failed', [name, String(result.error || t('unknown'))]), 'error')
         }
       })
+      if (safety?.autoSendBlockedBySafeMode) {
+        addStatus(t('safe_mode_auto_send_blocked'), 'pending')
+      }
 
       if (successCount === results.length && results.length > 0) {
         if (draftSaveTimerRef.current) {
@@ -596,35 +645,68 @@ export default function Popup() {
             <div className="flex items-center justify-between px-3 pb-3">
               <div className="flex items-center gap-1.5">
                 <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors">
-                  <Switch checked={autoSend} onCheckedChange={(v) => { setAutoSend(v); chrome.storage?.local?.set({ autoSend: v }); }} />
+                  <Switch
+                    checked={autoSend}
+                    onCheckedChange={(v) => {
+                      setAutoSend(v)
+                      void setPopupSettingsPatch({ autoSend: v })
+                    }}
+                  />
                   <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{t('auto_send')}</span>
                 </label>
                 <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors">
-                  <Switch checked={newChat} onCheckedChange={(v) => { setNewChat(v); chrome.storage?.local?.set({ newChat: v }); }} />
+                  <Switch
+                    checked={newChat}
+                    onCheckedChange={(v) => {
+                      setNewChat(v)
+                      void setPopupSettingsPatch({ newChat: v })
+                    }}
+                  />
                   <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{t('new_chat')}</span>
                 </label>
               </div>
-              <button
-                type="button"
-                disabled={sendDisabled}
-                onClick={handleSend}
-                title={
-                  hasSelection && hasText
-                    ? t('send_to_n', [String(selectedTabIds.length)])
-                    : t('select_tabs_and_enter_message')
-                }
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
-                  !sendDisabled
-                    ? 'bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:scale-105 hover:shadow-[0_4px_14px_rgba(0,0,0,0.35)] active:scale-95 dark:bg-white dark:text-black dark:shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-500'
-                }`}
-              >
-                {sending ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
-                ) : (
-                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={locateUploadDisabled}
+                  onClick={handleLocateUpload}
+                  title={
+                    hasSelection
+                      ? t('locate_upload')
+                      : t('select_tabs_first')
+                  }
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold transition-colors ${
+                    !locateUploadDisabled
+                      ? 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-600 dark:hover:bg-zinc-700'
+                      : 'bg-gray-100 text-gray-400 ring-1 ring-gray-200 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-500 dark:ring-zinc-600'
+                  }`}
+                >
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  <span>{locatingUpload ? t('locating_upload') : t('locate_upload')}</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={sendDisabled}
+                  onClick={handleSend}
+                  title={
+                    hasSelection && hasText
+                      ? t('send_to_n', [String(selectedTabIds.length)])
+                      : t('select_tabs_and_enter_message')
+                  }
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+                    !sendDisabled
+                      ? 'bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:scale-105 hover:shadow-[0_4px_14px_rgba(0,0,0,0.35)] active:scale-95 dark:bg-white dark:text-black dark:shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-500'
+                  }`}
+                >
+                  {sending ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+                  ) : (
+                    <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

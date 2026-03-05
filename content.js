@@ -8,8 +8,16 @@ if (!window.__aiBroadcastLoaded) {
     'use strict';
 
     const hostname = window.location.hostname;
+    const normalizedHostname = String(hostname || '').toLowerCase().replace(/^www\./, '');
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const now = () => Date.now();
+    const AIB_SHARED = globalThis.__AIB_SHARED__ || null;
+    const MESSAGE_TYPES = AIB_SHARED?.MESSAGE_TYPES || {
+      PING: 'PING',
+      SEND_NOW: 'SEND_NOW',
+      INJECT_MESSAGE: 'INJECT_MESSAGE',
+      HIGHLIGHT_UPLOAD_ENTRY: 'HIGHLIGHT_UPLOAD_ENTRY'
+    };
 
     function createLogger(requestId, debug) {
       const prefix = `[AIB][content][${requestId}]`;
@@ -62,7 +70,7 @@ if (!window.__aiBroadcastLoaded) {
     }
 
     function isDoubaoVerificationPage() {
-      if (!hostname.includes('doubao.com')) return false;
+      if (!(normalizedHostname === 'doubao.com' || normalizedHostname.endsWith('.doubao.com'))) return false;
 
       const urlHint = `${window.location.pathname || ''} ${window.location.search || ''}`.toLowerCase();
       if (includesAny(urlHint, ['captcha', 'verify', 'verification', 'security', 'risk', 'waf', 'bot'])) {
@@ -86,6 +94,28 @@ if (!window.__aiBroadcastLoaded) {
         'verify you are human',
         'captcha'
       ]);
+    }
+
+    function getHighRiskPageReason() {
+      const title = normalizeText(document.title || '').toLowerCase();
+      const urlHint = `${window.location.pathname || ''} ${window.location.search || ''}`.toLowerCase();
+      const bodyText = normalizeText((document.body?.innerText || '').slice(0, 7000)).toLowerCase();
+      const text = `${title} ${urlHint} ${bodyText}`;
+      if (includesAny(text, [
+        'captcha',
+        'verify you are human',
+        'security check',
+        'waf',
+        'risk control',
+        '人机验证',
+        '安全验证',
+        '验证码',
+        '滑块验证',
+        '请先完成验证'
+      ])) {
+        return '检测到风控/验证页面';
+      }
+      return '';
     }
 
     function getContent(el) {
@@ -142,7 +172,7 @@ if (!window.__aiBroadcastLoaded) {
       await sleep(12);
       document.execCommand('selectAll', false, null);
       document.execCommand('delete', false, null);
-      const ok = document.execCommand('insertText', false, text);
+      document.execCommand('insertText', false, text);
       const verified = await verifyContent(el, text);
       if (verified) {
         el.dispatchEvent(new InputEvent('input', {
@@ -239,7 +269,14 @@ if (!window.__aiBroadcastLoaded) {
 
     // ── Generic contenteditable injection (ChatGPT, Claude) ─────────────────
     async function setContentEditable(el, text, options) {
-      const { fastPathEnabled, logger } = options;
+      const { fastPathEnabled, logger, safeMode } = options;
+
+      if (safeMode) {
+        return runStrategies(el, [
+          { name: 'insertText-safe', fallbackUsed: false, run: () => tryInsertText(el, text) },
+          { name: 'insertText-safe-retry', fallbackUsed: true, run: () => tryInsertText(el, text) }
+        ], logger);
+      }
 
       if (fastPathEnabled) {
         return runStrategies(el, [
@@ -350,6 +387,26 @@ if (!window.__aiBroadcastLoaded) {
       throw new Error('Gemini 输入注入失败');
     }
 
+    async function setYuanbaoInput(el, text, options) {
+      const { logger } = options || {};
+      el.focus();
+      await sleep(28);
+
+      const quill = el.__quill || el.closest('.ql-container')?.__quill || el.closest('.ql-editor')?.__quill;
+      if (quill) {
+        quill.setText('');
+        quill.insertText(0, text, 'user');
+        quill.setSelection(text.length, 0);
+        el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        if (await verifyContent(el, text, 260, 25)) {
+          return { strategy: 'yuanbao-quill', fallbackUsed: false };
+        }
+      }
+
+      return setContentEditable(el, text, options);
+    }
+
     async function closeQianwenTaskAssistant() {
       const tag = document.querySelector('.tagBtn-OADWVI.selected-OsA38F') ||
         document.querySelector('.operateLine-jbfAd6 .tagBtn-OADWVI.selected-OsA38F');
@@ -445,9 +502,15 @@ if (!window.__aiBroadcastLoaded) {
     const qianwenInject = async (el, text, options) => {
       await closeQianwenTaskAssistant();
       if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
-      const { logger } = options || {};
+      const { logger, safeMode } = options || {};
       const isSlate = el.getAttribute('data-slate-editor') === 'true' || Boolean(el.closest('[data-slate-editor="true"]'));
       if (isSlate) {
+        if (safeMode) {
+          return runStrategies(el, [
+            { name: 'slate-safe-insertText', fallbackUsed: false, run: () => tryInsertText(el, text) },
+            { name: 'slate-safe-beforeinput', fallbackUsed: true, run: () => trySlateBeforeInput(el, text) }
+          ], logger);
+        }
         return runStrategies(el, [
           { name: 'slate-insertText', fallbackUsed: false, run: () => tryInsertText(el, text) },
           { name: 'slate-beforeinput', fallbackUsed: true, run: () => trySlateBeforeInput(el, text) },
@@ -459,15 +522,35 @@ if (!window.__aiBroadcastLoaded) {
     };
     const qianwenSend = async (el) => {
       const container = el?.closest('.inputContainer-SHGMBo') || el?.closest('.functionArea-ZVlxpM') || el?.closest('.inputOutWrap-fg2bG9') || document;
+      const isBtnDisabled = (node) => {
+        if (!node) return true;
+        if (node.disabled) return true;
+        if (node.getAttribute('aria-disabled') === 'true') return true;
+        const klass = node.className?.toString() || '';
+        return klass.includes('disabled-ZaDDJC') || klass.includes('is-disabled') || klass.includes('disabled');
+      };
+      const findSendBtn = (root) => {
+        if (!root?.querySelectorAll) return null;
+        const nodes = root.querySelectorAll('.operateBtn-JsB9e2, button, [role="button"]');
+        for (const node of nodes) {
+          if (isBtnDisabled(node)) continue;
+          const klass = node.className?.toString() || '';
+          const hint = `${node.getAttribute('aria-label') || ''} ${node.getAttribute('title') || ''} ${(node.textContent || '').trim()}`.toLowerCase();
+          if (hint.includes('登录') || hint.includes('log in') || hint.includes('上传') || hint.includes('attach')) continue;
+          if (klass.includes('operateBtn-JsB9e2')) return node;
+          if (hint.includes('发送') || hint.includes('send') || hint.includes('提交') || hint.includes('submit')) return node;
+        }
+        return null;
+      };
       let btn = await waitFor(() => {
-        const enabled = container.querySelector?.('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)') ||
-          document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)');
-        return enabled || null;
+        const byContainer = findSendBtn(container);
+        if (byContainer) return byContainer;
+        return findSendBtn(document);
       }, 3000, 40);
       if (!btn) {
         await closeQianwenTaskAssistant();
         await sleep(120);
-        btn = await waitFor(() => document.querySelector('.operateBtn-JsB9e2:not(.disabled-ZaDDJC)'), 2000, 40);
+        btn = await waitFor(() => findSendBtn(document), 2000, 40);
       }
       if (btn) btn.click();
       else { el?.focus(); pressEnterOn(el); }
@@ -496,8 +579,54 @@ if (!window.__aiBroadcastLoaded) {
       else { el?.focus(); pressEnterOn(el); }
     };
 
-    const platforms = {
-      'chatgpt.com': {
+    const yuanbaoFindInput = () => waitFor(() =>
+      document.querySelector('.ql-editor[contenteditable="true"]') ||
+      document.querySelector('div[contenteditable="true"][role="textbox"]') ||
+      document.querySelector('div[contenteditable="true"]') ||
+      document.querySelector('textarea')
+    );
+    const yuanbaoInject = async (el, text, options) => {
+      if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
+      return setYuanbaoInput(el, text, options);
+    };
+    const yuanbaoSend = async (el, options) => {
+      const logger = options?.logger;
+      const before = normalizeText(getContent(el));
+      const container = el?.closest('form') || el?.closest('.agent-dialogue') || el?.closest('.dialogue') || el?.parentElement || document;
+      const roots = [container, document].filter(Boolean);
+      const pickButton = () => {
+        for (const root of roots) {
+          if (!root?.querySelectorAll) continue;
+          const nodes = root.querySelectorAll('button, [role="button"]');
+          for (const node of nodes) {
+            if (node.disabled || node.getAttribute('aria-disabled') === 'true') continue;
+            const hint = `${node.getAttribute('aria-label') || ''} ${node.getAttribute('title') || ''} ${(node.textContent || '').trim()} ${node.className || ''}`.toLowerCase();
+            if (hint.includes('log in') || hint.includes('登录') || hint.includes('tool') || hint.includes('上传')) continue;
+            if (hint.includes('send') || hint.includes('发送') || hint.includes('提交') || hint.includes('submit')) {
+              return node;
+            }
+          }
+        }
+        return null;
+      };
+      const btn = await waitFor(pickButton, 2600, 35);
+      if (btn) {
+        btn.click();
+        await sleep(240);
+        const after = normalizeText(getContent(el));
+        if (!before || after !== before) return true;
+      }
+      el?.focus();
+      pressEnterOn(el);
+      await sleep(220);
+      const finalAfter = normalizeText(getContent(el));
+      const sent = !before || finalAfter !== before;
+      if (!sent) logger?.debug?.('yuanbao-send-no-change');
+      return sent;
+    };
+
+    const platformAdapters = {
+      chatgpt: {
         name: 'ChatGPT',
         findInput: () => waitFor(() =>
           document.querySelector('#prompt-textarea') ||
@@ -520,7 +649,7 @@ if (!window.__aiBroadcastLoaded) {
         }
       },
 
-      'claude.ai': {
+      claude: {
         name: 'Claude',
         findInput: () => waitFor(() =>
           document.querySelector('div.ProseMirror[contenteditable="true"]') ||
@@ -552,7 +681,7 @@ if (!window.__aiBroadcastLoaded) {
         }
       },
 
-      'gemini.google.com': {
+      gemini: {
         name: 'Gemini',
         findInput: () => waitFor(() =>
           document.querySelector('.ql-editor[contenteditable="true"]') ||
@@ -655,7 +784,7 @@ if (!window.__aiBroadcastLoaded) {
         }
       },
 
-      'grok.com': {
+      grok: {
         name: 'Grok',
         findInput: () => waitFor(() => {
           const candidates = [
@@ -786,7 +915,7 @@ if (!window.__aiBroadcastLoaded) {
         }
       },
 
-      'deepseek.com': {
+      deepseek: {
         name: 'DeepSeek',
         findInput: () => waitFor(() =>
           document.querySelector('textarea#chat-input') ||
@@ -806,7 +935,7 @@ if (!window.__aiBroadcastLoaded) {
         }
       },
 
-      'doubao.com': {
+      doubao: {
         name: 'Doubao',
         findInput: async () => {
           if (isDoubaoVerificationPage()) {
@@ -845,30 +974,334 @@ if (!window.__aiBroadcastLoaded) {
         }
       },
 
-      'tongyi.aliyun.com': { name: 'Qianwen', findInput: qianwenFindInput, inject: qianwenInject, send: qianwenSend },
-      'qianwen.com': { name: 'Qianwen', findInput: qianwenFindInput, inject: qianwenInject, send: qianwenSend },
-      'moonshot.cn': { name: 'Kimi', findInput: kimiFindInput, inject: kimiInject, send: kimiSend },
-      'kimi.ai': { name: 'Kimi', findInput: kimiFindInput, inject: kimiInject, send: kimiSend },
-      'kimi.com': { name: 'Kimi', findInput: kimiFindInput, inject: kimiInject, send: kimiSend }
+      qianwen: { name: 'Qianwen', findInput: qianwenFindInput, inject: qianwenInject, send: qianwenSend },
+      yuanbao: { name: 'Yuanbao', findInput: yuanbaoFindInput, inject: yuanbaoInject, send: yuanbaoSend },
+      kimi: { name: 'Kimi', findInput: kimiFindInput, inject: kimiInject, send: kimiSend }
     };
 
+    const platformIdByDomainFallback = {
+      'chatgpt.com': 'chatgpt',
+      'chat.openai.com': 'chatgpt',
+      'claude.ai': 'claude',
+      'gemini.google.com': 'gemini',
+      'grok.com': 'grok',
+      'deepseek.com': 'deepseek',
+      'doubao.com': 'doubao',
+      'tongyi.aliyun.com': 'qianwen',
+      'qianwen.com': 'qianwen',
+      'yuanbao.tencent.com': 'yuanbao',
+      'moonshot.cn': 'kimi',
+      'kimi.ai': 'kimi',
+      'kimi.com': 'kimi'
+    };
+
+    function resolvePlatformId() {
+      const sharedPlatform = AIB_SHARED?.getPlatformByHostname
+        ? AIB_SHARED.getPlatformByHostname(hostname)
+        : null;
+      if (sharedPlatform?.id) return sharedPlatform.id;
+
+      for (const [domain, platformId] of Object.entries(platformIdByDomainFallback)) {
+        if (normalizedHostname === domain || normalizedHostname.endsWith(`.${domain}`)) {
+          return platformId;
+        }
+      }
+      return null;
+    }
+
     function getPlatform() {
-      for (const [domain, platform] of Object.entries(platforms)) {
-        if (hostname.includes(domain)) return platform;
+      const platformId = resolvePlatformId();
+      if (!platformId) return null;
+      return platformAdapters[platformId] || null;
+    }
+
+    const UPLOAD_HIGHLIGHT_STYLE_ID = 'aib-upload-highlight-style';
+    const UPLOAD_HIGHLIGHT_ATTR = 'data-aib-upload-highlight';
+    const UPLOAD_HINT_KEYWORDS = [
+      'upload',
+      'attach',
+      'attachment',
+      'file',
+      'image',
+      'photo',
+      'picture',
+      'media',
+      '上传',
+      '附件',
+      '文件',
+      '图片',
+      '照片',
+      '图像',
+      '素材'
+    ];
+    const UPLOAD_NEGATIVE_HINT_KEYWORDS = [
+      'send',
+      'submit',
+      'search',
+      'login',
+      'log in',
+      'sign in',
+      'voice',
+      'record',
+      '发送',
+      '提交',
+      '搜索',
+      '登录',
+      '语音',
+      '录音'
+    ];
+    let uploadHighlightTimer = null;
+
+    function ensureUploadHighlightStyle() {
+      if (document.getElementById(UPLOAD_HIGHLIGHT_STYLE_ID)) return;
+      const style = document.createElement('style');
+      style.id = UPLOAD_HIGHLIGHT_STYLE_ID;
+      style.textContent = `
+        [${UPLOAD_HIGHLIGHT_ATTR}="1"] {
+          outline: 3px solid #22c55e !important;
+          outline-offset: 3px !important;
+          box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.26) !important;
+          border-radius: 10px !important;
+          animation: aib-upload-highlight-pulse 1s ease-in-out 2;
+        }
+        @keyframes aib-upload-highlight-pulse {
+          0%, 100% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.22); }
+          50% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0.36); }
+        }
+      `;
+      document.documentElement.appendChild(style);
+    }
+
+    function clearUploadHighlight() {
+      if (uploadHighlightTimer) {
+        clearTimeout(uploadHighlightTimer);
+        uploadHighlightTimer = null;
+      }
+      const prev = document.querySelectorAll(`[${UPLOAD_HIGHLIGHT_ATTR}="1"]`);
+      for (const node of prev) {
+        node.removeAttribute(UPLOAD_HIGHLIGHT_ATTR);
+      }
+    }
+
+    function markUploadHighlight(target) {
+      if (!target || !target.setAttribute) return;
+      ensureUploadHighlightStyle();
+      clearUploadHighlight();
+      target.setAttribute(UPLOAD_HIGHLIGHT_ATTR, '1');
+      try {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      } catch (err) {
+        target.scrollIntoView({ block: 'center', inline: 'center' });
+      }
+      uploadHighlightTimer = setTimeout(() => {
+        if (!target.isConnected) return;
+        target.removeAttribute(UPLOAD_HIGHLIGHT_ATTR);
+      }, 8000);
+    }
+
+    function isElementVisible(el) {
+      if (!el || !(el instanceof Element)) return false;
+      if (!document.documentElement.contains(el)) return false;
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+      if (style.pointerEvents === 'none') return false;
+      const opacity = Number(style.opacity);
+      if (Number.isFinite(opacity) && opacity <= 0.01) return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width >= 4 && rect.height >= 4;
+    }
+
+    function getElementHint(el) {
+      if (!el || !(el instanceof Element)) return '';
+      const parts = [
+        el.getAttribute('aria-label'),
+        el.getAttribute('title'),
+        el.getAttribute('data-testid'),
+        el.getAttribute('data-test-id'),
+        el.getAttribute('name'),
+        el.getAttribute('placeholder'),
+        el.getAttribute('id'),
+        el.getAttribute('class'),
+        el.textContent
+      ];
+      if (el.tagName === 'INPUT') {
+        parts.push(el.getAttribute('accept'));
+      }
+      return normalizeText(parts.filter(Boolean).join(' ')).toLowerCase();
+    }
+
+    function scoreUploadHint(hintText) {
+      if (!hintText) return 0;
+      let score = 0;
+      for (const keyword of UPLOAD_HINT_KEYWORDS) {
+        if (hintText.includes(keyword)) score += 8;
+      }
+      for (const keyword of UPLOAD_NEGATIVE_HINT_KEYWORDS) {
+        if (hintText.includes(keyword)) score -= 8;
+      }
+      return score;
+    }
+
+    function escapeCssIdentifier(value) {
+      if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+        return CSS.escape(value);
+      }
+      return String(value).replace(/["\\]/g, '\\$&');
+    }
+
+    function getAssociatedLabel(input) {
+      if (!input || input.tagName !== 'INPUT' || String(input.type).toLowerCase() !== 'file') return null;
+      if (input.id) {
+        const escaped = escapeCssIdentifier(input.id);
+        const byFor = document.querySelector(`label[for="${escaped}"]`);
+        if (byFor) return byFor;
+      }
+      return input.closest('label');
+    }
+
+    function findNearInputTrigger(input) {
+      if (!input || !(input instanceof Element)) return null;
+      const direct = input.closest('button,[role="button"],label');
+      if (direct && direct !== input) return direct;
+
+      const root = input.closest('form') || input.closest('section') || input.closest('article') || input.parentElement || document;
+      const candidates = root.querySelectorAll
+        ? root.querySelectorAll('button,[role="button"],label,a[role="button"],div[role="button"],span[role="button"]')
+        : [];
+      let best = null;
+      let bestScore = -1;
+      for (const node of candidates) {
+        if (!node || node === input) continue;
+        const hintScore = scoreUploadHint(getElementHint(node));
+        if (hintScore <= 0) continue;
+        const visibleScore = isElementVisible(node) ? 3 : 0;
+        const score = hintScore + visibleScore;
+        if (score > bestScore) {
+          bestScore = score;
+          best = node;
+        }
+      }
+      return best;
+    }
+
+    function pushUploadCandidate(store, element, baseScore, via, linkedInput = null) {
+      if (!element || !(element instanceof Element)) return;
+      const hint = getElementHint(element);
+      const hintScore = scoreUploadHint(hint);
+      const isFileInput = element.tagName === 'INPUT' && String(element.getAttribute('type') || '').toLowerCase() === 'file';
+      const visible = isElementVisible(element);
+      const interactive = element.matches('button,[role="button"],label,input,a,[tabindex]') ? 4 : 0;
+      const score = baseScore + hintScore + interactive + (isFileInput ? 10 : 0) + (visible ? 8 : -6);
+      const existing = store.get(element);
+      if (existing && existing.score >= score) return;
+      store.set(element, {
+        element,
+        linkedInput,
+        via,
+        visible,
+        score
+      });
+    }
+
+    function resolveVisibleUploadCandidate(candidate) {
+      if (!candidate) return null;
+      if (candidate.visible) return candidate;
+      const linked = candidate.linkedInput || null;
+      if (!linked) return null;
+
+      const label = getAssociatedLabel(linked);
+      if (label && isElementVisible(label)) {
+        return { ...candidate, element: label, via: `${candidate.via}->label`, visible: true };
+      }
+      const near = findNearInputTrigger(linked);
+      if (near && isElementVisible(near)) {
+        return { ...candidate, element: near, via: `${candidate.via}->nearby`, visible: true };
+      }
+      return null;
+    }
+
+    function findUploadEntryTarget() {
+      const store = new Map();
+      const fileInputs = document.querySelectorAll('input[type="file"]');
+      for (const input of fileInputs) {
+        const accept = String(input.getAttribute('accept') || '').toLowerCase();
+        const base = accept.includes('image') ? 34 : 28;
+        pushUploadCandidate(store, input, base, 'file-input', input);
+        const label = getAssociatedLabel(input);
+        if (label) pushUploadCandidate(store, label, 30, 'file-input-label', input);
+        const near = findNearInputTrigger(input);
+        if (near) pushUploadCandidate(store, near, 24, 'file-input-nearby', input);
+      }
+
+      const clickables = document.querySelectorAll('button,[role="button"],label,a[role="button"],div[role="button"],span[role="button"]');
+      for (const node of clickables) {
+        const hintScore = scoreUploadHint(getElementHint(node));
+        if (hintScore < 10) continue;
+        pushUploadCandidate(store, node, 10, 'keyword-button', null);
+      }
+
+      const ranked = [...store.values()].sort((a, b) => b.score - a.score);
+      for (const candidate of ranked) {
+        const resolved = resolveVisibleUploadCandidate(candidate);
+        if (resolved) return resolved;
       }
       return null;
     }
 
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message.type === 'PING') {
+      if (message.type === MESSAGE_TYPES.PING) {
         const platform = getPlatform();
         sendResponse({ success: true, platform: platform ? platform.name : 'Unknown' });
         return true;
       }
 
-      if (message.type === 'SEND_NOW') {
+      if (message.type === MESSAGE_TYPES.HIGHLIGHT_UPLOAD_ENTRY) {
         const requestId = message.requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
         const debug = Boolean(message.debug);
+        const logger = createLogger(requestId, debug);
+        const platformName = getPlatform()?.name || 'Unknown';
+        (async () => {
+          const startedAt = now();
+          try {
+            const target = await waitFor(() => findUploadEntryTarget(), 2200, 90);
+            if (!target?.element) {
+              sendResponse({
+                success: true,
+                found: false,
+                platform: platformName,
+                via: 'none',
+                totalMs: now() - startedAt
+              });
+              return;
+            }
+            markUploadHighlight(target.element);
+            logger.debug('upload-entry-highlighted', { platform: platformName, via: target.via, score: target.score });
+            sendResponse({
+              success: true,
+              found: true,
+              platform: platformName,
+              via: target.via || 'unknown',
+              totalMs: now() - startedAt
+            });
+          } catch (err) {
+            logger.error('upload-entry-highlight-failure', { error: err?.message });
+            sendResponse({
+              success: false,
+              found: false,
+              platform: platformName,
+              via: 'error',
+              totalMs: now() - startedAt,
+              error: err?.message || '定位上传入口失败'
+            });
+          }
+        })();
+        return true;
+      }
+
+      if (message.type === MESSAGE_TYPES.SEND_NOW) {
+        const requestId = message.requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+        const debug = Boolean(message.debug);
+        const safeMode = Boolean(message.safeMode);
         const logger = createLogger(requestId, debug);
         const platform = getPlatform();
         if (!platform) {
@@ -878,12 +1311,17 @@ if (!window.__aiBroadcastLoaded) {
         (async () => {
           const t0 = now();
           try {
+            const riskReason = getHighRiskPageReason();
+            if (riskReason) {
+              sendResponse({ success: false, sendMs: now() - t0, error: riskReason });
+              return;
+            }
             const input = await platform.findInput();
             if (!input) {
               sendResponse({ success: false, sendMs: now() - t0, error: '找不到输入框' });
               return;
             }
-            const sent = await platform.send(input, { logger, debug });
+            const sent = await platform.send(input, { logger, debug, safeMode });
             if (sent === false) {
               sendResponse({ success: false, sendMs: now() - t0, error: '发送动作未执行' });
               return;
@@ -897,10 +1335,11 @@ if (!window.__aiBroadcastLoaded) {
         return true;
       }
 
-      if (message.type === 'INJECT_MESSAGE') {
+      if (message.type === MESSAGE_TYPES.INJECT_MESSAGE) {
         const requestId = message.requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
         const debug = Boolean(message.debug);
         const fastPathEnabled = message.fastPathEnabled !== false;
+        const safeMode = Boolean(message.safeMode);
         const text = message.text || '';
         const autoSend = Boolean(message.autoSend);
         const logger = createLogger(requestId, debug);
@@ -935,10 +1374,17 @@ if (!window.__aiBroadcastLoaded) {
           logger.info('inject-start', {
             platform: platform.name,
             autoSend,
-            fastPathEnabled
+            fastPathEnabled,
+            safeMode
           });
 
           try {
+            const riskReason = getHighRiskPageReason();
+            if (riskReason) {
+              const err = new Error(riskReason);
+              err.stage = 'findInput';
+              throw err;
+            }
             const findStartedAt = now();
             const input = await platform.findInput();
             timings.findInputMs = now() - findStartedAt;
@@ -952,6 +1398,7 @@ if (!window.__aiBroadcastLoaded) {
             const injectStartedAt = now();
             const injectMeta = await platform.inject(input, text, {
               fastPathEnabled,
+              safeMode,
               logger,
               debug
             });
@@ -962,7 +1409,7 @@ if (!window.__aiBroadcastLoaded) {
             if (autoSend) {
               stage = 'send';
               const sendStartedAt = now();
-              const sendResult = await platform.send(input, { logger, debug, text });
+              const sendResult = await platform.send(input, { logger, debug, text, safeMode });
               if (sendResult === false) {
                 const sendErr = new Error('发送动作未执行');
                 sendErr.stage = 'send';

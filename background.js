@@ -1,15 +1,110 @@
 // 广发 - Background Service Worker v4
 
+try {
+  importScripts('shared/platform-registry.js');
+} catch (err) {
+  console.warn('[AIB][background] shared registry load failed', err);
+}
+
+const AIB_SHARED = globalThis.__AIB_SHARED__ || null;
+const MESSAGE_TYPES = AIB_SHARED?.MESSAGE_TYPES || {
+  GET_AI_TABS: 'GET_AI_TABS',
+  BROADCAST_MESSAGE: 'BROADCAST_MESSAGE',
+  LOCATE_UPLOAD_ENTRIES: 'LOCATE_UPLOAD_ENTRIES',
+  BROADCAST_PROGRESS: 'BROADCAST_PROGRESS',
+  PING: 'PING',
+  INJECT_MESSAGE: 'INJECT_MESSAGE',
+  SEND_NOW: 'SEND_NOW',
+  HIGHLIGHT_UPLOAD_ENTRY: 'HIGHLIGHT_UPLOAD_ENTRY'
+};
+
+const FALLBACK_PLATFORM_DEFINITIONS = [
+  { name: 'ChatGPT', domains: ['chatgpt.com', 'chat.openai.com'], newChatUrl: 'https://chatgpt.com/' },
+  { name: 'Claude', domains: ['claude.ai'], newChatUrl: 'https://claude.ai/new' },
+  { name: 'Gemini', domains: ['gemini.google.com'], newChatUrl: 'https://gemini.google.com/app' },
+  { name: 'Grok', domains: ['grok.com'], newChatUrl: 'https://grok.com/' },
+  { name: 'DeepSeek', domains: ['deepseek.com'], newChatUrl: 'https://chat.deepseek.com/' },
+  { name: 'Mistral', domains: ['chat.mistral.ai'], newChatUrl: null },
+  { name: 'Doubao', domains: ['doubao.com'], newChatUrl: 'https://www.doubao.com/chat' },
+  { name: 'Qianwen', domains: ['tongyi.aliyun.com', 'qianwen.com'], newChatUrl: 'https://www.qianwen.com/' },
+  { name: 'Yuanbao', domains: ['yuanbao.tencent.com'], newChatUrl: 'https://yuanbao.tencent.com/chat' },
+  { name: 'Kimi', domains: ['moonshot.cn', 'kimi.ai', 'kimi.com'], newChatUrl: 'https://www.kimi.com/' }
+];
+
+function normalizeHostname(input) {
+  return String(input || '').trim().toLowerCase().replace(/^www\./, '');
+}
+
+function getFallbackPlatformByHostname(hostname) {
+  const normalized = normalizeHostname(hostname);
+  if (!normalized) return null;
+  for (const platform of FALLBACK_PLATFORM_DEFINITIONS) {
+    for (const domain of platform.domains) {
+      if (normalized === domain || normalized.endsWith(`.${domain}`)) {
+        return platform;
+      }
+    }
+  }
+  return null;
+}
+
+function getPlatformMetaFromUrl(url) {
+  if (AIB_SHARED?.getPlatformByUrl) {
+    return AIB_SHARED.getPlatformByUrl(url);
+  }
+  try {
+    const hostname = new URL(url).hostname;
+    return getFallbackPlatformByHostname(hostname);
+  } catch (e) {
+    return null;
+  }
+}
+
+function getPlatformMetaByName(name) {
+  if (AIB_SHARED?.getPlatformByName) {
+    return AIB_SHARED.getPlatformByName(name);
+  }
+  return FALLBACK_PLATFORM_DEFINITIONS.find((platform) => platform.name === name) || null;
+}
+
 const DEFAULT_FLAGS = {
   debugLogs: false,
-  perfFastPathEnabled: true
+  perfFastPathEnabled: true,
+  riskSafeMode: false,
+  riskSafeModeLevel: 0,
+  riskSafeModeUntilTs: 0,
+  riskSafeModeActivatedAtTs: 0,
+  riskTriggerHistoryTs: [],
+  riskWindowStartTs: 0,
+  riskWindowTargetCount: 0,
+  riskWindowFailCount: 0,
+  riskWindowRiskFailCount: 0,
+  riskRecoveryCleanStreak: 0,
+  guardMinDelayMs: 140,
+  guardJitterMs: 260
 };
 
 function now() {
   return Date.now();
 }
 
-const BROADCAST_HARD_TIMEOUT_MS = 15000;
+const BROADCAST_HARD_TIMEOUT_MS = 50000;
+const SAFE_MODE_WINDOW_MS = 10 * 60 * 1000;
+const SAFE_MODE_MIN_HOLD_MS = 10 * 60 * 1000;
+const SAFE_MODE_TRIGGER_HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const SAFE_MODE_TRIGGER_DURATIONS_MS = [
+  30 * 60 * 1000,
+  2 * 60 * 60 * 1000,
+  8 * 60 * 60 * 1000,
+  24 * 60 * 60 * 1000
+];
+const SAFE_MODE_SOFT_RISK_FAIL_THRESHOLD = 2;
+const SAFE_MODE_SOFT_FAIL_RATE_THRESHOLD = 0.4;
+const SAFE_MODE_RECOVERY_REQUIRED_CLEAN_RUNS = 3;
+const SAFE_MODE_RECOVERY_MAX_FAIL_RATE = 0.1;
+const SAFE_MODE_RECOVERY_MIN_SUCCESSES = 2;
+const SAFE_MODE_HARD_TRIGGER_PATTERN = /(captcha|verify you are human|security check|验证码|人机验证|安全验证|滑块验证|429|too many requests|forbidden|登录验证|sign[\s-]?in|log[\s-]?in)/i;
+const SAFE_MODE_RISK_PATTERN = /(验证码|人机|captcha|verify|security|risk|登录|sign[\s-]?in|log[\s-]?in|429|too many requests|forbidden)/i;
 
 function createLogger(scope, requestId, debug) {
   const prefix = `[AIB][${scope}][${requestId}]`;
@@ -37,19 +132,121 @@ function percentile(values, p) {
   return sorted[idx];
 }
 
-async function getRuntimeFlags() {
-  const data = await chrome.storage.local.get(['debugLogs', 'perfFastPathEnabled']);
+function clampPositiveNumber(value, fallback = 0) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(0, Number(value));
+}
+
+function sanitizeTriggerHistory(value, nowTs) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((ts) => clampPositiveNumber(ts, 0))
+    .filter((ts) => ts > 0 && ts >= nowTs - SAFE_MODE_TRIGGER_HISTORY_WINDOW_MS);
+}
+
+function normalizeRuntimeFlags(data, nowTs = now()) {
+  const safeMode = typeof data.riskSafeMode === 'boolean' ? data.riskSafeMode : DEFAULT_FLAGS.riskSafeMode;
+  const level = Math.max(0, Math.min(4, Math.floor(clampPositiveNumber(data.riskSafeModeLevel, DEFAULT_FLAGS.riskSafeModeLevel))));
+  const untilTs = clampPositiveNumber(data.riskSafeModeUntilTs, DEFAULT_FLAGS.riskSafeModeUntilTs);
+  const activatedAtTs = clampPositiveNumber(data.riskSafeModeActivatedAtTs, DEFAULT_FLAGS.riskSafeModeActivatedAtTs);
+  const triggerHistoryTs = sanitizeTriggerHistory(data.riskTriggerHistoryTs, nowTs);
+  const windowStartTs = clampPositiveNumber(data.riskWindowStartTs, DEFAULT_FLAGS.riskWindowStartTs);
+  const windowTargetCount = clampPositiveNumber(data.riskWindowTargetCount, DEFAULT_FLAGS.riskWindowTargetCount);
+  const windowFailCount = clampPositiveNumber(data.riskWindowFailCount, DEFAULT_FLAGS.riskWindowFailCount);
+  const windowRiskFailCount = clampPositiveNumber(data.riskWindowRiskFailCount, DEFAULT_FLAGS.riskWindowRiskFailCount);
+  const recoveryCleanStreak = Math.floor(clampPositiveNumber(data.riskRecoveryCleanStreak, DEFAULT_FLAGS.riskRecoveryCleanStreak));
+  const debugLogs = typeof data.debugLogs === 'boolean' ? data.debugLogs : DEFAULT_FLAGS.debugLogs;
+  const perfFastPathEnabled = typeof data.perfFastPathEnabled === 'boolean' ? data.perfFastPathEnabled : DEFAULT_FLAGS.perfFastPathEnabled;
+  const guardMinDelayMs = clampPositiveNumber(data.guardMinDelayMs, DEFAULT_FLAGS.guardMinDelayMs);
+  const guardJitterMs = clampPositiveNumber(data.guardJitterMs, DEFAULT_FLAGS.guardJitterMs);
+
+  const expiredByTime = Boolean(safeMode && untilTs > 0 && nowTs >= untilTs);
+  const normalizedSafeMode = expiredByTime ? false : safeMode;
+
   return {
-    debugLogs: typeof data.debugLogs === 'boolean' ? data.debugLogs : DEFAULT_FLAGS.debugLogs,
-    perfFastPathEnabled: typeof data.perfFastPathEnabled === 'boolean' ? data.perfFastPathEnabled : DEFAULT_FLAGS.perfFastPathEnabled
+    debugLogs,
+    perfFastPathEnabled,
+    riskSafeMode: normalizedSafeMode,
+    riskSafeModeLevel: normalizedSafeMode ? level : 0,
+    riskSafeModeUntilTs: normalizedSafeMode ? untilTs : 0,
+    riskSafeModeActivatedAtTs: normalizedSafeMode ? activatedAtTs : 0,
+    riskTriggerHistoryTs: triggerHistoryTs,
+    riskWindowStartTs: windowStartTs,
+    riskWindowTargetCount: windowTargetCount,
+    riskWindowFailCount: windowFailCount,
+    riskWindowRiskFailCount: windowRiskFailCount,
+    riskRecoveryCleanStreak: normalizedSafeMode ? recoveryCleanStreak : 0,
+    guardMinDelayMs,
+    guardJitterMs,
   };
 }
 
+async function getRuntimeFlags() {
+  const nowTs = now();
+  const data = await chrome.storage.local.get([
+    'debugLogs',
+    'perfFastPathEnabled',
+    'riskSafeMode',
+    'riskSafeModeLevel',
+    'riskSafeModeUntilTs',
+    'riskSafeModeActivatedAtTs',
+    'riskTriggerHistoryTs',
+    'riskWindowStartTs',
+    'riskWindowTargetCount',
+    'riskWindowFailCount',
+    'riskWindowRiskFailCount',
+    'riskRecoveryCleanStreak',
+    'guardMinDelayMs',
+    'guardJitterMs'
+  ]);
+  const normalized = normalizeRuntimeFlags(data, nowTs);
+  const expiredByTime = Boolean(data.riskSafeMode && !normalized.riskSafeMode);
+  const historyNormalized = JSON.stringify(data.riskTriggerHistoryTs || []) !== JSON.stringify(normalized.riskTriggerHistoryTs);
+  if (expiredByTime || historyNormalized) {
+    await chrome.storage.local.set({
+      riskSafeMode: normalized.riskSafeMode,
+      riskSafeModeLevel: normalized.riskSafeModeLevel,
+      riskSafeModeUntilTs: normalized.riskSafeModeUntilTs,
+      riskSafeModeActivatedAtTs: normalized.riskSafeModeActivatedAtTs,
+      riskTriggerHistoryTs: normalized.riskTriggerHistoryTs,
+      riskRecoveryCleanStreak: normalized.riskRecoveryCleanStreak
+    });
+  }
+  return normalized;
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
-  const existing = await chrome.storage.local.get(['debugLogs', 'perfFastPathEnabled']);
+  const existing = await chrome.storage.local.get([
+    'debugLogs',
+    'perfFastPathEnabled',
+    'riskSafeMode',
+    'riskSafeModeLevel',
+    'riskSafeModeUntilTs',
+    'riskSafeModeActivatedAtTs',
+    'riskTriggerHistoryTs',
+    'riskWindowStartTs',
+    'riskWindowTargetCount',
+    'riskWindowFailCount',
+    'riskWindowRiskFailCount',
+    'riskRecoveryCleanStreak',
+    'guardMinDelayMs',
+    'guardJitterMs'
+  ]);
   const patch = {};
   if (typeof existing.debugLogs !== 'boolean') patch.debugLogs = DEFAULT_FLAGS.debugLogs;
   if (typeof existing.perfFastPathEnabled !== 'boolean') patch.perfFastPathEnabled = DEFAULT_FLAGS.perfFastPathEnabled;
+  if (typeof existing.riskSafeMode !== 'boolean') patch.riskSafeMode = DEFAULT_FLAGS.riskSafeMode;
+  if (!Number.isFinite(existing.riskSafeModeLevel)) patch.riskSafeModeLevel = DEFAULT_FLAGS.riskSafeModeLevel;
+  if (!Number.isFinite(existing.riskSafeModeUntilTs)) patch.riskSafeModeUntilTs = DEFAULT_FLAGS.riskSafeModeUntilTs;
+  if (!Number.isFinite(existing.riskSafeModeActivatedAtTs)) patch.riskSafeModeActivatedAtTs = DEFAULT_FLAGS.riskSafeModeActivatedAtTs;
+  if (!Array.isArray(existing.riskTriggerHistoryTs)) patch.riskTriggerHistoryTs = DEFAULT_FLAGS.riskTriggerHistoryTs;
+  if (!Number.isFinite(existing.riskWindowStartTs)) patch.riskWindowStartTs = DEFAULT_FLAGS.riskWindowStartTs;
+  if (!Number.isFinite(existing.riskWindowTargetCount)) patch.riskWindowTargetCount = DEFAULT_FLAGS.riskWindowTargetCount;
+  if (!Number.isFinite(existing.riskWindowFailCount)) patch.riskWindowFailCount = DEFAULT_FLAGS.riskWindowFailCount;
+  if (!Number.isFinite(existing.riskWindowRiskFailCount)) patch.riskWindowRiskFailCount = DEFAULT_FLAGS.riskWindowRiskFailCount;
+  if (!Number.isFinite(existing.riskRecoveryCleanStreak)) patch.riskRecoveryCleanStreak = DEFAULT_FLAGS.riskRecoveryCleanStreak;
+  if (!Number.isFinite(existing.guardMinDelayMs)) patch.guardMinDelayMs = DEFAULT_FLAGS.guardMinDelayMs;
+  if (!Number.isFinite(existing.guardJitterMs)) patch.guardJitterMs = DEFAULT_FLAGS.guardJitterMs;
   if (Object.keys(patch).length > 0) {
     await chrome.storage.local.set(patch);
   }
@@ -57,11 +254,11 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'GET_AI_TABS') {
+  if (message.type === MESSAGE_TYPES.GET_AI_TABS) {
     getAITabs().then(tabs => sendResponse({ tabs }));
     return true;
   }
-  if (message.type === 'BROADCAST_MESSAGE') {
+  if (message.type === MESSAGE_TYPES.BROADCAST_MESSAGE) {
     (async () => {
       const { text, autoSend, newChat, tabIds, requestId, clientTs } = message;
       const runtimeFlags = await getRuntimeFlags();
@@ -75,7 +272,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         requestId: resolvedRequestId,
         clientTs: Number.isFinite(clientTs) ? clientTs : now(),
         debug,
-        fastPathEnabled: runtimeFlags.perfFastPathEnabled
+        fastPathEnabled: runtimeFlags.perfFastPathEnabled,
+        safeMode: runtimeFlags.riskSafeMode,
+        safeModeLevel: runtimeFlags.riskSafeModeLevel,
+        safeModeUntilTs: runtimeFlags.riskSafeModeUntilTs,
+        safeModeActivatedAtTs: runtimeFlags.riskSafeModeActivatedAtTs,
+        triggerHistoryTs: runtimeFlags.riskTriggerHistoryTs,
+        windowStartTs: runtimeFlags.riskWindowStartTs,
+        windowTargetCount: runtimeFlags.riskWindowTargetCount,
+        windowFailCount: runtimeFlags.riskWindowFailCount,
+        windowRiskFailCount: runtimeFlags.riskWindowRiskFailCount,
+        recoveryCleanStreak: runtimeFlags.riskRecoveryCleanStreak,
+        guardMinDelayMs: runtimeFlags.guardMinDelayMs,
+        guardJitterMs: runtimeFlags.guardJitterMs
       };
       const result = await broadcastToTabs(payload);
       sendResponse(result);
@@ -87,7 +296,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           totalMs: 0,
           p95TabMs: 0,
           successCount: 0,
-          failCount: 0
+          failCount: 0,
+          safety: {
+            safeMode: false,
+            effectiveAutoSend: false,
+            riskEvents: 0,
+            autoSendBlockedBySafeMode: false
+          }
+        },
+        error: err.message
+      });
+    });
+    return true;
+  }
+  if (message.type === MESSAGE_TYPES.LOCATE_UPLOAD_ENTRIES) {
+    (async () => {
+      const runtimeFlags = await getRuntimeFlags();
+      const resolvedRequestId = message.requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      const debug = typeof message.debug === 'boolean' ? message.debug : runtimeFlags.debugLogs;
+      const payload = {
+        tabIds: Array.isArray(message.tabIds) ? message.tabIds : [],
+        requestId: resolvedRequestId,
+        clientTs: Number.isFinite(message.clientTs) ? message.clientTs : now(),
+        debug
+      };
+      const result = await locateUploadEntries(payload);
+      sendResponse(result);
+    })().catch((err) => {
+      sendResponse({
+        results: [],
+        summary: {
+          requestId: message.requestId || 'unknown',
+          totalMs: 0,
+          p95TabMs: 0,
+          foundCount: 0,
+          notFoundCount: 0,
+          errorCount: 0,
+          timedOut: false
         },
         error: err.message
       });
@@ -95,38 +340,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 });
-
-const AI_PATTERNS = [
-  'chatgpt.com',
-  'chat.openai.com',
-  'claude.ai',
-  'gemini.google.com',
-  'grok.com',
-  'deepseek.com',
-  'chat.mistral.ai',
-  'doubao.com',
-  'tongyi.aliyun.com',
-  'qianwen.com',
-  'moonshot.cn',
-  'kimi.ai',
-  'kimi.com'
-];
-
-const PLATFORM_NAMES = {
-  'chatgpt.com': 'ChatGPT',
-  'chat.openai.com': 'ChatGPT',
-  'claude.ai': 'Claude',
-  'gemini.google.com': 'Gemini',
-  'grok.com': 'Grok',
-  'deepseek.com': 'DeepSeek',
-  'chat.mistral.ai': 'Mistral',
-  'doubao.com': 'Doubao',
-  'tongyi.aliyun.com': 'Qianwen',
-  'qianwen.com': 'Qianwen',
-  'moonshot.cn': 'Kimi',
-  'kimi.ai': 'Kimi',
-  'kimi.com': 'Kimi'
-};
 
 const GENERIC_TITLE_PATTERNS = {
   ChatGPT: [/^chatgpt$/i, /^new chat$/i],
@@ -137,31 +350,15 @@ const GENERIC_TITLE_PATTERNS = {
   Mistral: [/^mistral ai$/i, /^mistral$/i, /^new chat$/i],
   Doubao: [/^豆包$/i, /^doubao$/i, /^new chat$/i],
   Qianwen: [/^通义千问$/i, /^千问$/i, /^qianwen$/i, /^new chat$/i],
+  Yuanbao: [/^元宝$/i, /^yuanbao$/i, /^new chat$/i],
   Kimi: [/^kimi$/i, /^new chat$/i]
 };
 
-// New chat URLs per platform
-const NEW_CHAT_URLS = {
-  'ChatGPT':  'https://chatgpt.com/',
-  'Claude':   'https://claude.ai/new',
-  'Gemini':   'https://gemini.google.com/app',
-  'Grok':     'https://grok.com/',
-  'DeepSeek': 'https://chat.deepseek.com/',
-  'Mistral':  null,
-  'Doubao':   'https://www.doubao.com/chat',
-  'Qianwen':  'https://www.qianwen.com/',
-  'Kimi':     'https://www.kimi.com/',
-};
 const NEW_CHAT_SETTLE_DELAY_MS = 260;
 
 function getPlatformName(url) {
-  try {
-    const hostname = new URL(url).hostname.replace('www.', '');
-    for (const [key, name] of Object.entries(PLATFORM_NAMES)) {
-      if (hostname.includes(key)) return name;
-    }
-  } catch(e) {}
-  return null;
+  const platform = getPlatformMetaFromUrl(url);
+  return platform ? platform.name : null;
 }
 
 function normalizeTitle(value) {
@@ -295,6 +492,7 @@ async function probeConversationTitle(tabId, platformName) {
           Mistral: ['nav a[aria-current="page"]', 'main h1'],
           Doubao: ['nav a[aria-current="page"]', 'main h1', 'header h1'],
           Qianwen: ['nav a[aria-current="page"]', 'main h1', 'header h1'],
+          Yuanbao: ['nav a[aria-current="page"]', 'main h1', 'header h1'],
           Kimi: ['nav a[aria-current="page"]', 'main h1', 'header h1']
         };
         const platformSelectors = selectorMap[platform] || ['main h1', 'header h1'];
@@ -386,7 +584,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function pingContent(tabId, requestId, debug) {
   try {
     const response = await chrome.tabs.sendMessage(tabId, {
-      type: 'PING',
+      type: MESSAGE_TYPES.PING,
       requestId,
       debug
     });
@@ -405,7 +603,7 @@ async function ensureContentReady(tabId, requestId, debug, logger) {
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
-      files: ['content.js']
+      files: ['shared/platform-registry.js', 'content.js']
     });
   } catch (err) {
     logger.debug('execute-script-warning', { tabId, error: err.message });
@@ -448,8 +646,21 @@ async function broadcastToTabs(payload) {
     requestId,
     clientTs,
     debug,
-    fastPathEnabled
+    fastPathEnabled,
+    safeMode,
+    safeModeLevel,
+    safeModeUntilTs,
+    safeModeActivatedAtTs,
+    triggerHistoryTs,
+    windowStartTs,
+    windowTargetCount,
+    windowFailCount,
+    windowRiskFailCount,
+    recoveryCleanStreak,
+    guardMinDelayMs,
+    guardJitterMs
   } = payload;
+  const effectiveAutoSend = Boolean(autoSend && !safeMode);
   const logger = createLogger('background', requestId, debug);
   const startedAt = now();
   const totalTabs = tabIds.length;
@@ -458,10 +669,11 @@ async function broadcastToTabs(payload) {
   let successCount = 0;
   let failCount = 0;
   let finalized = false;
+  const jitter = (base, span) => Math.max(0, base + Math.floor(Math.random() * (span + 1)));
 
   const emitProgress = (extra = {}) => {
     chrome.runtime.sendMessage({
-      type: 'BROADCAST_PROGRESS',
+      type: MESSAGE_TYPES.BROADCAST_PROGRESS,
       requestId,
       total: totalTabs,
       completed: completedCount,
@@ -483,7 +695,9 @@ async function broadcastToTabs(payload) {
 
   logger.info('broadcast-start', {
     tabCount: totalTabs,
-    autoSend,
+    autoSend: effectiveAutoSend,
+    requestedAutoSend: autoSend,
+    safeMode,
     newChat,
     fastPathEnabled,
     queueDelayMs: Math.max(0, startedAt - clientTs)
@@ -496,7 +710,8 @@ async function broadcastToTabs(payload) {
       if (newChat) {
         const tab = await chrome.tabs.get(tabId);
         const platformName = getPlatformName(tab.url);
-        const newUrl = NEW_CHAT_URLS[platformName];
+        const platformMeta = getPlatformMetaByName(platformName);
+        const newUrl = platformMeta?.newChatUrl || null;
         if (newUrl) {
           await chrome.tabs.update(tabId, { url: newUrl });
           await waitForTabLoad(tabId);
@@ -505,26 +720,28 @@ async function broadcastToTabs(payload) {
       }
       await ensureContentReady(tabId, requestId, debug, logger);
       const response = await chrome.tabs.sendMessage(tabId, {
-        type: 'INJECT_MESSAGE',
+        type: MESSAGE_TYPES.INJECT_MESSAGE,
         text,
-        autoSend,
+        autoSend: effectiveAutoSend,
         newChat: false,
         requestId,
         debug,
-        fastPathEnabled
+        fastPathEnabled,
+        safeMode
       });
       const merged = { tabId, ...response };
       merged.timings = normalizeResultTimings(merged, now() - tabStartedAt);
 
-      if (autoSend) {
+      if (effectiveAutoSend) {
         const needsSendFallback = merged.success ? merged.sent !== true : merged.stage === 'send';
         if (needsSendFallback) {
           const fallbackStartedAt = now();
           try {
             const sendRes = await chrome.tabs.sendMessage(tabId, {
-              type: 'SEND_NOW',
+              type: MESSAGE_TYPES.SEND_NOW,
               requestId,
-              debug
+              debug,
+              safeMode
             });
             const sendMs = Number.isFinite(sendRes?.sendMs) ? sendRes.sendMs : (now() - fallbackStartedAt);
             const sendOk = Boolean(sendRes?.success);
@@ -562,7 +779,16 @@ async function broadcastToTabs(payload) {
     }
   }
 
-  const tasks = tabIds.map((tabId) => (async () => {
+  let timedOut = false;
+  for (let i = 0; i < tabIds.length; i += 1) {
+    if (now() - startedAt >= BROADCAST_HARD_TIMEOUT_MS) {
+      timedOut = true;
+      break;
+    }
+    if (i > 0) {
+      await sleep(jitter(guardMinDelayMs, guardJitterMs));
+    }
+    const tabId = tabIds[i];
     try {
       const res = await processTab(tabId);
       recordResult(tabId, res);
@@ -577,13 +803,7 @@ async function broadcastToTabs(payload) {
         timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: 0 }
       });
     }
-  })());
-
-  const raceResult = await Promise.race([
-    Promise.allSettled(tasks).then(() => 'done'),
-    sleep(BROADCAST_HARD_TIMEOUT_MS).then(() => 'timeout')
-  ]);
-  const timedOut = raceResult === 'timeout';
+  }
   finalized = true;
 
   if (timedOut) {
@@ -618,14 +838,203 @@ async function broadcastToTabs(payload) {
   const finalSuccessCount = results.filter(r => r.success).length;
   const finalFailCount = results.length - finalSuccessCount;
   const p95TabMs = Math.round(percentile(results.map(r => r.timings?.totalMs || 0), 95));
+  const failedResults = results.filter((r) => !r?.success);
+  const riskEvents = failedResults.filter((r) => {
+    if (r?.stage === 'timeout') return true;
+    return SAFE_MODE_RISK_PATTERN.test(String(r?.error || ''));
+  }).length;
+  const hardTriggerEvents = failedResults.filter((r) => SAFE_MODE_HARD_TRIGGER_PATTERN.test(String(r?.error || ''))).length;
+  const hardTriggered = hardTriggerEvents > 0;
+
+  const runTargetCount = results.length;
+  const runFailRate = runTargetCount > 0 ? finalFailCount / runTargetCount : 0;
+  const inWindow = windowStartTs > 0 && (startedAt - windowStartTs) <= SAFE_MODE_WINDOW_MS;
+  const nextWindowStartTs = inWindow ? windowStartTs : startedAt;
+  const nextWindowTargetCount = (inWindow ? windowTargetCount : 0) + runTargetCount;
+  const nextWindowFailCount = (inWindow ? windowFailCount : 0) + finalFailCount;
+  const nextWindowRiskFailCount = (inWindow ? windowRiskFailCount : 0) + riskEvents;
+  const windowFailRate = nextWindowTargetCount > 0 ? nextWindowFailCount / nextWindowTargetCount : 0;
+
+  const softTriggered = nextWindowRiskFailCount >= SAFE_MODE_SOFT_RISK_FAIL_THRESHOLD ||
+    windowFailRate >= SAFE_MODE_SOFT_FAIL_RATE_THRESHOLD;
+  const triggerMode = hardTriggered ? 'hard' : (softTriggered ? 'soft' : 'none');
+  const triggered = triggerMode !== 'none';
+
+  let nextRiskSafeMode = Boolean(safeMode);
+  let nextRiskSafeModeLevel = Math.max(0, Math.min(4, Math.floor(clampPositiveNumber(safeModeLevel, 0))));
+  let nextRiskSafeModeUntilTs = clampPositiveNumber(safeModeUntilTs, 0);
+  let nextRiskSafeModeActivatedAtTs = clampPositiveNumber(safeModeActivatedAtTs, 0);
+  let nextRiskRecoveryCleanStreak = Math.floor(clampPositiveNumber(recoveryCleanStreak, 0));
+  let nextTriggerHistoryTs = sanitizeTriggerHistory(triggerHistoryTs, startedAt);
+
+  if (triggered) {
+    nextTriggerHistoryTs.push(startedAt);
+    const triggerCount24h = nextTriggerHistoryTs.length;
+    const escalatedLevel = Math.min(4, Math.max(nextRiskSafeModeLevel, triggerCount24h));
+    const durationMs = SAFE_MODE_TRIGGER_DURATIONS_MS[Math.max(0, escalatedLevel - 1)];
+    nextRiskSafeMode = true;
+    nextRiskSafeModeLevel = escalatedLevel;
+    nextRiskSafeModeUntilTs = Math.max(nextRiskSafeModeUntilTs, startedAt + durationMs);
+    nextRiskSafeModeActivatedAtTs = nextRiskSafeModeActivatedAtTs > 0 && safeMode
+      ? nextRiskSafeModeActivatedAtTs
+      : startedAt;
+    nextRiskRecoveryCleanStreak = 0;
+  } else if (nextRiskSafeMode) {
+    const cleanForRecovery = !hardTriggered &&
+      runFailRate < SAFE_MODE_RECOVERY_MAX_FAIL_RATE &&
+      finalSuccessCount >= SAFE_MODE_RECOVERY_MIN_SUCCESSES;
+    nextRiskRecoveryCleanStreak = cleanForRecovery ? nextRiskRecoveryCleanStreak + 1 : 0;
+
+    const holdSatisfied = startedAt >= (nextRiskSafeModeActivatedAtTs + SAFE_MODE_MIN_HOLD_MS);
+    const earlyRecover = holdSatisfied && nextRiskRecoveryCleanStreak >= SAFE_MODE_RECOVERY_REQUIRED_CLEAN_RUNS;
+    const expireByDuration = nextRiskSafeModeUntilTs > 0 && startedAt >= nextRiskSafeModeUntilTs;
+    if (earlyRecover || expireByDuration) {
+      nextRiskSafeMode = false;
+      nextRiskSafeModeLevel = 0;
+      nextRiskSafeModeUntilTs = 0;
+      nextRiskSafeModeActivatedAtTs = 0;
+      nextRiskRecoveryCleanStreak = 0;
+    }
+  } else {
+    nextRiskRecoveryCleanStreak = 0;
+  }
+
+  await chrome.storage.local.set({
+    riskSafeMode: nextRiskSafeMode,
+    riskSafeModeLevel: nextRiskSafeModeLevel,
+    riskSafeModeUntilTs: nextRiskSafeModeUntilTs,
+    riskSafeModeActivatedAtTs: nextRiskSafeModeActivatedAtTs,
+    riskTriggerHistoryTs: nextTriggerHistoryTs,
+    riskWindowStartTs: nextWindowStartTs,
+    riskWindowTargetCount: nextWindowTargetCount,
+    riskWindowFailCount: nextWindowFailCount,
+    riskWindowRiskFailCount: nextWindowRiskFailCount,
+    riskRecoveryCleanStreak: nextRiskRecoveryCleanStreak
+  });
+
   const summary = {
     requestId,
     totalMs,
     p95TabMs,
     successCount: finalSuccessCount,
     failCount: finalFailCount,
-    timedOut
+    timedOut,
+    safety: {
+      safeMode: Boolean(safeMode),
+      effectiveAutoSend: Boolean(effectiveAutoSend),
+      requestedAutoSend: Boolean(autoSend),
+      autoSendBlockedBySafeMode: Boolean(autoSend && safeMode),
+      riskEvents,
+      hardTriggerEvents,
+      triggerMode,
+      nextSafeMode: nextRiskSafeMode,
+      nextSafeModeLevel: nextRiskSafeModeLevel,
+      nextSafeModeUntilTs: nextRiskSafeModeUntilTs
+    }
   };
   logger.info('broadcast-end', summary);
+  return { results, summary };
+}
+
+async function locateUploadEntries(payload) {
+  const {
+    tabIds,
+    requestId,
+    clientTs,
+    debug
+  } = payload;
+  const logger = createLogger('background-upload', requestId, debug);
+  const startedAt = now();
+  const resultMap = new Map();
+  let timedOut = false;
+
+  logger.info('locate-upload-start', {
+    tabCount: tabIds.length,
+    queueDelayMs: Math.max(0, startedAt - clientTs)
+  });
+
+  for (const tabId of tabIds) {
+    if (now() - startedAt >= BROADCAST_HARD_TIMEOUT_MS) {
+      timedOut = true;
+      break;
+    }
+
+    const tabStartedAt = now();
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      const platformName = getPlatformName(tab?.url) || 'Unknown';
+
+      await ensureContentReady(tabId, requestId, debug, logger);
+      const response = await chrome.tabs.sendMessage(tabId, {
+        type: MESSAGE_TYPES.HIGHLIGHT_UPLOAD_ENTRY,
+        requestId,
+        debug
+      });
+
+      const success = Boolean(response?.success);
+      const found = Boolean(response?.found);
+      resultMap.set(tabId, {
+        tabId,
+        platform: response?.platform || platformName,
+        success,
+        found: success ? found : false,
+        via: response?.via || 'unknown',
+        error: success ? undefined : (response?.error || '定位失败'),
+        totalMs: Number.isFinite(response?.totalMs) ? response.totalMs : (now() - tabStartedAt)
+      });
+    } catch (err) {
+      logger.error('locate-upload-tab-failure', { tabId, error: err?.message || String(err) });
+      resultMap.set(tabId, {
+        tabId,
+        platform: 'Unknown',
+        success: false,
+        found: false,
+        via: 'n/a',
+        error: err?.message || String(err),
+        totalMs: now() - tabStartedAt
+      });
+    }
+  }
+
+  if (timedOut) {
+    for (const tabId of tabIds) {
+      if (resultMap.has(tabId)) continue;
+      resultMap.set(tabId, {
+        tabId,
+        platform: 'Unknown',
+        success: false,
+        found: false,
+        via: 'timeout',
+        error: '定位上传入口超时',
+        totalMs: BROADCAST_HARD_TIMEOUT_MS
+      });
+    }
+  }
+
+  const results = tabIds.map((tabId) => resultMap.get(tabId) || {
+    tabId,
+    platform: 'Unknown',
+    success: false,
+    found: false,
+    via: 'n/a',
+    error: '未知错误',
+    totalMs: 0
+  });
+  const foundCount = results.filter((r) => r.success && r.found).length;
+  const notFoundCount = results.filter((r) => r.success && !r.found).length;
+  const errorCount = results.length - foundCount - notFoundCount;
+  const totalMs = now() - startedAt;
+  const p95TabMs = Math.round(percentile(results.map((r) => r.totalMs || 0), 95));
+
+  const summary = {
+    requestId,
+    totalMs,
+    p95TabMs,
+    foundCount,
+    notFoundCount,
+    errorCount,
+    timedOut
+  };
+  logger.info('locate-upload-end', summary);
   return { results, summary };
 }

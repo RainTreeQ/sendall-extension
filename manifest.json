@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "default_locale": "en",
   "name": "__MSG_extName__",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "__MSG_extDescription__",
   "permissions": [
     "activeTab",
@@ -24,13 +24,14 @@
     "https://tongyi.aliyun.com/*",
     "https://www.qianwen.com/*",
     "https://qianwen.com/*",
+    "https://yuanbao.tencent.com/*",
     "https://*.moonshot.cn/*",
     "https://kimi.ai/*",
     "https://kimi.com/*",
     "https://*.kimi.com/*"
   ],
   "action": {
-    "default_popup": "app/dist/popup.html",
+    "default_popup": "app/dist-extension/popup.html",
     "default_title": "__MSG_actionTitle__",
     "default_icon": {
       "16": "icons/icon16.png",

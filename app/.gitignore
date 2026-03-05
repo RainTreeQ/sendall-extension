@@ -9,12 +9,15 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-site
+dist-extension
 dist-ssr
+dist-design-system
 *.local
 
-# Keep dist tracked for extension runtime (manifest points to app/dist/popup.html)
-!dist/
-!dist/**
+# Keep dist-extension tracked for extension runtime (manifest points to app/dist-extension/popup.html)
+!dist-extension/
+!dist-extension/**
 
 # Editor directories and files
 .vscode/*

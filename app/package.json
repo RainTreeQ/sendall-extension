@@ -1,12 +1,16 @@
 {
   "name": "app",
   "private": true,
-  "version": "2.2.0",
+  "version": "2.3.0",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "dev:design-system": "vite --config vite.design-system.config.js",
+    "build": "npm run build:extension",
+    "build:extension": "vite build --config vite.extension.config.js",
+    "build:site": "vite build --config vite.site.config.js",
+    "build:design-system": "vite build --config vite.design-system.config.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },

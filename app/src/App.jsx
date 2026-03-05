@@ -2,10 +2,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Home } from "@/pages/Home";
-import { DesignSystem } from "@/pages/DesignSystem";
 
 /**
- * 根布局：共享 Header/Footer，内容路由拆分为公开落地页与内部设计系统页。
+ * 落地页应用：仅包含对外发布的营销落地页。设计系统已拆分为独立站点（本地开发用）。
  */
 function App() {
   return (
@@ -21,7 +20,6 @@ function App() {
         <div className="flex-1">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/design-system" element={<DesignSystem />} />
           </Routes>
         </div>
         <Footer />

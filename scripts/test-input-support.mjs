@@ -77,6 +77,16 @@ const PLATFORMS = [
       'textarea',
     ],
   },
+  {
+    name: 'Yuanbao',
+    url: 'https://yuanbao.tencent.com/',
+    selectors: [
+      '.ql-editor[contenteditable="true"]',
+      'div[contenteditable="true"][role="textbox"]',
+      'div[contenteditable="true"]',
+      'textarea',
+    ],
+  },
 ];
 
 async function checkSelectors(page, selectors) {

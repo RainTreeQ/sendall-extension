@@ -7,8 +7,8 @@ npm run build
 echo "[pre-commit] Capturing popup screenshot..."
 npm run capture:screenshot
 
-echo "[pre-commit] Staging app/dist output..."
-git add -A app/dist
+echo "[pre-commit] Staging app/dist-extension output..."
+git add -A app/dist-extension
 
 echo "[pre-commit] Staging screenshot assets..."
 git add \

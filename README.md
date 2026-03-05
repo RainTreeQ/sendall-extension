@@ -18,7 +18,7 @@
 |--------|------|
 | **One input, sync everywhere** — Type once, send to all open AI tabs. | **多端同步输入** — 一次输入，自动分发给所有打开的 AI 助手。 |
 | **Simultaneous send** — Two-phase broadcast: inject to all tabs first, then trigger send at once. | **同步发送** — 两阶段广播：先注入全部标签，再统一触发发送，各平台近乎同时发出。 |
-| **Smart loading feedback** — Send button uses a soft timeout (~9s); if longer, UI exits loading and keeps progress in background. | **智能加载反馈** — 发送按钮采用软超时（约 9 秒）；超时后停止 loading，并在后台持续更新广播进度。 |
+| **Smart loading feedback** — Send button uses a soft timeout (~50s); if longer, UI exits loading and keeps progress in background. | **智能加载反馈** — 发送按钮采用软超时（约 50 秒）；超时后停止 loading，并在后台持续更新广播进度。 |
 | **Auto Send** — Submit to each AI without clicking Send in every tab. | **自动发送** — 无需在各标签页手动点击发送。 |
 | **New Chat** — Optionally start a new conversation on each platform. | **新对话** — 可选在各平台开启新对话。 |
 | **Minimal UI, keyboard-first** — Vercel-style design, `Ctrl+Enter` to send. | **极简拟物 UI** — 全键盘支持，Ctrl+Enter 发送。 |
@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-05 16:03 | v2.3.0 (MINOR) | Core / UI Components / Popup UI / Background / Content Script / Manifest/Permissions / Tooling | `.githooks/pre-commit`, `.gitignore`, `app/.gitignore`, `app/design-system.html`, `app/package.json`, `app/src/App.jsx`, +23 <!-- auto:19378aadd9b5 -->
 - 2026-03-04 17:56 | v2.2.0 (MINOR) | Core / UI Components / Content Script / Tooling | `.githooks/pre-commit`, `app/src/App.jsx`, `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx`, `app/src/index.css`, +8 <!-- auto:2becda24e69a -->
 - 2026-03-04 10:39 | v2.1.0 (MINOR) | Core / UI Components | `app/package.json`, `app/src/App.jsx`, `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx`, `app/src/components/ui/badge.jsx`, +7 <!-- auto:9ea54d0811b3 -->
 - 2026-03-04 10:11 | v1.9.0 (MINOR) | Core / Popup UI / Manifest/Permissions / Tooling | `.githooks/pre-commit`, `app/src/popup/Popup.jsx`, `manifest.json`, `package.json`, `scripts/precommit-automation.mjs` <!-- auto:3de90e0794dd -->
@@ -44,6 +45,7 @@
 | Mistral | chat.mistral.ai |
 | 豆包 Doubao (字节跳动) | www.doubao.com |
 | 通义千问 Qianwen (阿里云) | www.qianwen.com, tongyi.aliyun.com |
+| 元宝 Yuanbao (腾讯) | yuanbao.tencent.com |
 | Kimi (月之暗面) | kimi.com, kimi.moonshot.cn, kimi.ai |
 
 ---
@@ -63,7 +65,7 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 3. Turn on **Developer mode** / 开启右上角 **开发者模式**。
 4. Click **Load unpacked** / 点击 **加载已解压的扩展程序**。
 5. Select the **project root folder** (the one containing `manifest.json`) / 选择解压后的**项目根目录**（包含 `manifest.json` 的文件夹）。
-6. Popup entry is `app/dist/popup.html` (prebuilt in repo). If missing locally, run `npm run build` in project root once. / 弹窗入口为 `app/dist/popup.html`（仓库已预构建）；若你本地缺失，请在项目根执行一次 `npm run build`。
+6. Popup entry is `app/dist-extension/popup.html` (prebuilt in repo). If missing locally, run `npm run build:extension` in project root once. / 弹窗入口为 `app/dist-extension/popup.html`（仓库已预构建）；若你本地缺失，请在项目根执行一次 `npm run build:extension`。
 
 ## 🎯 Usage / 使用说明
 
@@ -82,8 +84,12 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 
 - English: Some sites only expose the message input after login; if not logged in, detection may fail.
 - 中文：部分平台必须登录后才会出现输入框；未登录时可能出现“未检测到”。
-- English: The send button loading has a soft timeout (about 9 seconds). If exceeded, popup shows background-progress text and continues processing.
-- 中文：发送按钮 loading 有软超时（约 9 秒）。超过后会显示“后台处理中”提示，并继续广播流程。
+- English: The send button loading has a soft timeout (about 50 seconds). If exceeded, popup shows background-progress text and continues processing.
+- 中文：发送按钮 loading 有软超时（约 50 秒）。超过后会显示“后台处理中”提示，并继续广播流程。
+- English: Safe guard rules are enabled for auto text injection by default. Risk controls are evaluated automatically in background and can temporarily disable auto-send.
+- 中文：默认启用自动文本注入的安全策略。后台会自动评估风控信号，并在必要时临时关闭自动发送。
+- English: Image upload keeps the safest default path: manual upload on each platform tab. You can use **Locate Upload** to highlight likely upload entries (still no automatic cross-site image upload).
+- 中文：图片上传默认采用最安全方式：在各平台页面手动上传。你可以使用 **定位上传** 按钮高亮可能的上传入口（仍不做跨站自动图片上传）。
 - English: Microsoft Copilot / Bing is intentionally out of scope in current versions.
 - 中文：当前版本明确不支持 Microsoft Copilot / Bing。
 
@@ -101,6 +107,11 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 - `npm run dev --prefix app`
 - 打开 `http://localhost:5173/`（落地页）或 `http://localhost:5173/design-system`（设计系统）
 
+站点构建命令：
+
+- `npm run build:site`
+- `npm run build:design-system`
+
 ---
 
 ## 📂 Development / 开发说明
@@ -109,19 +120,21 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 
 | 模块 | 文件 | 生效方式 |
 |------|------|----------|
-| Popup UI (source) | `app/src/popup/`, `app/src/components/ui/`, `app/src/index.css` | 修改后执行 `npm run build` 生成 `app/dist/`，再在 chrome://extensions 里点「重新加载」 |
-| Popup UI (runtime) | `app/dist/` | 仅作为扩展运行产物，不手工编辑 |
+| Popup UI (source) | `app/src/popup/`, `app/src/components/ui/`, `app/src/index.css` | 修改后执行 `npm run build:extension` 生成 `app/dist-extension/`，再在 chrome://extensions 里点「重新加载」 |
+| Popup UI (runtime) | `app/dist-extension/` | 仅作为扩展运行产物，不手工编辑 |
+| Landing / Site runtime | `app/dist-site/` | 仅用于落地页构建产物，不参与扩展运行 |
 | 后台 / 广播逻辑 | `background.js` | 保存后到 chrome://extensions 点击「重新加载」 |
-| 注入与平台适配 | `content.js` | 同上 |
+| 注入与平台适配 | `content.js`, `shared/platform-registry.js` | 同上 |
 | 扩展配置与权限 | `manifest.json` | 同上 |
 
 See [app/docs/L3-EXTENSION-INTEGRATION.md](app/docs/L3-EXTENSION-INTEGRATION.md) for details. 详见该文档。
 
 **Release checklist** / **发布前检查**
 
-- `npm run build`
+- `npm run build:extension`
+- `npm run package:extension`（生成最小发布目录与体积报告）
 - `npm run test:popup`
-- `npm run release:stage`（确保 `app/dist/` 构建产物被纳入提交）
+- `npm run release:stage`（构建并暂存 `app/dist-extension/`，同时输出最小发布包报告）
 
 ---
 

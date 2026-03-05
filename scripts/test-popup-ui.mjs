@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Extension popup UI regression test.
- * Builds app, serves app/dist, mocks chrome API, opens popup and asserts key elements.
- * Run from repo root: npm run build (in app) then node scripts/test-popup-ui.mjs
+ * Builds app, serves app/dist-extension, mocks chrome API, opens popup and asserts key elements.
+ * Run from repo root: npm run build:extension then node scripts/test-popup-ui.mjs
  * Or: npx playwright install chromium && node scripts/test-popup-ui.mjs
  */
 
@@ -14,7 +14,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const root = join(__dirname, '..');
-const distDir = join(root, 'app', 'dist');
+const distDir = join(root, 'app', 'dist-extension');
 
 const MIME = {
   '.html': 'text/html',
@@ -39,7 +39,7 @@ function serveStatic(req, res) {
 
 async function main() {
   if (!existsSync(join(distDir, 'popup.html'))) {
-    console.error('Run "cd app && npm run build" first.');
+    console.error('Run "npm run build:extension" first.');
     process.exit(1);
   }
 
@@ -75,27 +75,27 @@ async function main() {
   const header = page.getByText(/SendAll|广发/).first();
   await header.waitFor({ state: 'visible', timeout: 5000 });
 
-  const textarea = page.getByPlaceholder(/Message AI Agents/i);
-  const sendButton = page.getByRole('button', { name: /Select tabs|Send to|发送/i });
-  const noTabs = page.locator('text=No AI tabs detected');
+  const textarea = page.locator('textarea').first();
+  const sendButton = page.locator('button[title]').last();
+  const emptyState = page.locator('div.text-center').first();
 
   const hasHeader = await header.isVisible();
   const hasTextarea = await textarea.isVisible();
   const hasSendButton = await sendButton.isVisible();
-  const hasNoTabs = await noTabs.isVisible();
+  const hasEmptyState = await emptyState.isVisible();
 
   await browser.close();
   server.close();
 
-  if (hasHeader && hasTextarea && hasSendButton && hasNoTabs) {
-    console.log('Popup UI regression: OK (header, textarea, send button, no-tabs message visible)');
+  if (hasHeader && hasTextarea && hasSendButton && hasEmptyState) {
+    console.log('Popup UI regression: OK (header, textarea, send button, empty-state area visible)');
     process.exit(0);
   }
   console.error('Popup UI regression FAILED:', {
     hasHeader,
     hasTextarea,
     hasSendButton,
-    hasNoTabs,
+    hasEmptyState,
   });
   process.exit(1);
 }

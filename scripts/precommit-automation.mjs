@@ -32,12 +32,14 @@ function getStagedFiles() {
 }
 
 function isExcludedForFingerprint(file) {
+  if (file.startsWith('app/dist-')) return true;
   if (file.startsWith('app/dist/')) return true;
   if (file === 'README.md') return true;
   return false;
 }
 
 function isMeaningfulCodeFile(file) {
+  if (file.startsWith('app/dist-')) return false;
   if (file.startsWith('app/dist/')) return false;
   if (file.startsWith('docs/')) return false;
   if (file === 'README.md' || file === 'CONTRIBUTING.md' || file === 'LICENSE' || file === 'privacy.md') return false;

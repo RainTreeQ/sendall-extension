@@ -1,19 +1,14 @@
-import { Link, useLocation } from "react-router-dom";
 import { Heart, Sparkles } from "lucide-react";
 import { useSiteSettings } from "@/lib/site-settings";
 
 /**
- * 页脚。仅使用设计系统颜色与组件。
+ * 落地页页脚。仅使用设计系统颜色与组件。
  */
 export function Footer() {
-  const location = useLocation();
-  const isDesignSystem = location.pathname.startsWith("/design-system");
   const { locale } = useSiteSettings();
   const copy = locale === "zh-CN"
     ? {
       subtitle: "SendAll · 开源核心 + Pro 功能",
-      subtitleInternal: "SendAll · 内部设计系统页面",
-      backLanding: "返回落地页",
       pricing: "定价",
       support: "支持",
       github: "GitHub",
@@ -21,8 +16,6 @@ export function Footer() {
     }
     : {
       subtitle: "SendAll · Open Source Core + Pro Features",
-      subtitleInternal: "SendAll · Internal Design System",
-      backLanding: "Back to Landing",
       pricing: "Pricing",
       support: "Support",
       github: "GitHub",
@@ -34,51 +27,30 @@ export function Footer() {
       <div className="container flex flex-col items-center justify-between gap-4 px-4 py-6 md:flex-row md:px-6">
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Sparkles className="h-4 w-4" />
-          {isDesignSystem ? copy.subtitleInternal : copy.subtitle}
+          {copy.subtitle}
         </p>
         <nav aria-label={copy.footerNav} className="flex gap-6">
-          {isDesignSystem ? (
-            <>
-              <Link
-                to="/"
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {copy.backLanding}
-              </Link>
-              <a
-                href="https://github.com/RainTreeQ/sendall-extension"
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {copy.github}
-              </a>
-            </>
-          ) : (
-            <>
-              <a
-                href="/#pricing"
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {copy.pricing}
-              </a>
-              <a
-                href="/#support"
-                className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {copy.support}
-                <Heart className="h-3.5 w-3.5" />
-              </a>
-              <a
-                href="https://github.com/RainTreeQ/sendall-extension"
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {copy.github}
-              </a>
-            </>
-          )}
+          <a
+            href="/#pricing"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {copy.pricing}
+          </a>
+          <a
+            href="/#support"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {copy.support}
+            <Heart className="h-3.5 w-3.5" />
+          </a>
+          <a
+            href="https://github.com/RainTreeQ/sendall-extension"
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {copy.github}
+          </a>
         </nav>
       </div>
     </footer>

@@ -7,6 +7,9 @@ import { Link } from "react-router-dom";
 import { ArrowUp, Check, RefreshCw } from "lucide-react";
 import { useSiteSettings } from "@/lib/site-settings";
 
+/** 设计系统 standalone 模式下，返回落地页使用外部链接而非路由 */
+const STANDALONE_LANDING_URL = "http://localhost:5173";
+
 const COPY = {
   "zh-CN": {
     internalBadge: "内部页面",
@@ -62,8 +65,9 @@ const COPY = {
 
 /**
  * 设计系统展示页：对齐当前 popup 真实 UI。
+ * @param {{ standalone?: boolean }} props - standalone 为 true 时用于独立站点，返回落地页用外部链接
  */
-export function DesignSystem() {
+export function DesignSystem({ standalone }) {
   const { locale } = useSiteSettings();
   const copy = COPY[locale] || COPY.en;
 
@@ -96,7 +100,11 @@ export function DesignSystem() {
             </div>
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link to="/">{copy.backLanding}</Link>
+            {standalone ? (
+              <a href={STANDALONE_LANDING_URL}>{copy.backLanding}</a>
+            ) : (
+              <Link to="/">{copy.backLanding}</Link>
+            )}
           </Button>
         </div>
 
