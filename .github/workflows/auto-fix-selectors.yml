@@ -1,0 +1,204 @@
+name: Auto-Fix Selectors
+
+on:
+  workflow_dispatch:
+    inputs:
+      failed_platforms:
+        description: 'Comma-separated list of failed platform IDs'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  discover-and-fix:
+    name: Discover New Selectors
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Discover selectors for failed platforms
+        id: discover
+        run: |
+          IFS=',' read -ra PLATFORMS <<< "${{ inputs.failed_platforms }}"
+          
+          echo "## 🔍 Selector Discovery Results" > discovery-report.md
+          echo "" >> discovery-report.md
+          
+          ALL_SUCCESS=true
+          FIXED_PLATFORMS=""
+          
+          for platform in "${PLATFORMS[@]}"; do
+            echo "Discovering selectors for: $platform"
+            
+            if node scripts/discover-selectors.mjs "$platform" > "discovery-$platform.log" 2>&1; then
+              CONFIDENCE=$(grep "Confidence:" "discovery-$platform.log" | awk '{print $2}' | tr -d '%')
+              
+              echo "### ✅ $platform (Confidence: ${CONFIDENCE}%)" >> discovery-report.md
+              echo "" >> discovery-report.md
+              echo '```' >> discovery-report.md
+              cat "discovery-$platform.log" >> discovery-report.md
+              echo '```' >> discovery-report.md
+              echo "" >> discovery-report.md
+              
+              FIXED_PLATFORMS="$FIXED_PLATFORMS,$platform"
+              
+              if [ "$CONFIDENCE" -lt 80 ]; then
+                echo "⚠️ Low confidence for $platform" >> discovery-report.md
+                ALL_SUCCESS=false
+              fi
+            else
+              echo "### ❌ $platform - Discovery Failed" >> discovery-report.md
+              echo "" >> discovery-report.md
+              echo '```' >> discovery-report.md
+              cat "discovery-$platform.log" >> discovery-report.md
+              echo '```' >> discovery-report.md
+              echo "" >> discovery-report.md
+              ALL_SUCCESS=false
+            fi
+          done
+          
+          echo "all_success=$ALL_SUCCESS" >> $GITHUB_OUTPUT
+          echo "fixed_platforms=${FIXED_PLATFORMS#,}" >> $GITHUB_OUTPUT
+
+      - name: Update selectors in separate repo
+        id: update
+        run: |
+          # Clone selectors repo
+          git clone https://github.com/RainTreeQ/sendol-selectors.git selectors-repo
+          cd selectors-repo
+          
+          # Copy updated selectors.json
+          cp ../selectors.json .
+          
+          # Check if there are changes
+          if git diff --quiet selectors.json; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No changes detected"
+            exit 0
+          fi
+          
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Create branch
+          BRANCH="auto-fix-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH"
+          
+          # Commit changes
+          git add selectors.json
+          git commit -m "fix: auto-discovered selectors for ${{ inputs.failed_platforms }}"
+          
+          # Push branch
+          git push origin "$BRANCH"
+          
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        if: steps.update.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        env:
+          BRANCH: ${{ steps.update.outputs.branch }}
+          PLATFORMS: ${{ inputs.failed_platforms }}
+          ALL_SUCCESS: ${{ steps.discover.outputs.all_success }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('discovery-report.md', 'utf8');
+            
+            const confidence = process.env.ALL_SUCCESS === 'true' ? '95%+' : '< 80%';
+            const emoji = process.env.ALL_SUCCESS === 'true' ? '✅' : '⚠️';
+            
+            const body = `## 🤖 Auto-Fix: Selector Update
+            
+            ${emoji} **Confidence Level**: ${confidence}
+            
+            ### 📋 Affected Platforms
+            ${process.env.PLATFORMS.split(',').map(p => `- ${p}`).join('\n')}
+            
+            ### 🔍 Discovery Report
+            ${report}
+            
+            ### 📱 Action Required
+            ${process.env.ALL_SUCCESS === 'true' 
+              ? '✅ High confidence - Safe to merge if selectors look reasonable'
+              : '⚠️ Low confidence - Please review carefully before merging'}
+            
+            ---
+            
+            **How to merge:**
+            1. Review the selector changes above
+            2. If they look correct, click "Merge pull request" below
+            3. Users will auto-update within 12 hours
+            
+            **If selectors look wrong:**
+            - Close this PR
+            - Manually update selectors.json in the repo
+            `;
+            
+            // Create PR in selectors repo
+            try {
+              const pr = await github.rest.pulls.create({
+                owner: 'RainTreeQ',
+                repo: 'sendol-selectors',
+                title: \`🤖 Auto-fix: Update selectors for \${process.env.PLATFORMS}\`,
+                head: process.env.BRANCH,
+                base: 'main',
+                body: body
+              });
+              
+              console.log(\`PR created: \${pr.data.html_url}\`);
+              
+              // Add label
+              await github.rest.issues.addLabels({
+                owner: 'RainTreeQ',
+                repo: 'sendol-selectors',
+                issue_number: pr.data.number,
+                labels: ['auto-fix', process.env.ALL_SUCCESS === 'true' ? 'high-confidence' : 'needs-review']
+              });
+              
+            } catch (error) {
+              console.error('Failed to create PR:', error);
+              throw error;
+            }
+
+      - name: Comment on main repo
+        if: steps.update.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🤖 Auto-fix PR created for selector updates',
+              body: \`A Pull Request has been created in the [selectors repository](https://github.com/RainTreeQ/sendol-selectors/pulls) to fix the following platforms:
+              
+              ${{ inputs.failed_platforms }}
+              
+              Please review and merge the PR if the selectors look correct.
+              
+              [View Pull Requests →](https://github.com/RainTreeQ/sendol-selectors/pulls)\`,
+              labels: ['auto-fix', 'needs-review']
+            });
+            
+            console.log(\`Issue created: \${issue.data.html_url}\`);

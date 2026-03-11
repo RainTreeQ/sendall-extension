@@ -4,11 +4,270 @@
 if (!window.__aiBroadcastLoaded) {
   window.__aiBroadcastLoaded = true;
 
-  (function() {
-    'use strict';
+
 
     const hostname = window.location.hostname;
     const normalizedHostname = String(hostname || '').toLowerCase().replace(/^www\./, '');
+
+    const defaultSelectors = {
+  "chatgpt": {
+    "findInput": [
+      "#prompt-textarea",
+      "div[contenteditable=\"true\"][data-lexical-editor]",
+      "div[contenteditable=\"true\"][role=\"textbox\"]"
+    ],
+    "findSendBtn": [
+      "[data-testid=\"send-button\"]",
+      "button[aria-label=\"Send prompt\"]",
+      "button[aria-label=\"Send message\"]",
+      "button[aria-label*=\"Send\"]"
+    ]
+  },
+  "claude": {
+    "findInput": [
+      "div.ProseMirror[contenteditable=\"true\"]",
+      "[data-testid=\"chat-input\"] div[contenteditable]",
+      "fieldset div[contenteditable=\"true\"]",
+      "div[contenteditable=\"true\"]"
+    ],
+    "findSendBtn": [
+      "button[aria-label=\"Send Message\"]",
+      "button[aria-label*=\"Send\"]"
+    ]
+  },
+  "gemini": {
+    "findInput": [
+      ".ql-editor[contenteditable=\"true\"]",
+      "rich-textarea .ql-editor",
+      "div[contenteditable=\"true\"][role=\"textbox\"]",
+      "p[data-placeholder]"
+    ],
+    "findSendBtn": [
+      "button[aria-label=\"Send message\"]",
+      "button[aria-label=\"Send\"]",
+      "button[aria-label*=\"发送\"]",
+      "button[aria-label*=\"提交\"]",
+      "button[aria-label=\"Submit\"]",
+      "button[aria-label*=\"Submit\"]",
+      "button.send-button",
+      "button[data-test-id=\"send-button\"]",
+      "button[data-testid*=\"send\"]",
+      "button[mattooltip=\"Send message\"]",
+      "button[mattooltip=\"Send\"]",
+      "button[mattooltip*=\"Submit\"]",
+      "button[jsname=\"Qx7uuf\"]"
+    ]
+  },
+  "grok": {
+    "findInput": [
+      "textarea[placeholder]",
+      "textarea",
+      "div[contenteditable=\"true\"][role=\"textbox\"]",
+      "div[contenteditable=\"true\"]"
+    ],
+    "findSendBtn": [
+      "button[type=\"submit\"]:not([disabled])",
+      "button[aria-label=\"Submit\"]:not([disabled])",
+      "button[aria-label*=\"Submit\"]:not([disabled])",
+      "button[aria-label*=\"Send\"]:not([disabled])",
+      "button[data-testid*=\"send\"]:not([disabled])"
+    ]
+  },
+  "deepseek": {
+    "findInput": [
+      "textarea#chat-input",
+      "textarea[placeholder*=\"Ask\"]",
+      "textarea"
+    ],
+    "findSendBtn": [
+      "button[type=\"submit\"]",
+      "[aria-label*=\"send\" i]",
+      "[aria-label*=\"Send\"]",
+      "button[data-testid*=\"send\"]"
+    ]
+  },
+  "doubao": {
+    "findInput": [
+      "textarea[placeholder]",
+      "div[contenteditable=\"true\"]",
+      "textarea"
+    ],
+    "findSendBtn": [
+      "button[type=\"submit\"]",
+      "button[aria-label*=\"发送\"]",
+      "button[aria-label*=\"Send\"]",
+      "button[data-testid*=\"send\"]"
+    ]
+  },
+  "qianwen": {
+    "findInput": [
+      "div[data-slate-editor=\"true\"][contenteditable=\"true\"]",
+      "div[contenteditable=\"true\"][role=\"textbox\"]",
+      "div[contenteditable=\"true\"]",
+      "textarea[placeholder]",
+      "textarea"
+    ],
+    "findSendBtn": []
+  },
+  "yuanbao": {
+    "findInput": [
+      ".ql-editor[contenteditable=\"true\"]",
+      "div[contenteditable=\"true\"][role=\"textbox\"]",
+      "div[contenteditable=\"true\"]",
+      "textarea"
+    ],
+    "findSendBtn": []
+  },
+  "kimi": {
+    "findInput": [
+      "textarea[placeholder]",
+      "div[contenteditable=\"true\"][role=\"textbox\"]",
+      "div[contenteditable=\"true\"]",
+      "textarea"
+    ],
+    "findSendBtn": [
+      "button[type=\"submit\"]",
+      "button[aria-label*=\"发送\"]",
+      "button[aria-label*=\"Send\"]"
+    ]
+  }
+};
+
+    let cachedSelectors = null;
+    async function getDynamicSelectors() {
+      if (cachedSelectors) return cachedSelectors;
+      try {
+        const data = await chrome.storage.local.get('aib_dynamic_selectors');
+        if (data.aib_dynamic_selectors && data.aib_dynamic_selectors.data) {
+          cachedSelectors = { ...defaultSelectors, ...data.aib_dynamic_selectors.data };
+        } else {
+          cachedSelectors = defaultSelectors;
+        }
+      } catch (err) {
+        cachedSelectors = defaultSelectors;
+      }
+      return cachedSelectors;
+    }
+
+    async function findInputHeuristically() {
+      // Inline version for simplicity to avoid esbuild scope issues
+      const candidates = [
+        ...document.querySelectorAll('div[data-slate-editor="true"][contenteditable="true"]'),
+        ...document.querySelectorAll('div[contenteditable="true"][role="textbox"]'),
+        ...document.querySelectorAll('div[contenteditable="true"]'),
+        ...document.querySelectorAll('textarea[placeholder]'),
+        ...document.querySelectorAll('textarea')
+      ];
+
+      if (!candidates.length) return null;
+
+      const unique = [];
+      const seen = new Set();
+      for (const candidate of candidates) {
+        if (!candidate || seen.has(candidate)) continue;
+        seen.add(candidate);
+        unique.push(candidate);
+      }
+
+      const isVisible = (node) => {
+        if (!node) return false;
+        const style = window.getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+        const rect = node.getBoundingClientRect();
+        return rect.width > 120 && rect.height > 20 && rect.bottom > 0;
+      };
+
+      const hasSendButtonNearby = (node) => {
+        const root = node.closest('form') || node.closest('section') || node.parentElement?.parentElement || document;
+        if (!root?.querySelectorAll) return false;
+        const buttons = root.querySelectorAll('button:not([disabled]), [role="button"]');
+        for (const btn of buttons) {
+          if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') continue;
+          const hint = `${btn.getAttribute('aria-label') || ''} ${btn.getAttribute('title') || ''} ${(btn.textContent || '').trim()}`.toLowerCase();
+          if (hint.includes('发送') || hint.includes('send') || hint.includes('提交') || hint.includes('submit')) return true;
+        }
+        return false;
+      };
+
+      const scoreInput = (node) => {
+        if (!node || !isVisible(node)) return -1;
+        if (node.getAttribute('contenteditable') !== 'true' && node.tagName !== 'TEXTAREA') return -1;
+        if (node.getAttribute('aria-disabled') === 'true') return -1;
+
+        const rect = node.getBoundingClientRect();
+        const role = (node.getAttribute('role') || '').toLowerCase();
+        const hasSlate = node.getAttribute('data-slate-editor') === 'true';
+
+        let score = 0;
+        if (hasSlate) score += 8;
+        if (role === 'textbox') score += 4;
+        if (node.tagName === 'TEXTAREA') score += 3;
+        if (hasSendButtonNearby(node)) score += 5;
+        if (rect.top > 0 && rect.top < window.innerHeight) score += 2;
+        if (rect.bottom > window.innerHeight * 0.45) score += 2;
+        score += Math.min(4, Math.round(rect.width / 300));
+        return score;
+      };
+
+      let best = null;
+      let bestScore = -1;
+      for (const candidate of unique) {
+        const score = scoreInput(candidate);
+        if (score > bestScore) {
+          bestScore = score;
+          best = candidate;
+        }
+      }
+
+      return bestScore >= 0 ? best : null;
+    }
+
+    async function findSendBtnHeuristically(el) {
+      const container = el?.closest('form') || el?.closest('section') || el?.parentElement?.parentElement || document;
+      const roots = [container, document].filter(Boolean);
+      
+      for (const root of roots) {
+        if (!root?.querySelectorAll) continue;
+        const nodes = root.querySelectorAll('button:not([disabled]), [role="button"]');
+        for (const node of nodes) {
+          if (node.disabled || node.getAttribute('aria-disabled') === 'true') continue;
+          const klass = node.className?.toString() || '';
+          if (klass.includes('is-disabled') || klass.includes('disabled')) continue;
+
+          const style = window.getComputedStyle(node);
+          if (style.display === 'none' || style.visibility === 'hidden') continue;
+
+          const hint = `${node.getAttribute('aria-label') || ''} ${node.getAttribute('title') || ''} ${node.getAttribute('data-testid') || ''} ${(node.textContent || '').trim()}`.toLowerCase();
+          if (hint.includes('登录') || hint.includes('log in') || hint.includes('上传') || hint.includes('attach') || hint.includes('搜索') || hint.includes('search')) continue;
+          
+          if (hint.includes('发送') || hint.includes('send') || hint.includes('提交') || hint.includes('submit')) {
+            return node;
+          }
+        }
+      }
+      return null;
+    }
+
+    async function findInputBySelectors(platformId) {
+      const sels = await getDynamicSelectors();
+      const list = sels[platformId]?.findInput || [];
+      for (const selector of list) {
+        const found = document.querySelector(selector);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    async function findSendBtnBySelectors(platformId) {
+      const sels = await getDynamicSelectors();
+      const list = sels[platformId]?.findSendBtn || [];
+      for (const selector of list) {
+        const found = document.querySelector(selector);
+        if (found && !found.disabled) return found;
+      }
+      return null;
+    }
+
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const now = () => Date.now();
     const AIB_SHARED = globalThis.__AIB_SHARED__ || null;
@@ -750,31 +1009,32 @@ if (!window.__aiBroadcastLoaded) {
     const platformAdapters = {
       chatgpt: {
         name: 'ChatGPT',
-        findInput: () => waitFor(() =>
-          document.querySelector('#prompt-textarea') ||
-          document.querySelector('div[contenteditable="true"][data-lexical-editor]') ||
-          document.querySelector('div[contenteditable="true"][role="textbox"]')
-        ),
+        findInput: async () => {
+          return await findInputBySelectors('chatgpt') || waitFor(() => findInputHeuristically() || 
+            document.querySelector('#prompt-textarea') ||
+            document.querySelector('div[contenteditable="true"][data-lexical-editor]') ||
+            document.querySelector('div[contenteditable="true"][role="textbox"]')
+          );
+        },
         async inject(el, text, options) {
           if (el.tagName === 'TEXTAREA') return setReactValue(el, text);
           return setContentEditable(el, text, options);
         },
         async send(el) {
-          const btn = await waitFor(() => {
+          const btn = await findSendBtnBySelectors('chatgpt') || await waitFor(() => findSendBtnHeuristically(el) || (() => {
             const found = document.querySelector('[data-testid="send-button"]') ||
                           document.querySelector('button[aria-label="Send prompt"]') ||
                           document.querySelector('button[aria-label="Send message"]') ||
                           document.querySelector('button[aria-label*="Send"]');
             return found && !found.disabled ? found : null;
-          }, 4000, 40);
+          })(), 4000, 40);
           if (btn) { btn.click(); return; }
-          // Fallback: try clicking even a disabled-looking send button (some frameworks use aria-disabled)
+          // Fallback
           const anyBtn = document.querySelector('[data-testid="send-button"]') ||
                          document.querySelector('button[aria-label="Send prompt"]') ||
                          document.querySelector('button[aria-label="Send message"]') ||
                          document.querySelector('button[aria-label*="Send"]');
           if (anyBtn) { anyBtn.click(); return; }
-          // Last resort: press Enter on the input element
           const target = el || document.querySelector('#prompt-textarea') || document.activeElement;
           if (target) { target.focus(); pressEnterOn(target); }
           else pressEnterOn(null);
@@ -783,15 +1043,17 @@ if (!window.__aiBroadcastLoaded) {
 
       claude: {
         name: 'Claude',
-        findInput: () => waitFor(() =>
-          document.querySelector('div.ProseMirror[contenteditable="true"]') ||
-          document.querySelector('[data-testid="chat-input"] div[contenteditable]') ||
-          document.querySelector('fieldset div[contenteditable="true"]') ||
-          document.querySelector('div[contenteditable="true"]')
-        ),
+        findInput: async () => {
+          return await findInputBySelectors('claude') || waitFor(() => findInputHeuristically() || 
+            document.querySelector('div.ProseMirror[contenteditable="true"]') ||
+            document.querySelector('[data-testid="chat-input"] div[contenteditable]') ||
+            document.querySelector('fieldset div[contenteditable="true"]') ||
+            document.querySelector('div[contenteditable="true"]')
+          );
+        },
         inject: (el, text, options) => setContentEditable(el, text, options),
         async send(el) {
-          const btn = await waitFor(() => {
+          const btn = await findSendBtnBySelectors('claude') || await waitFor(() => findSendBtnHeuristically(el) || (() => {
             const candidates = [
               document.querySelector('button[aria-label="Send Message"]'),
               document.querySelector('button[aria-label*="Send"]'),
@@ -804,9 +1066,9 @@ if (!window.__aiBroadcastLoaded) {
               if (candidate.querySelector('svg')) return candidate;
             }
             return null;
-          }, 4000, 40);
+          })(), 4000, 40);
           if (btn) { btn.click(); return; }
-          // Fallback: try any send-like button even if disabled
+          // Fallback
           const anyBtn = document.querySelector('button[aria-label="Send Message"]') ||
                          document.querySelector('button[aria-label*="Send"]');
           if (anyBtn) { anyBtn.click(); return; }
@@ -817,12 +1079,7 @@ if (!window.__aiBroadcastLoaded) {
 
       gemini: {
         name: 'Gemini',
-        findInput: () => waitFor(() =>
-          document.querySelector('.ql-editor[contenteditable="true"]') ||
-          document.querySelector('rich-textarea .ql-editor') ||
-          document.querySelector('div[contenteditable="true"][role="textbox"]') ||
-          document.querySelector('p[data-placeholder]')?.closest('[contenteditable="true"]')
-        ),
+        findInput: async () => await findInputBySelectors('gemini') || waitFor(() => findInputHeuristically() ||  document.querySelector('.ql-editor[contenteditable="true"]') || document.querySelector('rich-textarea .ql-editor') || document.querySelector('div[contenteditable="true"][role="textbox"]') || document.querySelector('p[data-placeholder]')?.closest('[contenteditable="true"]')),
         inject: (el, text, options) => setGeminiInput(el, text, options),
         async send(el, options) {
           const logger = options?.logger;
@@ -920,7 +1177,7 @@ if (!window.__aiBroadcastLoaded) {
 
       grok: {
         name: 'Grok',
-        findInput: () => waitFor(() => {
+        findInput: async () => await findInputBySelectors('gemini') || waitFor(() => {
           const candidates = [
             ...document.querySelectorAll('textarea[placeholder]'),
             ...document.querySelectorAll('textarea'),
@@ -1051,7 +1308,7 @@ if (!window.__aiBroadcastLoaded) {
 
       deepseek: {
         name: 'DeepSeek',
-        findInput: () => waitFor(() =>
+        findInput: async () => await findInputBySelectors('grok') || waitFor(() => findInputHeuristically() || 
           document.querySelector('textarea#chat-input') ||
           document.querySelector('textarea[placeholder*="Ask"]') ||
           document.querySelector('textarea')
@@ -1645,5 +1902,5 @@ if (!window.__aiBroadcastLoaded) {
         return true;
       }
     });
-  })();
 }
+

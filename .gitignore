@@ -1,20 +1,37 @@
+# Dependencies
 node_modules/
-dist/
-.env
-.env.local
-.DS_Store
+app/node_modules/
 
-# Keep prebuilt extension popup bundle in repo for direct "Download ZIP" usage
-!app/dist-extension/
-!app/dist-extension/**
-
-# 构建产物
-*.zip
-*.crx
-*.log
+# Build outputs
+app/dist-extension/
+app/dist-site/
+app/dist-design-system/
 release/
 
-# 项目私有配置与文档 (不开源)
-app/docs/
-app/CLAUDE.md
-CLAUDE.md
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.bak
+content.js.bak
+
+# Environment
+.env
+.env.local
+
+# Refactoring scripts (cleanup)
+refactor*.mjs
+fix_*.js
+update_*.js

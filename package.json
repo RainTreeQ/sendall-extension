@@ -1,6 +1,6 @@
 {
   "name": "ai-broadcast-extension",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
@@ -17,7 +17,10 @@
     "hooks:install": "git config --local core.hooksPath .githooks",
     "release:stage": "npm run build:extension && npm run package:extension && git add -A app/dist-extension && git status --short -- app/dist-extension",
     "test:input": "node scripts/test-input-support.mjs",
-    "test:popup": "node scripts/test-popup-ui.mjs"
+    "test:popup": "node scripts/test-popup-ui.mjs",
+    "validate:selectors": "node scripts/validate-selectors.mjs",
+    "diagnose": "node scripts/diagnose.mjs",
+    "init:selectors-repo": "bash scripts/init-selectors-repo.sh"
   },
   "devDependencies": {
     "playwright": "^1.49.0",

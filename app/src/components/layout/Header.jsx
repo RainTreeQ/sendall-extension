@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Globe, Monitor, Moon, Sun } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Globe, Monitor, Moon, Sun } from "lucide-react";
 import { useSiteSettings } from "@/lib/site-settings";
 
 function LogoIcon({ className }) {
@@ -118,7 +118,7 @@ export function Header() {
               aria-label={copy.language}
               value={locale}
               onChange={(event) => setLocale(event.target.value)}
-              className="h-8 w-8 sm:h-8 sm:min-w-0 sm:w-auto sm:pl-8 sm:pr-3 cursor-pointer appearance-none sm:appearance-auto rounded-xl border border-border bg-card text-card-foreground pl-8 pr-0 text-foreground text-xs font-semibold outline-none transition focus:border-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_10px_20px_-18px_rgba(0,0,0,0.62)] hover:bg-accent dark:shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_10px_20px_-18px_rgba(0,0,0,0.9)] [&>option]:text-foreground"
+              className="h-8 w-8 sm:h-8 sm:min-w-0 sm:w-auto sm:pl-8 sm:pr-8 cursor-pointer appearance-none rounded-xl border border-border bg-card text-card-foreground pl-8 pr-0 text-foreground text-xs font-semibold outline-none transition focus:border-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_10px_20px_-18px_rgba(0,0,0,0.62)] hover:bg-accent dark:shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_10px_20px_-18px_rgba(0,0,0,0.9)] [&>option]:text-foreground"
             >
               {supportedLocales.map((item) => (
                 <option key={item.code} value={item.code}>
@@ -126,6 +126,7 @@ export function Header() {
                 </option>
               ))}
             </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 hidden h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground sm:block" />
           </label>
 
           <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">

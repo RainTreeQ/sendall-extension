@@ -97,7 +97,6 @@ export default function Popup() {
   const [locatingUpload, setLocatingUpload] = useState(false)
   const [refreshSpinning, setRefreshSpinning] = useState(false)
   const [imageData, setImageData] = useState(null) // { base64, mimeType, preview }
-  const [sendingImage, setSendingImage] = useState(false)
   const messageInputRef = useRef(null)
   const imageInputRef = useRef(null)
   const activeRequestIdRef = useRef(null)
@@ -109,7 +108,8 @@ export default function Popup() {
   const selectedSet = new Set(selectedTabIds)
   const hasSelection = selectedTabIds.length > 0
   const hasText = messageText.trim().length > 0
-  const sendDisabled = !(hasSelection && hasText) || sending
+  const hasImage = Boolean(imageData)
+  const sendDisabled = !(hasSelection && (hasText || hasImage)) || sending
   const locateUploadDisabled = !hasSelection || tabsLoading || sending || locatingUpload
   const selectAllLabel =
     aiTabs.length > 0 && selectedTabIds.length === aiTabs.length ? t('deselect_all') : t('select_all')
@@ -411,51 +411,13 @@ export default function Popup() {
     setImageData(null)
   }, [])
 
-  const handleSendImage = useCallback(async () => {
-    if (!imageData || selectedTabIds.length === 0 || sendingImage) return
-
-    clearStatus()
-    setSendingImage(true)
-    const tabIds = [...selectedTabIds]
-    const requestId = createRequestId()
-    addStatus(t('image_sending_to_n', [String(tabIds.length)]), 'pending')
-
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'BROADCAST_IMAGE',
-        imageBase64: imageData.base64,
-        mimeType: imageData.mimeType,
-        tabIds,
-        requestId,
-      })
-      clearStatus()
-
-      const results = Array.isArray(response?.results) ? response.results : []
-      let successCount = 0
-      results.forEach((result) => {
-        const tabInfo = aiTabs.find((tab) => tab.id === result.tabId)
-        const name = tabInfo ? tabInfo.platformName : t('tab_n', [String(result.tabId)])
-        if (result.success) {
-          successCount++
-          addStatus(t('image_sent', [name]), 'success')
-        } else {
-          addStatus(t('image_failed', [name, String(result.error || t('unknown'))]), 'error')
-        }
-      })
-
-      if (successCount > 0) setImageData(null)
-    } catch (error) {
-      if (handleContextLoss(error)) return
-      clearStatus()
-      addStatus(t('image_failed_simple', [String(error?.message || t('unknown'))]), 'error')
-    } finally {
-      setSendingImage(false)
-    }
-  }, [imageData, selectedTabIds, sendingImage, clearStatus, addStatus, handleContextLoss, aiTabs])
-
   const handleSend = useCallback(async () => {
     const text = messageText.trim()
-    if (!text || selectedTabIds.length === 0) return
+    const hasImage = Boolean(imageData)
+    
+    // Must have either text or image
+    if (!text && !hasImage) return
+    if (selectedTabIds.length === 0) return
 
     clearStatus()
     setSending(true)
@@ -505,6 +467,7 @@ export default function Popup() {
         }
         latestMessageRef.current = ''
         setMessageText('')
+        setImageData(null)
         void clearDraftEverywhere()
         if (messageInputRef.current) messageInputRef.current.value = ''
         if (newChat) {
@@ -542,16 +505,31 @@ export default function Popup() {
     setProgressStatus(0, tabIds.length, 0, 0, tabIds.length)
 
     try {
-      const responsePromise = chrome.runtime.sendMessage({
-        type: 'BROADCAST_MESSAGE',
-        text,
-        autoSend,
-        newChat,
-        tabIds,
-        requestId,
-        clientTs,
-        debug,
-      })
+      // If image is attached, use BROADCAST_IMAGE (which now supports text + autoSend)
+      // Otherwise use the original BROADCAST_MESSAGE flow
+      const messagePayload = hasImage
+        ? {
+            type: 'BROADCAST_IMAGE',
+            imageBase64: imageData.base64,
+            mimeType: imageData.mimeType,
+            text,
+            autoSend,
+            tabIds,
+            requestId,
+            debug,
+          }
+        : {
+            type: 'BROADCAST_MESSAGE',
+            text,
+            autoSend,
+            newChat,
+            tabIds,
+            requestId,
+            clientTs,
+            debug,
+          }
+      
+      const responsePromise = chrome.runtime.sendMessage(messagePayload)
       const softTimeoutToken = Symbol('soft-timeout')
       const raced = await Promise.race([
         responsePromise,
@@ -574,6 +552,7 @@ export default function Popup() {
             }
             latestMessageRef.current = ''
             setMessageText('')
+            setImageData(null)
             void clearDraftEverywhere()
             if (messageInputRef.current) messageInputRef.current.value = ''
           }
@@ -586,7 +565,7 @@ export default function Popup() {
     } catch (err) {
       finishWithError(err)
     }
-  }, [messageText, selectedTabIds, autoSend, newChat, aiTabs, addStatus, clearStatus, loadTabs, setProgressStatus, handleContextLoss, clearDraftEverywhere])
+  }, [messageText, imageData, selectedTabIds, autoSend, newChat, aiTabs, addStatus, clearStatus, loadTabs, setProgressStatus, handleContextLoss, clearDraftEverywhere])
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -740,18 +719,7 @@ export default function Popup() {
                     <X className="h-2.5 w-2.5" strokeWidth={3} />
                   </button>
                 </div>
-                <button
-                  type="button"
-                  disabled={!hasSelection || sendingImage}
-                  onClick={handleSendImage}
-                  className={`inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-colors ${
-                    hasSelection && !sendingImage
-                      ? 'bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-500'
-                  }`}
-                >
-                  {sendingImage ? t('sending_image') : t('paste_image')}
-                </button>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">{t('image_attached')}</span>
               </div>
             )}
             <input
@@ -787,15 +755,15 @@ export default function Popup() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  disabled={!hasSelection || sending || sendingImage}
+                  disabled={!hasSelection || sending}
                   onClick={() => imageInputRef.current?.click()}
                   title={
                     hasSelection
-                      ? t('paste_image')
+                      ? t('image_attach')
                       : t('select_tabs_first')
                   }
                   className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                    hasSelection && !sending && !sendingImage
+                    hasSelection && !sending
                       ? 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-600 dark:hover:bg-zinc-700'
                       : 'bg-gray-100 text-gray-400 ring-1 ring-gray-200 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-500 dark:ring-zinc-600'
                   }`}

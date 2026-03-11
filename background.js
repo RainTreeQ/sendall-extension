@@ -1,3 +1,27 @@
+// Dynamic selectors fetching logic
+const CLOUD_SELECTORS_URL = "https://raw.githubusercontent.com/RainTreeQ/sendol-selectors/main/selectors.json";
+const CACHE_KEY = "aib_dynamic_selectors";
+const CACHE_TTL = 12 * 60 * 60 * 1000;
+async function updateDynamicSelectors() {
+  try {
+    const res = await fetch(CLOUD_SELECTORS_URL);
+    if (!res.ok) throw new Error("fetch failed");
+    const data = await res.json();
+    await chrome.storage.local.set({ [CACHE_KEY]: { data, timestamp: Date.now() } });
+  } catch (err) {
+    console.warn("[AIB] Failed to fetch dynamic selectors:", err);
+  }
+}
+
+chrome.alarms.create("updateSelectors", { periodInMinutes: 12 * 60 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "updateSelectors") updateDynamicSelectors();
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  updateDynamicSelectors();
+});
+
 // Sendol - Background Service Worker v4
 
 try {
@@ -313,7 +337,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   if (message.type === MESSAGE_TYPES.BROADCAST_IMAGE) {
     (async () => {
-      const { imageBase64, mimeType, tabIds, requestId } = message;
+      const { imageBase64, mimeType, text, autoSend, tabIds, requestId } = message;
       const runtimeFlags = await getRuntimeFlags();
       const resolvedRequestId = requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
       const debug = typeof message.debug === 'boolean' ? message.debug : runtimeFlags.debugLogs;
@@ -321,29 +345,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const ids = Array.isArray(tabIds) ? tabIds : [];
       const results = [];
 
-      logger.info('broadcast-image-start', { tabCount: ids.length });
+      logger.info('broadcast-image-start', { tabCount: ids.length, hasText: Boolean(text), autoSend: Boolean(autoSend) });
 
-      const tabPromises = ids.map(async (tabId) => {
+      const timeoutAt = now() + 30000;
+      for (let idx = 0; idx < ids.length; idx += 1) {
+        if (now() >= timeoutAt) break;
+        const tabId = ids[idx];
         try {
           await ensureContentReady(tabId, resolvedRequestId, debug, logger);
           const response = await chrome.tabs.sendMessage(tabId, {
             type: MESSAGE_TYPES.INJECT_IMAGE,
             imageBase64,
             mimeType: mimeType || 'image/png',
+            text: text || '',
+            autoSend: Boolean(autoSend),
+            safeMode: false,
             requestId: resolvedRequestId,
             debug
           });
           results.push({ tabId, ...response });
         } catch (err) {
           logger.error('image-tab-failure', { tabId, error: err?.message });
-          results.push({ tabId, success: false, error: err?.message || '图片注入失败', platform: 'Unknown' });
+          results.push({ tabId, success: false, sent: false, error: err?.message || '图片注入失败', platform: 'Unknown' });
         }
-      });
+        if (idx < ids.length - 1) {
+          await sleep(Math.max(80, runtimeFlags.guardMinDelayMs));
+        }
+      }
 
-      await Promise.race([
-        Promise.all(tabPromises),
-        new Promise((r) => setTimeout(r, 30000))
-      ]);
+      if (results.length < ids.length) {
+        for (const tabId of ids) {
+          if (results.some((item) => item.tabId === tabId)) continue;
+          results.push({ tabId, success: false, sent: false, error: '图片广播超时', platform: 'Unknown' });
+        }
+      }
 
       logger.info('broadcast-image-end', { resultCount: results.length });
       sendResponse({ results });
@@ -638,6 +673,22 @@ async function pingContent(tabId, requestId, debug) {
 }
 
 async function ensureContentReady(tabId, requestId, debug, logger) {
+  // Wait for page load to settle before probing/injecting content script.
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab && tab.status !== 'complete') {
+      logger.debug('content-wait-tab-load', { tabId, status: tab.status });
+      try {
+        await waitForTabLoad(tabId, 15000);
+      } catch (err) {
+        logger.debug('content-wait-tab-load-timeout', { tabId, error: err?.message });
+      }
+      await sleep(80);
+    }
+  } catch (err) {
+    logger.debug('content-get-tab-failed', { tabId, error: err?.message });
+  }
+
   if (await pingContent(tabId, requestId, debug)) {
     logger.debug('content-ready', { tabId, via: 'ping' });
     return;
@@ -657,9 +708,20 @@ async function ensureContentReady(tabId, requestId, debug, logger) {
     return;
   }
 
-  const backoffs = [30, 60, 120, 240];
+  // Retry with longer backoffs to better tolerate slower page startup.
+  const backoffs = [120, 240, 480, 960, 1600];
   for (const delay of backoffs) {
     await sleep(delay);
+    if (delay >= 480) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['shared/platform-registry.js', 'content.js']
+        });
+      } catch (err) {
+        logger.debug('execute-script-retry-warning', { tabId, delay, error: err?.message });
+      }
+    }
     if (await pingContent(tabId, requestId, debug)) {
       logger.debug('content-ready', { tabId, via: `retry-${delay}` });
       return;
@@ -824,11 +886,19 @@ async function broadcastToTabs(payload) {
   }
 
   let timedOut = false;
-  // Concurrent: fire all tabs in parallel, race against hard timeout
-  const tabPromises = tabIds.map((tabId) =>
-    processTab(tabId)
-      .then((res) => recordResult(tabId, res))
-      .catch((err) => recordResult(tabId, {
+  // Sequential/staggered sends reduce simultaneous load/risk triggers on multiple sites.
+  const timeoutAt = startedAt + BROADCAST_HARD_TIMEOUT_MS;
+  for (let idx = 0; idx < tabIds.length; idx += 1) {
+    if (now() >= timeoutAt) {
+      timedOut = true;
+      break;
+    }
+    const tabId = tabIds[idx];
+    try {
+      const res = await processTab(tabId);
+      recordResult(tabId, res);
+    } catch (err) {
+      recordResult(tabId, {
         tabId,
         success: false,
         error: err?.message || String(err),
@@ -836,14 +906,18 @@ async function broadcastToTabs(payload) {
         strategy: 'n/a',
         fallbackUsed: false,
         timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: 0 }
-      }))
-  );
-  const timeoutSymbol = Symbol('hard-timeout');
-  const raceResult = await Promise.race([
-    Promise.all(tabPromises),
-    new Promise((r) => setTimeout(() => r(timeoutSymbol), BROADCAST_HARD_TIMEOUT_MS))
-  ]);
-  if (raceResult === timeoutSymbol) timedOut = true;
+      });
+    }
+    if (idx < tabIds.length - 1) {
+      const pauseMs = jitter(guardMinDelayMs, guardJitterMs);
+      const remainingMs = timeoutAt - now();
+      if (remainingMs <= 0) {
+        timedOut = true;
+        break;
+      }
+      await sleep(Math.min(pauseMs, remainingMs));
+    }
+  }
   finalized = true;
 
   if (timedOut) {

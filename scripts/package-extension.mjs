@@ -82,9 +82,10 @@ function copyDirFromRoot(relPath) {
   cpSync(src, dst, { recursive: true })
 }
 
-function minifyRuntimeFile(sourceRelPath, mapRelPath) {
+function minifyRuntimeFile(sourceRelPath, mapRelPath, outName, minify = true) {
   const source = join(ROOT, sourceRelPath)
-  const target = join(PACKAGE_DIR, sourceRelPath)
+  const targetRel = outName || sourceRelPath
+  const target = join(PACKAGE_DIR, targetRel)
   ensureDir(dirname(target))
 
   const esbuildBin = join(ROOT, 'app', 'node_modules', '.bin', 'esbuild')
@@ -94,13 +95,14 @@ function minifyRuntimeFile(sourceRelPath, mapRelPath) {
     )
   }
 
-  execFileSync(
-    esbuildBin,
-    [source, '--minify', '--sourcemap', `--outfile=${target}`],
-    { stdio: 'pipe' }
-  )
+  const args = [source, '--bundle', `--outfile=${target}`]
+  if (minify) {
+    args.push('--minify', '--sourcemap')
+  }
 
-  if (mapRelPath) {
+  execFileSync(esbuildBin, args, { stdio: 'pipe' })
+
+  if (minify && mapRelPath) {
     const mapTarget = join(PACKAGE_DIR, mapRelPath)
     if (!existsSync(mapTarget)) {
       throw new Error(`Expected source map not found: ${mapRelPath}`)
@@ -136,10 +138,10 @@ function main() {
 
   if (minifyRuntime) {
     minifyRuntimeFile('background.js', 'background.js.map')
-    minifyRuntimeFile('content.js', 'content.js.map')
+    minifyRuntimeFile('src/content/index.js', 'content.js.map', 'content.js')
   } else {
     copyFileFromRoot('background.js')
-    copyFileFromRoot('content.js')
+    minifyRuntimeFile('src/content/index.js', null, 'content.js', false)
   }
 
   const popupInPackage = join(PACKAGE_DIR, popupRel)
