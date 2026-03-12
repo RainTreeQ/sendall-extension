@@ -1,0 +1,102 @@
+{
+  "timestamp": "2026-03-11T11:35:07.944Z",
+  "total": 9,
+  "passed": 7,
+  "failed": 1,
+  "loadErrors": 1,
+  "failedPlatforms": [
+    "deepseek"
+  ],
+  "results": [
+    {
+      "id": "chatgpt",
+      "name": "ChatGPT",
+      "url": "https://chatgpt.com/",
+      "found": true,
+      "selector": "#prompt-textarea",
+      "tag": "div",
+      "visible": true,
+      "note": ""
+    },
+    {
+      "id": "claude",
+      "name": "Claude",
+      "url": "https://claude.ai/",
+      "found": false,
+      "selector": null,
+      "tag": null,
+      "visible": false,
+      "note": "加载失败: page.goto: net::ERR_CONNECTION_CLOSED at https://claude.ai/\nCall log:\n  - naviga"
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "url": "https://gemini.google.com/",
+      "found": true,
+      "selector": ".ql-editor[contenteditable=\"true\"]",
+      "tag": "div",
+      "visible": true,
+      "note": ""
+    },
+    {
+      "id": "grok",
+      "name": "Grok",
+      "url": "https://grok.com/",
+      "found": true,
+      "selector": "textarea[placeholder]",
+      "tag": "textarea",
+      "visible": true,
+      "note": ""
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "url": "https://www.deepseek.com/",
+      "found": false,
+      "selector": null,
+      "tag": null,
+      "visible": false,
+      "note": "可能未登录或页面结构已变更"
+    },
+    {
+      "id": "doubao",
+      "name": "Doubao",
+      "url": "https://www.doubao.com/",
+      "found": true,
+      "selector": "textarea[placeholder]",
+      "tag": "textarea",
+      "visible": true,
+      "note": ""
+    },
+    {
+      "id": "qianwen",
+      "name": "Qianwen",
+      "url": "https://www.qianwen.com/",
+      "found": true,
+      "selector": "div[data-slate-editor=\"true\"][contenteditable=\"true\"]",
+      "tag": "div",
+      "visible": true,
+      "note": ""
+    },
+    {
+      "id": "yuanbao",
+      "name": "Yuanbao",
+      "url": "https://yuanbao.tencent.com/",
+      "found": true,
+      "selector": ".ql-editor[contenteditable=\"true\"]",
+      "tag": "div",
+      "visible": true,
+      "note": ""
+    },
+    {
+      "id": "kimi",
+      "name": "Kimi",
+      "url": "https://www.kimi.com/",
+      "found": true,
+      "selector": "div[contenteditable=\"true\"][role=\"textbox\"]",
+      "tag": "div",
+      "visible": true,
+      "note": ""
+    }
+  ]
+}

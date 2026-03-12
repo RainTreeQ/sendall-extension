@@ -49,7 +49,7 @@ const PLATFORM_STYLES = {
   Unknown: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
 }
 
-const SEND_LOADING_SOFT_TIMEOUT_MS = 50000
+const SEND_LOADING_SOFT_TIMEOUT_MS = 25000
 const DRAFT_SAVE_DEBOUNCE_MS = 400
 const CONTEXT_ERROR_PATTERNS = [
   'Extension context invalidated',
@@ -451,6 +451,10 @@ export default function Popup() {
         } else {
           addStatus(t('status_failed', [name, String(result.error || t('unknown'))]), 'error')
         }
+        const debugLine = String(result.debugLog || '')
+        if (debugLine) {
+          addStatus(`${name} 调试：${debugLine}`, 'pending')
+        }
       })
       if (safety?.autoSendBlockedBySafeMode) {
         addStatus(t('safe_mode_auto_send_blocked'), 'pending')
@@ -543,19 +547,15 @@ export default function Popup() {
             message: t('broadcast_continues_background', [String(tabIds.length)]),
             type: 'pending',
           }])
-          // Clear draft if >= 2 tabs and error rate <= 50% based on progress so far
-          const p = latestProgressRef.current
-          if (p.total >= 2 && p.ok > 0 && (p.completed === 0 || p.ok / p.completed >= 0.5)) {
-            if (draftSaveTimerRef.current) {
-              clearTimeout(draftSaveTimerRef.current)
-              draftSaveTimerRef.current = null
-            }
-            latestMessageRef.current = ''
-            setMessageText('')
-            setImageData(null)
-            void clearDraftEverywhere()
-            if (messageInputRef.current) messageInputRef.current.value = ''
+          if (draftSaveTimerRef.current) {
+            clearTimeout(draftSaveTimerRef.current)
+            draftSaveTimerRef.current = null
           }
+          latestMessageRef.current = ''
+          setMessageText('')
+          setImageData(null)
+          void clearDraftEverywhere()
+          if (messageInputRef.current) messageInputRef.current.value = ''
         }
         responsePromise.then(finishWithResponse).catch(finishWithError)
         return
@@ -578,7 +578,7 @@ export default function Popup() {
   )
 
   return (
-    <div className="relative flex min-h-[520px] w-[380px] overflow-hidden bg-gray-50 text-gray-900 dark:bg-zinc-950 dark:text-gray-100 font-sans">
+    <div className="relative flex min-h-[500px] min-w-[360px] w-screen h-screen flex-col overflow-hidden bg-gray-50 text-gray-900 dark:bg-zinc-950 dark:text-gray-100 font-sans">
       <div className="absolute inset-x-0 top-0 z-30">
         <header className="flex h-[60px] items-center justify-between border-b border-gray-200 bg-gray-50 px-5 dark:border-zinc-700/80 dark:bg-zinc-950">
           <div className="flex items-center gap-2.5">

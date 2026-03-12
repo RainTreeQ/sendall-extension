@@ -1,0 +1,2013 @@
+(() => {
+  // src/content/index.js
+  if (!window.__aiBroadcastLoaded) {
+    let isNodeDisabled = function(node) {
+      if (!node) return true;
+      if (node.disabled === true) return true;
+      const ariaDisabled = String(node.getAttribute?.("aria-disabled") || "").toLowerCase();
+      if (ariaDisabled === "true") return true;
+      const className = node.className?.toString().toLowerCase() || "";
+      if (className.includes("disabled") || className.includes("is-disabled")) return true;
+      return false;
+    }, createLogger = function(requestId, debug) {
+      const prefix = `[AIB][content][${requestId}]`;
+      return {
+        info(event, data = void 0) {
+          if (data === void 0) console.log(`${prefix} ${event}`);
+          else console.log(`${prefix} ${event}`, data);
+        },
+        error(event, data = void 0) {
+          if (data === void 0) console.error(`${prefix} ${event}`);
+          else console.error(`${prefix} ${event}`, data);
+        },
+        debug(event, data = void 0) {
+          if (!debug) return;
+          if (data === void 0) console.log(`${prefix} ${event}`);
+          else console.log(`${prefix} ${event}`, data);
+        }
+      };
+    }, normalizeText = function(value) {
+      return String(value || "").replace(/\s+/g, " ").trim();
+    }, includesAny = function(text, keywords) {
+      return keywords.some((keyword) => text.includes(keyword));
+    }, isDoubaoVerificationPage = function() {
+      if (!(normalizedHostname === "doubao.com" || normalizedHostname.endsWith(".doubao.com"))) return false;
+      const urlHint = `${window.location.pathname || ""} ${window.location.search || ""}`.toLowerCase();
+      if (includesAny(urlHint, ["captcha", "verify", "verification", "security", "risk", "waf", "bot"])) {
+        return true;
+      }
+      const title = normalizeText(document.title || "").toLowerCase();
+      if (includesAny(title, ["\u4EBA\u673A\u9A8C\u8BC1", "\u5B89\u5168\u9A8C\u8BC1", "\u9A8C\u8BC1\u7801", "captcha", "verify", "security check"])) {
+        return true;
+      }
+      const bodyText = normalizeText((document.body?.innerText || "").slice(0, 6e3)).toLowerCase();
+      return includesAny(bodyText, [
+        "\u4EBA\u673A\u9A8C\u8BC1",
+        "\u5B89\u5168\u9A8C\u8BC1",
+        "\u9A8C\u8BC1\u7801",
+        "\u6ED1\u5757\u9A8C\u8BC1",
+        "\u8BF7\u5148\u5B8C\u6210\u9A8C\u8BC1",
+        "\u884C\u4E3A\u9A8C\u8BC1",
+        "security check",
+        "verify you are human",
+        "captcha"
+      ]);
+    }, getHighRiskPageReason = function() {
+      const title = normalizeText(document.title || "").toLowerCase();
+      const urlHint = `${window.location.pathname || ""} ${window.location.search || ""}`.toLowerCase();
+      const bodyText = normalizeText((document.body?.innerText || "").slice(0, 7e3)).toLowerCase();
+      const text = `${title} ${urlHint} ${bodyText}`;
+      if (includesAny(text, [
+        "captcha",
+        "verify you are human",
+        "security check",
+        "waf",
+        "risk control",
+        "\u4EBA\u673A\u9A8C\u8BC1",
+        "\u5B89\u5168\u9A8C\u8BC1",
+        "\u9A8C\u8BC1\u7801",
+        "\u6ED1\u5757\u9A8C\u8BC1",
+        "\u8BF7\u5148\u5B8C\u6210\u9A8C\u8BC1"
+      ])) {
+        return "\u68C0\u6D4B\u5230\u98CE\u63A7/\u9A8C\u8BC1\u9875\u9762";
+      }
+      return "";
+    }, getContent = function(el) {
+      if (!el) return "";
+      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
+        return (el.value || "").trim();
+      }
+      return (el.innerText || el.textContent || "").trim();
+    }, contentLooksInjected = function(el, text) {
+      const expected = normalizeText(text);
+      const actual = normalizeText(getContent(el));
+      if (!expected) return actual.length === 0;
+      if (!actual) return false;
+      if (actual === expected) return true;
+      return actual.includes(expected.slice(0, Math.min(expected.length, 24)));
+    }, contentLooksInjectedStrict = function(el, text) {
+      const expected = normalizeText(text);
+      const actual = normalizeText(getContent(el));
+      if (!expected) return actual.length === 0;
+      if (!actual) return false;
+      if (actual === expected) return true;
+      if (actual.length < expected.length * 0.95) return false;
+      return actual.includes(expected) || expected.includes(actual);
+    }, setReactValue = function(el, value) {
+      const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      if (setter) setter.call(el, value);
+      else el.value = value;
+      const tracker = el._valueTracker;
+      if (tracker) tracker.setValue("");
+      el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return { strategy: "react-value", fallbackUsed: false };
+    }, notifyGeminiFramework = function(el, text) {
+      el.dispatchEvent(new InputEvent("input", {
+        bubbles: true,
+        inputType: "insertText",
+        data: text
+      }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      const richTextarea = el.closest("rich-textarea");
+      if (richTextarea) {
+        richTextarea.dispatchEvent(new Event("input", { bubbles: true }));
+        richTextarea.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }, pressEnterOn = function(el) {
+      const target = el || document.activeElement;
+      if (!target) return;
+      const opts = {
+        key: "Enter",
+        code: "Enter",
+        keyCode: 13,
+        which: 13,
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      };
+      target.dispatchEvent(new KeyboardEvent("keydown", opts));
+      target.dispatchEvent(new KeyboardEvent("keypress", opts));
+      target.dispatchEvent(new KeyboardEvent("keyup", opts));
+    }, base64ToBlob = function(base64, mimeType) {
+      const byteChars = atob(base64);
+      const byteArray = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
+      return new Blob([byteArray], { type: mimeType });
+    }, resolvePlatformId = function() {
+      const sharedPlatform = AIB_SHARED?.getPlatformByHostname ? AIB_SHARED.getPlatformByHostname(hostname) : null;
+      if (sharedPlatform?.id) return sharedPlatform.id;
+      for (const [domain, platformId] of Object.entries(platformIdByDomainFallback)) {
+        if (normalizedHostname === domain || normalizedHostname.endsWith(`.${domain}`)) {
+          return platformId;
+        }
+      }
+      return null;
+    }, getPlatform = function() {
+      const platformId = resolvePlatformId();
+      if (!platformId) return null;
+      return platformAdapters[platformId] || null;
+    }, ensureUploadHighlightStyle = function() {
+      if (document.getElementById(UPLOAD_HIGHLIGHT_STYLE_ID)) return;
+      const style = document.createElement("style");
+      style.id = UPLOAD_HIGHLIGHT_STYLE_ID;
+      style.textContent = `
+        [${UPLOAD_HIGHLIGHT_ATTR}="1"] {
+          outline: 3px solid #22c55e !important;
+          outline-offset: 3px !important;
+          box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.26) !important;
+          border-radius: 10px !important;
+          animation: aib-upload-highlight-pulse 1s ease-in-out 2;
+        }
+        @keyframes aib-upload-highlight-pulse {
+          0%, 100% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.22); }
+          50% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0.36); }
+        }
+      `;
+      document.documentElement.appendChild(style);
+    }, clearUploadHighlight = function() {
+      if (uploadHighlightTimer) {
+        clearTimeout(uploadHighlightTimer);
+        uploadHighlightTimer = null;
+      }
+      const prev = document.querySelectorAll(`[${UPLOAD_HIGHLIGHT_ATTR}="1"]`);
+      for (const node of prev) {
+        node.removeAttribute(UPLOAD_HIGHLIGHT_ATTR);
+      }
+    }, markUploadHighlight = function(target) {
+      if (!target || !target.setAttribute) return;
+      ensureUploadHighlightStyle();
+      clearUploadHighlight();
+      target.setAttribute(UPLOAD_HIGHLIGHT_ATTR, "1");
+      try {
+        target.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+      } catch (err) {
+        target.scrollIntoView({ block: "center", inline: "center" });
+      }
+      uploadHighlightTimer = setTimeout(() => {
+        if (!target.isConnected) return;
+        target.removeAttribute(UPLOAD_HIGHLIGHT_ATTR);
+      }, 8e3);
+    }, isElementVisible = function(el) {
+      if (!el || !(el instanceof Element)) return false;
+      if (!document.documentElement.contains(el)) return false;
+      const style = window.getComputedStyle(el);
+      if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse") return false;
+      if (style.pointerEvents === "none") return false;
+      const opacity = Number(style.opacity);
+      if (Number.isFinite(opacity) && opacity <= 0.01) return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width >= 4 && rect.height >= 4;
+    }, getElementHint = function(el) {
+      if (!el || !(el instanceof Element)) return "";
+      const parts = [
+        el.getAttribute("aria-label"),
+        el.getAttribute("title"),
+        el.getAttribute("data-testid"),
+        el.getAttribute("data-test-id"),
+        el.getAttribute("name"),
+        el.getAttribute("placeholder"),
+        el.getAttribute("id"),
+        el.getAttribute("class"),
+        el.textContent
+      ];
+      if (el.tagName === "INPUT") {
+        parts.push(el.getAttribute("accept"));
+      }
+      return normalizeText(parts.filter(Boolean).join(" ")).toLowerCase();
+    }, scoreUploadHint = function(hintText) {
+      if (!hintText) return 0;
+      let score = 0;
+      for (const keyword of UPLOAD_HINT_KEYWORDS) {
+        if (hintText.includes(keyword)) score += 8;
+      }
+      for (const keyword of UPLOAD_NEGATIVE_HINT_KEYWORDS) {
+        if (hintText.includes(keyword)) score -= 8;
+      }
+      return score;
+    }, escapeCssIdentifier = function(value) {
+      if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+        return CSS.escape(value);
+      }
+      return String(value).replace(/["\\]/g, "\\$&");
+    }, getAssociatedLabel = function(input) {
+      if (!input || input.tagName !== "INPUT" || String(input.type).toLowerCase() !== "file") return null;
+      if (input.id) {
+        const escaped = escapeCssIdentifier(input.id);
+        const byFor = document.querySelector(`label[for="${escaped}"]`);
+        if (byFor) return byFor;
+      }
+      return input.closest("label");
+    }, findNearInputTrigger = function(input) {
+      if (!input || !(input instanceof Element)) return null;
+      const direct = input.closest('button,[role="button"],label');
+      if (direct && direct !== input) return direct;
+      const root = input.closest("form") || input.closest("section") || input.closest("article") || input.parentElement || document;
+      const candidates = root.querySelectorAll ? root.querySelectorAll('button,[role="button"],label,a[role="button"],div[role="button"],span[role="button"]') : [];
+      let best = null;
+      let bestScore = -1;
+      for (const node of candidates) {
+        if (!node || node === input) continue;
+        const hintScore = scoreUploadHint(getElementHint(node));
+        if (hintScore <= 0) continue;
+        const visibleScore = isElementVisible(node) ? 3 : 0;
+        const score = hintScore + visibleScore;
+        if (score > bestScore) {
+          bestScore = score;
+          best = node;
+        }
+      }
+      return best;
+    }, pushUploadCandidate = function(store, element, baseScore, via, linkedInput = null) {
+      if (!element || !(element instanceof Element)) return;
+      const hint = getElementHint(element);
+      const hintScore = scoreUploadHint(hint);
+      const isFileInput = element.tagName === "INPUT" && String(element.getAttribute("type") || "").toLowerCase() === "file";
+      const visible = isElementVisible(element);
+      const interactive = element.matches('button,[role="button"],label,input,a,[tabindex]') ? 4 : 0;
+      const score = baseScore + hintScore + interactive + (isFileInput ? 10 : 0) + (visible ? 8 : -6);
+      const existing = store.get(element);
+      if (existing && existing.score >= score) return;
+      store.set(element, {
+        element,
+        linkedInput,
+        via,
+        visible,
+        score
+      });
+    }, resolveVisibleUploadCandidate = function(candidate) {
+      if (!candidate) return null;
+      if (candidate.visible) return candidate;
+      const linked = candidate.linkedInput || null;
+      if (!linked) return null;
+      const label = getAssociatedLabel(linked);
+      if (label && isElementVisible(label)) {
+        return { ...candidate, element: label, via: `${candidate.via}->label`, visible: true };
+      }
+      const near = findNearInputTrigger(linked);
+      if (near && isElementVisible(near)) {
+        return { ...candidate, element: near, via: `${candidate.via}->nearby`, visible: true };
+      }
+      return null;
+    }, findUploadEntryTarget = function() {
+      const store = /* @__PURE__ */ new Map();
+      const fileInputs = document.querySelectorAll('input[type="file"]');
+      for (const input of fileInputs) {
+        const accept = String(input.getAttribute("accept") || "").toLowerCase();
+        const base = accept.includes("image") ? 34 : 28;
+        pushUploadCandidate(store, input, base, "file-input", input);
+        const label = getAssociatedLabel(input);
+        if (label) pushUploadCandidate(store, label, 30, "file-input-label", input);
+        const near = findNearInputTrigger(input);
+        if (near) pushUploadCandidate(store, near, 24, "file-input-nearby", input);
+      }
+      const clickables = document.querySelectorAll('button,[role="button"],label,a[role="button"],div[role="button"],span[role="button"]');
+      for (const node of clickables) {
+        const hintScore = scoreUploadHint(getElementHint(node));
+        if (hintScore < 10) continue;
+        pushUploadCandidate(store, node, 10, "keyword-button", null);
+      }
+      const ranked = [...store.values()].sort((a, b) => b.score - a.score);
+      for (const candidate of ranked) {
+        const resolved = resolveVisibleUploadCandidate(candidate);
+        if (resolved) return resolved;
+      }
+      return null;
+    };
+    isNodeDisabled2 = isNodeDisabled, createLogger2 = createLogger, normalizeText2 = normalizeText, includesAny2 = includesAny, isDoubaoVerificationPage2 = isDoubaoVerificationPage, getHighRiskPageReason2 = getHighRiskPageReason, getContent2 = getContent, contentLooksInjected2 = contentLooksInjected, contentLooksInjectedStrict2 = contentLooksInjectedStrict, setReactValue2 = setReactValue, notifyGeminiFramework2 = notifyGeminiFramework, pressEnterOn2 = pressEnterOn, base64ToBlob2 = base64ToBlob, resolvePlatformId2 = resolvePlatformId, getPlatform2 = getPlatform, ensureUploadHighlightStyle2 = ensureUploadHighlightStyle, clearUploadHighlight2 = clearUploadHighlight, markUploadHighlight2 = markUploadHighlight, isElementVisible2 = isElementVisible, getElementHint2 = getElementHint, scoreUploadHint2 = scoreUploadHint, escapeCssIdentifier2 = escapeCssIdentifier, getAssociatedLabel2 = getAssociatedLabel, findNearInputTrigger2 = findNearInputTrigger, pushUploadCandidate2 = pushUploadCandidate, resolveVisibleUploadCandidate2 = resolveVisibleUploadCandidate, findUploadEntryTarget2 = findUploadEntryTarget;
+    window.__aiBroadcastLoaded = true;
+    const hostname = window.location.hostname;
+    const normalizedHostname = String(hostname || "").toLowerCase().replace(/^www\./, "");
+    const defaultSelectors = {
+      "chatgpt": {
+        "findInput": [
+          "#prompt-textarea",
+          'div[contenteditable="true"][data-lexical-editor]',
+          'div[contenteditable="true"][role="textbox"]'
+        ],
+        "findSendBtn": [
+          '[data-testid="send-button"]',
+          'button[aria-label="Send prompt"]',
+          'button[aria-label="Send message"]',
+          'button[aria-label*="Send"]'
+        ]
+      },
+      "claude": {
+        "findInput": [
+          'div.ProseMirror[contenteditable="true"]',
+          '[data-testid="chat-input"] div[contenteditable]',
+          'fieldset div[contenteditable="true"]',
+          'div[contenteditable="true"]'
+        ],
+        "findSendBtn": [
+          'button[aria-label="Send Message"]',
+          'button[aria-label*="Send"]'
+        ]
+      },
+      "gemini": {
+        "findInput": [
+          '.ql-editor[contenteditable="true"]',
+          "rich-textarea .ql-editor",
+          'div[contenteditable="true"][role="textbox"]',
+          "p[data-placeholder]"
+        ],
+        "findSendBtn": [
+          'button[aria-label="Send message"]',
+          'button[aria-label="Send"]',
+          'button[aria-label*="\u53D1\u9001"]',
+          'button[aria-label*="\u63D0\u4EA4"]',
+          'button[aria-label="Submit"]',
+          'button[aria-label*="Submit"]',
+          "button.send-button",
+          'button[data-test-id="send-button"]',
+          'button[data-testid*="send"]',
+          'button[mattooltip="Send message"]',
+          'button[mattooltip="Send"]',
+          'button[mattooltip*="Submit"]',
+          'button[jsname="Qx7uuf"]'
+        ]
+      },
+      "grok": {
+        "findInput": [
+          'textarea[aria-label*="ask" i]',
+          'textarea[aria-label*="grok" i]',
+          "textarea[placeholder]",
+          "textarea",
+          'div[contenteditable="true"][role="textbox"]',
+          'div[contenteditable="true"]'
+        ],
+        "findSendBtn": [
+          'button[type="submit"]:not([disabled])',
+          'button[aria-label="Submit"]:not([disabled])',
+          'button[aria-label*="Submit"]:not([disabled])',
+          'button[aria-label*="Send"]:not([disabled])',
+          'button[data-testid*="send"]:not([disabled])',
+          '[role="button"][aria-label*="Send"]:not([aria-disabled="true"])',
+          '[role="button"][aria-label*="Submit"]:not([aria-disabled="true"])',
+          '[data-testid*="send"]'
+        ]
+      },
+      "deepseek": {
+        "findInput": [
+          'div#chat-input[contenteditable="true"]',
+          'div[id*="chat-input"][contenteditable="true"]',
+          "textarea#chat-input",
+          'textarea[id*="chat-input"]',
+          'div[contenteditable="true"][data-placeholder]',
+          'textarea[placeholder*="Ask"]',
+          'div[contenteditable="true"][role="textbox"]',
+          "textarea"
+        ],
+        "findSendBtn": [
+          'button[type="submit"]',
+          '[aria-label*="send" i]',
+          '[aria-label*="Send"]',
+          'button[data-testid*="send"]'
+        ]
+      },
+      "doubao": {
+        "findInput": [
+          "textarea[placeholder]",
+          'div[contenteditable="true"]',
+          "textarea"
+        ],
+        "findSendBtn": [
+          'button[type="submit"]',
+          'button[aria-label*="\u53D1\u9001"]',
+          'button[aria-label*="Send"]',
+          'button[data-testid*="send"]'
+        ]
+      },
+      "qianwen": {
+        "findInput": [
+          'div[data-slate-editor="true"][contenteditable="true"]',
+          'div[contenteditable="true"][role="textbox"]',
+          'div[contenteditable="true"]',
+          "textarea[placeholder]",
+          "textarea"
+        ],
+        "findSendBtn": []
+      },
+      "yuanbao": {
+        "findInput": [
+          '.ql-editor[contenteditable="true"]',
+          'div[contenteditable="true"][role="textbox"]',
+          'div[contenteditable="true"]',
+          "textarea"
+        ],
+        "findSendBtn": []
+      },
+      "kimi": {
+        "findInput": [
+          'div.chat-input-editor[contenteditable="true"]',
+          'div[class*="chat-input-editor"][contenteditable="true"]',
+          "textarea[placeholder]",
+          'div[contenteditable="true"][role="textbox"]',
+          'div[contenteditable="true"]',
+          "textarea"
+        ],
+        "findSendBtn": [
+          "div.send-button-container:not(.disabled)",
+          'div[class*="send-button-container"]:not(.disabled)',
+          'button[type="submit"]',
+          'button[aria-label*="\u53D1\u9001"]',
+          'button[aria-label*="Send"]'
+        ]
+      }
+    };
+    let cachedSelectors = null;
+    async function getDynamicSelectors() {
+      if (cachedSelectors) return cachedSelectors;
+      try {
+        const data = await chrome.storage.local.get("aib_dynamic_selectors");
+        if (data.aib_dynamic_selectors && data.aib_dynamic_selectors.data) {
+          cachedSelectors = { ...defaultSelectors, ...data.aib_dynamic_selectors.data };
+        } else {
+          cachedSelectors = defaultSelectors;
+        }
+      } catch (err) {
+        cachedSelectors = defaultSelectors;
+      }
+      return cachedSelectors;
+    }
+    async function findInputHeuristically() {
+      const candidates = [
+        ...document.querySelectorAll('div[data-slate-editor="true"][contenteditable="true"]'),
+        ...document.querySelectorAll('div[contenteditable="true"][role="textbox"]'),
+        ...document.querySelectorAll('div[contenteditable="true"]'),
+        ...document.querySelectorAll("textarea[placeholder]"),
+        ...document.querySelectorAll("textarea")
+      ];
+      if (!candidates.length) return null;
+      const unique = [];
+      const seen = /* @__PURE__ */ new Set();
+      for (const candidate of candidates) {
+        if (!candidate || seen.has(candidate)) continue;
+        seen.add(candidate);
+        unique.push(candidate);
+      }
+      const isVisible = (node) => {
+        if (!node) return false;
+        const style = window.getComputedStyle(node);
+        if (style.display === "none" || style.visibility === "hidden") return false;
+        const rect = node.getBoundingClientRect();
+        return rect.width > 120 && rect.height > 20 && rect.bottom > 0;
+      };
+      const hasSendButtonNearby = (node) => {
+        const root = node.closest("form") || node.closest("section") || node.parentElement?.parentElement || document;
+        if (!root?.querySelectorAll) return false;
+        const buttons = root.querySelectorAll('button:not([disabled]), [role="button"]');
+        for (const btn of buttons) {
+          if (btn.disabled || btn.getAttribute("aria-disabled") === "true") continue;
+          const hint = `${btn.getAttribute("aria-label") || ""} ${btn.getAttribute("title") || ""} ${(btn.textContent || "").trim()}`.toLowerCase();
+          if (hint.includes("\u53D1\u9001") || hint.includes("send") || hint.includes("\u63D0\u4EA4") || hint.includes("submit")) return true;
+        }
+        return false;
+      };
+      const scoreInput = (node) => {
+        if (!node || !isVisible(node)) return -1;
+        if (node.getAttribute("contenteditable") !== "true" && node.tagName !== "TEXTAREA") return -1;
+        if (node.getAttribute("aria-disabled") === "true") return -1;
+        const rect = node.getBoundingClientRect();
+        const role = (node.getAttribute("role") || "").toLowerCase();
+        const hasSlate = node.getAttribute("data-slate-editor") === "true";
+        let score = 0;
+        if (hasSlate) score += 8;
+        if (role === "textbox") score += 4;
+        if (node.tagName === "TEXTAREA") score += 3;
+        if (hasSendButtonNearby(node)) score += 5;
+        if (rect.top > 0 && rect.top < window.innerHeight) score += 2;
+        if (rect.bottom > window.innerHeight * 0.45) score += 2;
+        score += Math.min(4, Math.round(rect.width / 300));
+        return score;
+      };
+      let best = null;
+      let bestScore = -1;
+      for (const candidate of unique) {
+        const score = scoreInput(candidate);
+        if (score > bestScore) {
+          bestScore = score;
+          best = candidate;
+        }
+      }
+      return bestScore >= 0 ? best : null;
+    }
+    async function findSendBtnHeuristically(el) {
+      const container = el?.closest("form") || el?.closest("section") || el?.parentElement?.parentElement || document;
+      const roots = [container, document].filter(Boolean);
+      for (const root of roots) {
+        if (!root?.querySelectorAll) continue;
+        const nodes = root.querySelectorAll('button:not([disabled]), [role="button"]');
+        for (const node of nodes) {
+          if (node.disabled || node.getAttribute("aria-disabled") === "true") continue;
+          const klass = node.className?.toString() || "";
+          if (klass.includes("is-disabled") || klass.includes("disabled")) continue;
+          const style = window.getComputedStyle(node);
+          if (style.display === "none" || style.visibility === "hidden") continue;
+          const hint = `${node.getAttribute("aria-label") || ""} ${node.getAttribute("title") || ""} ${node.getAttribute("data-testid") || ""} ${(node.textContent || "").trim()}`.toLowerCase();
+          if (hint.includes("\u767B\u5F55") || hint.includes("log in") || hint.includes("\u4E0A\u4F20") || hint.includes("attach") || hint.includes("\u641C\u7D22") || hint.includes("search")) continue;
+          if (hint.includes("\u53D1\u9001") || hint.includes("send") || hint.includes("\u63D0\u4EA4") || hint.includes("submit")) {
+            return node;
+          }
+        }
+      }
+      return null;
+    }
+    async function findInputBySelectors(platformId) {
+      const sels = await getDynamicSelectors();
+      const list = sels[platformId]?.findInput || [];
+      for (const selector of list) {
+        const found = document.querySelector(selector);
+        if (found) return found;
+      }
+      return null;
+    }
+    async function findSendBtnBySelectors(platformId) {
+      const sels = await getDynamicSelectors();
+      const list = sels[platformId]?.findSendBtn || [];
+      for (const selector of list) {
+        const found = document.querySelector(selector);
+        if (found && !found.disabled) return found;
+      }
+      return null;
+    }
+    async function waitForSendReady(platformId, input, timeout = 260) {
+      if (!platformId) return false;
+      const startedAt = now();
+      while (now() - startedAt < timeout) {
+        const bySelector = await findSendBtnBySelectors(platformId);
+        if (bySelector && !isNodeDisabled(bySelector)) return true;
+        const heuristic = await findSendBtnHeuristically(input);
+        if (heuristic && !isNodeDisabled(heuristic)) return true;
+        await sleep(20);
+      }
+      return false;
+    }
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const now = () => Date.now();
+    const AIB_SHARED = globalThis.__AIB_SHARED__ || null;
+    const MESSAGE_TYPES = AIB_SHARED?.MESSAGE_TYPES || {
+      PING: "PING",
+      SEND_NOW: "SEND_NOW",
+      INJECT_MESSAGE: "INJECT_MESSAGE",
+      INJECT_IMAGE: "INJECT_IMAGE",
+      HIGHLIGHT_UPLOAD_ENTRY: "HIGHLIGHT_UPLOAD_ENTRY"
+    };
+    async function waitFor(fn, timeout = 6e3, interval = 50) {
+      const deadline = now() + timeout;
+      while (now() < deadline) {
+        try {
+          const result = fn();
+          if (result) return result;
+        } catch (err) {
+        }
+        await sleep(interval);
+      }
+      return null;
+    }
+    async function waitForCheck(check, timeout = 280, interval = 25) {
+      const deadline = now() + timeout;
+      while (now() < deadline) {
+        try {
+          if (check()) return true;
+        } catch (err) {
+        }
+        await sleep(interval);
+      }
+      return false;
+    }
+    async function verifyContent(el, text, timeout = 280, interval = 25) {
+      return waitForCheck(() => contentLooksInjected(el, text), timeout, interval);
+    }
+    async function verifyContentStrict(el, text, timeout = 200, interval = 25) {
+      return waitForCheck(() => contentLooksInjectedStrict(el, text), timeout, interval);
+    }
+    async function tryInsertText(el, text) {
+      el.focus();
+      await sleep(16);
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false, null);
+      await sleep(8);
+      el.dispatchEvent(new InputEvent("beforeinput", {
+        inputType: "insertText",
+        data: text,
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }));
+      document.execCommand("insertText", false, text);
+      const verified = await verifyContent(el, text);
+      if (verified) {
+        el.dispatchEvent(new InputEvent("input", {
+          bubbles: true,
+          inputType: "insertText",
+          data: text
+        }));
+      }
+      return verified;
+    }
+    async function tryClipboardPaste(el, text) {
+      await navigator.clipboard.writeText(text);
+      el.focus();
+      await sleep(12);
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false, null);
+      document.execCommand("paste");
+      return verifyContent(el, text);
+    }
+    async function tryDataTransferPaste(el, text) {
+      el.focus();
+      await sleep(12);
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false, null);
+      const dt = new DataTransfer();
+      dt.setData("text/plain", text);
+      el.dispatchEvent(new ClipboardEvent("paste", {
+        clipboardData: dt,
+        bubbles: true,
+        cancelable: true
+      }));
+      return verifyContent(el, text);
+    }
+    async function tryDirectDom(el, text) {
+      el.innerHTML = "";
+      const p = document.createElement("p");
+      p.textContent = text;
+      el.appendChild(p);
+      el.dispatchEvent(new InputEvent("input", { bubbles: true }));
+      return verifyContent(el, text);
+    }
+    async function trySlateBeforeInput(el, text) {
+      el.focus();
+      await sleep(20);
+      const sel = window.getSelection();
+      if (sel && el.childNodes.length > 0) {
+        try {
+          sel.selectAllChildren(el);
+          el.dispatchEvent(new InputEvent("beforeinput", {
+            inputType: "deleteContentBackward",
+            bubbles: true,
+            cancelable: true
+          }));
+          await sleep(10);
+        } catch (_) {
+        }
+      }
+      const chunkSize = text.length > 30 ? 3 : 1;
+      for (let i = 0; i < text.length; i += chunkSize) {
+        const chunk = text.slice(i, i + chunkSize);
+        el.dispatchEvent(new InputEvent("beforeinput", {
+          inputType: "insertText",
+          data: chunk,
+          bubbles: true,
+          cancelable: true
+        }));
+        await sleep(chunkSize > 1 ? 2 : 1);
+      }
+      el.dispatchEvent(new InputEvent("input", { inputType: "insertText", data: text, bubbles: true }));
+      return verifyContent(el, text);
+    }
+    async function runStrategies(el, strategyList, logger) {
+      for (const strategy of strategyList) {
+        try {
+          if (await strategy.run()) {
+            logger.debug("inject-strategy-success", { strategy: strategy.name });
+            return { strategy: strategy.name, fallbackUsed: Boolean(strategy.fallbackUsed) };
+          }
+          logger.debug("inject-strategy-miss", { strategy: strategy.name });
+        } catch (err) {
+          logger.debug("inject-strategy-error", {
+            strategy: strategy.name,
+            error: err.message
+          });
+        }
+      }
+      throw new Error("\u8F93\u5165\u6CE8\u5165\u5931\u8D25");
+    }
+    async function setContentEditable(el, text, options) {
+      const { fastPathEnabled, logger, safeMode } = options;
+      if (safeMode) {
+        return runStrategies(el, [
+          { name: "insertText-safe", fallbackUsed: false, run: () => tryInsertText(el, text) },
+          { name: "insertText-safe-retry", fallbackUsed: true, run: () => tryInsertText(el, text) }
+        ], logger);
+      }
+      if (fastPathEnabled) {
+        return runStrategies(el, [
+          { name: "insertText-fast", fallbackUsed: false, run: () => tryInsertText(el, text) },
+          { name: "clipboard-paste", fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
+          { name: "datatransfer-paste", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
+          { name: "direct-dom", fallbackUsed: true, run: () => tryDirectDom(el, text) }
+        ], logger);
+      }
+      return runStrategies(el, [
+        { name: "clipboard-legacy", fallbackUsed: false, run: () => tryClipboardPaste(el, text) },
+        { name: "insertText-legacy", fallbackUsed: true, run: () => tryInsertText(el, text) },
+        { name: "datatransfer-legacy", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
+        { name: "direct-dom-legacy", fallbackUsed: true, run: () => tryDirectDom(el, text) }
+      ], logger);
+    }
+    const GEMINI_CHUNK_SIZE = 1200;
+    async function insertTextInChunks(el, text, options) {
+      const { logger } = options || {};
+      const len = text.length;
+      if (len <= 0) return;
+      if (len <= GEMINI_CHUNK_SIZE) {
+        document.execCommand("insertText", false, text);
+        return;
+      }
+      for (let i = 0; i < len; i += GEMINI_CHUNK_SIZE) {
+        const chunk = text.slice(i, i + GEMINI_CHUNK_SIZE);
+        document.execCommand("insertText", false, chunk);
+        await sleep(12);
+      }
+    }
+    async function setGeminiInput(el, text, options) {
+      const { logger } = options;
+      el.focus();
+      await sleep(40);
+      const richTextarea = el.closest("rich-textarea") || el.parentElement;
+      const quill = richTextarea?.__quill || el.__quill;
+      if (quill) {
+        quill.setText("");
+        if (text.length <= GEMINI_CHUNK_SIZE) {
+          quill.insertText(0, text, "user");
+        } else {
+          for (let i = 0; i < text.length; i += GEMINI_CHUNK_SIZE) {
+            const chunk = text.slice(i, i + GEMINI_CHUNK_SIZE);
+            quill.insertText(i, chunk, "user");
+            await sleep(10);
+          }
+        }
+        quill.setSelection(text.length, 0);
+        notifyGeminiFramework(el, text);
+        await sleep(30);
+        if (await verifyContentStrict(el, text, 300, 30)) {
+          return { strategy: "gemini-quill", fallbackUsed: false };
+        }
+        quill.setText("");
+        await sleep(16);
+      }
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false, null);
+      await insertTextInChunks(el, text, options);
+      if (await verifyContentStrict(el, text, 250, 25)) {
+        notifyGeminiFramework(el, text);
+        return { strategy: "gemini-insertText", fallbackUsed: Boolean(quill) };
+      }
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false, null);
+      await insertTextInChunks(el, text, options);
+      if (await verifyContentStrict(el, text, 250, 25)) {
+        notifyGeminiFramework(el, text);
+        return { strategy: "gemini-insertText-retry", fallbackUsed: true };
+      }
+      el.innerHTML = "";
+      const p = document.createElement("p");
+      p.textContent = text;
+      el.appendChild(p);
+      notifyGeminiFramework(el, text);
+      if (await verifyContentStrict(el, text, 200, 25)) {
+        return { strategy: "gemini-direct-dom", fallbackUsed: true };
+      }
+      logger.debug("gemini-inject-failed-after-fallbacks");
+      throw new Error("Gemini \u8F93\u5165\u6CE8\u5165\u5931\u8D25");
+    }
+    async function setYuanbaoInput(el, text, options) {
+      const { logger } = options || {};
+      el.focus();
+      await sleep(28);
+      const quill = el.__quill || el.closest(".ql-container")?.__quill || el.closest(".ql-editor")?.__quill;
+      if (quill) {
+        quill.setText("");
+        quill.insertText(0, text, "user");
+        quill.setSelection(text.length, 0);
+        el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        if (await verifyContent(el, text, 260, 25)) {
+          return { strategy: "yuanbao-quill", fallbackUsed: false };
+        }
+      }
+      return setContentEditable(el, text, options);
+    }
+    async function closeQianwenTaskAssistant() {
+      const allTags = document.querySelectorAll('[class*="tagBtn"][class*="selected"], [class*="tag"][aria-selected="true"]');
+      let tag = null;
+      for (const node of allTags) {
+        if (node.textContent && node.textContent.includes("\u4EFB\u52A1\u52A9\u7406")) {
+          tag = node;
+          break;
+        }
+      }
+      if (!tag) return;
+      const closeIcon = tag.querySelector('[data-icon-type*="close"]') || tag.querySelector("svg");
+      const target = closeIcon || tag;
+      target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+      target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+      target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+      await sleep(120);
+    }
+    async function pasteImageToInput(el, base64, mimeType, logger) {
+      const blob = base64ToBlob(base64, mimeType);
+      const ext = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
+      const file = new File([blob], `image.${ext}`, { type: mimeType, lastModified: Date.now() });
+      el.focus();
+      await sleep(50);
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        const pasteEvt = new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: dt });
+        el.dispatchEvent(pasteEvt);
+        logger?.debug?.("image-paste-strategy", { strategy: "clipboardEvent" });
+        await sleep(300);
+        return { success: true, strategy: "clipboardEvent" };
+      } catch (e) {
+        logger?.debug?.("image-paste-clipboardEvent-failed", { error: e?.message });
+      }
+      try {
+        const dt2 = new DataTransfer();
+        dt2.items.add(file);
+        const dropEvt = new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt2 });
+        el.dispatchEvent(dropEvt);
+        logger?.debug?.("image-paste-strategy", { strategy: "drop" });
+        await sleep(300);
+        return { success: true, strategy: "drop" };
+      } catch (e) {
+        logger?.debug?.("image-paste-drop-failed", { error: e?.message });
+      }
+      try {
+        const container = el.closest("form") || el.closest("section") || el.parentElement?.parentElement || document;
+        const fileInput = container.querySelector('input[type="file"]') || document.querySelector('input[type="file"]');
+        if (fileInput) {
+          const dt3 = new DataTransfer();
+          dt3.items.add(file);
+          fileInput.files = dt3.files;
+          fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+          logger?.debug?.("image-paste-strategy", { strategy: "fileInput" });
+          await sleep(300);
+          return { success: true, strategy: "fileInput" };
+        }
+      } catch (e) {
+        logger?.debug?.("image-paste-fileInput-failed", { error: e?.message });
+      }
+      return { success: false, strategy: "none" };
+    }
+    const qianwenFindInput = () => waitFor(() => {
+      const candidates = [
+        ...document.querySelectorAll('div[data-slate-editor="true"][contenteditable="true"]'),
+        ...document.querySelectorAll('div[contenteditable="true"][role="textbox"]'),
+        ...document.querySelectorAll('div[contenteditable="true"]'),
+        ...document.querySelectorAll("textarea[placeholder]"),
+        ...document.querySelectorAll("textarea")
+      ];
+      if (!candidates.length) return null;
+      const unique = [];
+      const seen = /* @__PURE__ */ new Set();
+      for (const candidate of candidates) {
+        if (!candidate || seen.has(candidate)) continue;
+        seen.add(candidate);
+        unique.push(candidate);
+      }
+      const isVisible = (node) => {
+        if (!node) return false;
+        const style = window.getComputedStyle(node);
+        if (style.display === "none" || style.visibility === "hidden") return false;
+        const rect = node.getBoundingClientRect();
+        return rect.width > 120 && rect.height > 20 && rect.bottom > 0;
+      };
+      const hasSendButtonNearby = (node) => {
+        const root = node.closest("form") || node.closest("section") || node.parentElement?.parentElement || document;
+        if (!root?.querySelectorAll) return false;
+        const buttons = root.querySelectorAll('button:not([disabled]), [role="button"]');
+        for (const btn of buttons) {
+          if (btn.disabled || btn.getAttribute("aria-disabled") === "true") continue;
+          const hint = `${btn.getAttribute("aria-label") || ""} ${btn.getAttribute("title") || ""} ${(btn.textContent || "").trim()}`.toLowerCase();
+          if (hint.includes("\u53D1\u9001") || hint.includes("send") || hint.includes("\u63D0\u4EA4") || hint.includes("submit")) return true;
+        }
+        return false;
+      };
+      const scoreInput = (node) => {
+        if (!node || !isVisible(node)) return -1;
+        if (node.getAttribute("contenteditable") !== "true" && node.tagName !== "TEXTAREA") return -1;
+        if (node.getAttribute("aria-disabled") === "true") return -1;
+        const rect = node.getBoundingClientRect();
+        const role = (node.getAttribute("role") || "").toLowerCase();
+        const hasSlate = node.getAttribute("data-slate-editor") === "true";
+        let score = 0;
+        if (hasSlate) score += 8;
+        if (role === "textbox") score += 4;
+        if (node.tagName === "TEXTAREA") score += 3;
+        if (hasSendButtonNearby(node)) score += 5;
+        if (rect.top > 0 && rect.top < window.innerHeight) score += 2;
+        if (rect.bottom > window.innerHeight * 0.45) score += 2;
+        score += Math.min(4, Math.round(rect.width / 300));
+        return score;
+      };
+      let best = null;
+      let bestScore = -1;
+      for (const candidate of unique) {
+        const score = scoreInput(candidate);
+        if (score > bestScore) {
+          bestScore = score;
+          best = candidate;
+        }
+      }
+      return bestScore >= 0 ? best : null;
+    });
+    async function setQianwenInput(el, text, options) {
+      const { logger } = options || {};
+      el.focus();
+      await sleep(20);
+      const slateNode = el.closest('[data-slate-editor="true"]') || el;
+      const fiberKey = Object.keys(slateNode).find((k) => k.startsWith("__reactFiber$") || k.startsWith("__reactInternalInstance$"));
+      if (fiberKey) {
+        try {
+          let fiber = slateNode[fiberKey];
+          for (let i = 0; i < 15 && fiber; i++) {
+            const editor = fiber.memoizedProps?.editor || fiber.stateNode?.editor;
+            if (editor && typeof editor.insertText === "function" && typeof editor.deleteFragment === "function") {
+              try {
+                editor.deleteFragment();
+              } catch (_) {
+              }
+              editor.insertText(text);
+              el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+              if (await verifyContent(el, text)) {
+                return { strategy: "qianwen-slate-api", fallbackUsed: false };
+              }
+            }
+            fiber = fiber.return;
+          }
+        } catch (_) {
+        }
+      }
+      return runStrategies(el, [
+        { name: "qw-insertText", fallbackUsed: false, run: () => tryInsertText(el, text) },
+        { name: "qw-beforeinput", fallbackUsed: true, run: () => trySlateBeforeInput(el, text) },
+        { name: "qw-datatransfer", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
+        { name: "qw-clipboard", fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
+        { name: "qw-direct-dom", fallbackUsed: true, run: () => tryDirectDom(el, text) }
+      ], logger);
+    }
+    const qianwenInject = async (el, text, options) => {
+      await closeQianwenTaskAssistant();
+      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+      return setQianwenInput(el, text, options);
+    };
+    const qianwenSend = async (el) => {
+      const container = el?.closest("form") || el?.closest("section") || el?.parentElement?.parentElement || document;
+      const isBtnDisabled = (node) => {
+        if (!node) return true;
+        if (node.disabled) return true;
+        if (node.getAttribute("aria-disabled") === "true") return true;
+        const klass = node.className?.toString() || "";
+        return klass.includes("is-disabled") || klass.includes("disabled");
+      };
+      const findSendBtn = (root) => {
+        if (!root?.querySelectorAll) return null;
+        const nodes = root.querySelectorAll('button, [role="button"]');
+        for (const node of nodes) {
+          if (isBtnDisabled(node)) continue;
+          const hint = `${node.getAttribute("aria-label") || ""} ${node.getAttribute("title") || ""} ${(node.textContent || "").trim()}`.toLowerCase();
+          if (hint.includes("\u767B\u5F55") || hint.includes("log in") || hint.includes("\u4E0A\u4F20") || hint.includes("attach") || hint.includes("\u641C\u7D22") || hint.includes("search")) continue;
+          if (hint.includes("\u53D1\u9001") || hint.includes("send") || hint.includes("\u63D0\u4EA4") || hint.includes("submit")) return node;
+        }
+        return null;
+      };
+      let btn = await waitFor(() => {
+        const byContainer = findSendBtn(container);
+        if (byContainer) return byContainer;
+        return findSendBtn(document);
+      }, 3e3, 40);
+      if (!btn) {
+        await closeQianwenTaskAssistant();
+        await sleep(120);
+        btn = await waitFor(() => findSendBtn(document), 2e3, 40);
+      }
+      if (btn) btn.click();
+      else {
+        el?.focus();
+        pressEnterOn(el);
+      }
+    };
+    const kimiFindInput = () => waitFor(
+      () => document.querySelector('div.chat-input-editor[contenteditable="true"]') || document.querySelector('div[class*="chat-input-editor"][contenteditable="true"]') || document.querySelector("textarea[placeholder]") || document.querySelector('div[contenteditable="true"][role="textbox"]') || document.querySelector('div[contenteditable="true"]') || document.querySelector("textarea")
+    );
+    const kimiInject = async (el, text, options) => {
+      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+      return setContentEditable(el, text, options);
+    };
+    const kimiSend = async (el) => {
+      const container = el?.closest("form") || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
+      const inContainer = (sel) => container.querySelector && container.querySelector(sel);
+      const findSendBtn = () => {
+        const explicit = inContainer("div.send-button-container:not(.disabled)") || inContainer('div[class*="send-button-container"]:not(.disabled)') || inContainer('button[type="submit"]') || inContainer('button[aria-label*="\u53D1\u9001"]') || inContainer('button[aria-label*="Send"]') || document.querySelector("div.send-button-container:not(.disabled)") || document.querySelector('div[class*="send-button-container"]:not(.disabled)') || document.querySelector('button[type="submit"]') || document.querySelector('button[aria-label*="\u53D1\u9001"]');
+        if (explicit && !explicit.disabled) return explicit;
+        const buttons = container.querySelectorAll ? container.querySelectorAll('button:not([disabled]), [role="button"]') : [];
+        for (const b of buttons) {
+          const hint = `${b.getAttribute("aria-label") || ""} ${b.getAttribute("title") || ""} ${(b.textContent || "").trim()}`.toLowerCase();
+          if (hint.includes("\u53D1\u9001") || hint.includes("send") || hint.includes("submit") || hint.includes("\u63D0\u4EA4")) return b;
+        }
+        return null;
+      };
+      const btn = await waitFor(findSendBtn, 3500, 40);
+      if (btn) btn.click();
+      else {
+        el?.focus();
+        pressEnterOn(el);
+      }
+    };
+    const yuanbaoFindInput = () => waitFor(
+      () => document.querySelector('.ql-editor[contenteditable="true"]') || document.querySelector('div[contenteditable="true"][role="textbox"]') || document.querySelector('div[contenteditable="true"]') || document.querySelector("textarea")
+    );
+    const yuanbaoInject = async (el, text, options) => {
+      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+      return setYuanbaoInput(el, text, options);
+    };
+    const yuanbaoSend = async (el, options) => {
+      const logger = options?.logger;
+      const before = normalizeText(getContent(el));
+      const container = el?.closest("form") || el?.closest(".agent-dialogue") || el?.closest(".dialogue") || el?.parentElement || document;
+      const roots = [container, document].filter(Boolean);
+      const pickButton = () => {
+        for (const root of roots) {
+          if (!root?.querySelectorAll) continue;
+          const nodes = root.querySelectorAll('button, [role="button"]');
+          for (const node of nodes) {
+            if (node.disabled || node.getAttribute("aria-disabled") === "true") continue;
+            const hint = `${node.getAttribute("aria-label") || ""} ${node.getAttribute("title") || ""} ${(node.textContent || "").trim()} ${node.className || ""}`.toLowerCase();
+            if (hint.includes("log in") || hint.includes("\u767B\u5F55") || hint.includes("tool") || hint.includes("\u4E0A\u4F20")) continue;
+            if (hint.includes("send") || hint.includes("\u53D1\u9001") || hint.includes("\u63D0\u4EA4") || hint.includes("submit")) {
+              return node;
+            }
+          }
+        }
+        return null;
+      };
+      const btn = await waitFor(pickButton, 2600, 35);
+      if (btn) {
+        btn.click();
+        await sleep(240);
+        const after = normalizeText(getContent(el));
+        if (!before || after !== before) return true;
+      }
+      el?.focus();
+      pressEnterOn(el);
+      await sleep(220);
+      const finalAfter = normalizeText(getContent(el));
+      const sent = !before || finalAfter !== before;
+      if (!sent) logger?.debug?.("yuanbao-send-no-change");
+      return sent;
+    };
+    const platformAdapters = {
+      chatgpt: {
+        name: "ChatGPT",
+        findInput: async () => {
+          return await findInputBySelectors("chatgpt") || waitFor(
+            () => findInputHeuristically() || document.querySelector("#prompt-textarea") || document.querySelector('div[contenteditable="true"][data-lexical-editor]') || document.querySelector('div[contenteditable="true"][role="textbox"]')
+          );
+        },
+        async inject(el, text, options) {
+          if (el.tagName === "TEXTAREA") return setReactValue(el, text);
+          return setContentEditable(el, text, options);
+        },
+        async send(el) {
+          const btn = await findSendBtnBySelectors("chatgpt") || await waitFor(() => findSendBtnHeuristically(el) || (() => {
+            const found = document.querySelector('[data-testid="send-button"]') || document.querySelector('button[aria-label="Send prompt"]') || document.querySelector('button[aria-label="Send message"]') || document.querySelector('button[aria-label*="Send"]');
+            return found && !found.disabled ? found : null;
+          })(), 4e3, 40);
+          if (btn) {
+            btn.click();
+            return;
+          }
+          const anyBtn = document.querySelector('[data-testid="send-button"]') || document.querySelector('button[aria-label="Send prompt"]') || document.querySelector('button[aria-label="Send message"]') || document.querySelector('button[aria-label*="Send"]');
+          if (anyBtn) {
+            anyBtn.click();
+            return;
+          }
+          const target = el || document.querySelector("#prompt-textarea") || document.activeElement;
+          if (target) {
+            target.focus();
+            pressEnterOn(target);
+          } else pressEnterOn(null);
+        }
+      },
+      claude: {
+        name: "Claude",
+        findInput: async () => {
+          return await findInputBySelectors("claude") || waitFor(
+            () => findInputHeuristically() || document.querySelector('div.ProseMirror[contenteditable="true"]') || document.querySelector('[data-testid="chat-input"] div[contenteditable]') || document.querySelector('fieldset div[contenteditable="true"]') || document.querySelector('div[contenteditable="true"]')
+          );
+        },
+        inject: (el, text, options) => setContentEditable(el, text, options),
+        async send(el) {
+          const btn = await findSendBtnBySelectors("claude") || await waitFor(() => findSendBtnHeuristically(el) || (() => {
+            const candidates = [
+              document.querySelector('button[aria-label="Send Message"]'),
+              document.querySelector('button[aria-label*="Send"]'),
+              ...[...document.querySelectorAll("fieldset button, form button")]
+            ].filter(Boolean);
+            for (const candidate of candidates) {
+              if (candidate.disabled) continue;
+              const label = (candidate.getAttribute("aria-label") || "").toLowerCase();
+              if (label.includes("attach") || label.includes("file") || label.includes("upload")) continue;
+              if (candidate.querySelector("svg")) return candidate;
+            }
+            return null;
+          })(), 4e3, 40);
+          if (btn) {
+            btn.click();
+            return;
+          }
+          const anyBtn = document.querySelector('button[aria-label="Send Message"]') || document.querySelector('button[aria-label*="Send"]');
+          if (anyBtn) {
+            anyBtn.click();
+            return;
+          }
+          const input = el || document.querySelector('div.ProseMirror[contenteditable="true"]');
+          if (input) {
+            input.focus();
+            pressEnterOn(input);
+          }
+        }
+      },
+      gemini: {
+        name: "Gemini",
+        findInput: async () => await findInputBySelectors("gemini") || waitFor(() => findInputHeuristically() || document.querySelector('.ql-editor[contenteditable="true"]') || document.querySelector("rich-textarea .ql-editor") || document.querySelector('div[contenteditable="true"][role="textbox"]') || document.querySelector("p[data-placeholder]")?.closest('[contenteditable="true"]')),
+        inject: (el, text, options) => setGeminiInput(el, text, options),
+        async send(el, options) {
+          const logger = options?.logger;
+          await sleep(80);
+          const before = normalizeText(getContent(el));
+          const keySend = async () => {
+            const target = el || document.activeElement;
+            if (!target) return false;
+            target.focus();
+            pressEnterOn(target);
+            await sleep(220);
+            let after = normalizeText(getContent(target));
+            if (!before || after !== before) return true;
+            target.dispatchEvent(new KeyboardEvent("keydown", {
+              key: "Enter",
+              code: "Enter",
+              keyCode: 13,
+              which: 13,
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              ctrlKey: true
+            }));
+            await sleep(220);
+            after = normalizeText(getContent(target));
+            if (!before || after !== before) return true;
+            target.dispatchEvent(new KeyboardEvent("keydown", {
+              key: "Enter",
+              code: "Enter",
+              keyCode: 13,
+              which: 13,
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              metaKey: true
+            }));
+            await sleep(220);
+            after = normalizeText(getContent(target));
+            return !before || after !== before;
+          };
+          const btn = await waitFor(() => {
+            for (const selector of [
+              'button[aria-label="Send message"]',
+              'button[aria-label="Send"]',
+              'button[aria-label*="\u53D1\u9001"]',
+              'button[aria-label*="\u63D0\u4EA4"]',
+              'button[aria-label="Submit"]',
+              'button[aria-label*="Submit"]',
+              "button.send-button",
+              'button[data-test-id="send-button"]',
+              'button[data-testid*="send"]',
+              'button[mattooltip="Send message"]',
+              'button[mattooltip="Send"]',
+              'button[mattooltip*="Submit"]',
+              'button[jsname="Qx7uuf"]'
+            ]) {
+              const found = document.querySelector(selector);
+              if (found && !found.disabled) return found;
+            }
+            const container = el?.closest("rich-textarea")?.parentElement?.parentElement || el?.closest(".input-area-container") || el?.closest('[role="complementary"]')?.parentElement;
+            if (container) {
+              for (const b of container.querySelectorAll("button:not([disabled])")) {
+                const hint = `${b.getAttribute("aria-label") || ""} ${b.getAttribute("mattooltip") || ""} ${b.getAttribute("title") || ""}`.toLowerCase();
+                if (hint.includes("send") || hint.includes("submit") || hint.includes("\u53D1\u9001") || hint.includes("\u63D0\u4EA4")) return b;
+              }
+            }
+            return null;
+          }, 6500, 50);
+          if (btn) {
+            btn.click();
+            if (!before) return true;
+            await sleep(220);
+            const afterClick = normalizeText(getContent(el));
+            if (afterClick !== before) return true;
+            logger?.debug("gemini-send-click-no-change");
+          } else {
+            logger?.debug("gemini-send-button-not-found", { hasInput: Boolean(el) });
+          }
+          const keySendOk = await keySend();
+          if (keySendOk) return true;
+          logger?.debug("gemini-send-failed-after-key-fallback");
+          return false;
+        }
+      },
+      grok: {
+        name: "Grok",
+        findInput: async () => {
+          const isVisibleInput = (el) => {
+            if (!el || el.disabled || el.readOnly) return false;
+            const style = window.getComputedStyle(el);
+            if (style.display === "none" || style.visibility === "hidden") return false;
+            const rect = el.getBoundingClientRect();
+            return rect.width > 120 && rect.height > 20 && rect.bottom > 0;
+          };
+          const collectRoots = () => {
+            const roots = [document];
+            const queue = [document.documentElement];
+            const seen = /* @__PURE__ */ new Set();
+            while (queue.length) {
+              const node = queue.shift();
+              if (!node || seen.has(node)) continue;
+              seen.add(node);
+              if (node.shadowRoot) roots.push(node.shadowRoot);
+              if (node.children) {
+                for (const child of node.children) queue.push(child);
+              }
+            }
+            return roots;
+          };
+          const pickBestInput = () => {
+            const candidates = [];
+            for (const root of collectRoots()) {
+              candidates.push(...root.querySelectorAll('textarea[placeholder], textarea, div[contenteditable="true"][role="textbox"], div[contenteditable="true"]'));
+            }
+            const unique = [];
+            const seen = /* @__PURE__ */ new Set();
+            for (const c of candidates) {
+              if (!c || seen.has(c)) continue;
+              seen.add(c);
+              unique.push(c);
+            }
+            const scoreInput = (el) => {
+              if (!isVisibleInput(el)) return -1;
+              const rect = el.getBoundingClientRect();
+              const placeholder = (el.getAttribute("placeholder") || "").toLowerCase();
+              const root = el.closest("form") || el.parentElement || document;
+              let score = 0;
+              if (placeholder.includes("ask") || placeholder.includes("mind") || placeholder.includes("message")) score += 6;
+              if (el.closest("form")) score += 4;
+              if (root.querySelector?.('button[type="submit"], button[aria-label*="Submit"], button[aria-label*="Send"], button[data-testid*="send"], [role="button"][aria-label*="Send"], [data-testid*="send"]')) score += 4;
+              if (rect.top > 40 && rect.top < window.innerHeight) score += 2;
+              score += Math.min(4, Math.round(rect.width / 300));
+              return score;
+            };
+            let best = null;
+            let bestScore = -1;
+            for (const candidate of unique) {
+              const score = scoreInput(candidate);
+              if (score > bestScore) {
+                bestScore = score;
+                best = candidate;
+              }
+            }
+            return bestScore >= 0 ? best : null;
+          };
+          const bySelectors = await findInputBySelectors("grok");
+          if (isVisibleInput(bySelectors)) return bySelectors;
+          return waitFor(() => pickBestInput(), 7e3, 60);
+        },
+        async inject(el, text, options) {
+          if (el.tagName === "TEXTAREA") return setReactValue(el, text);
+          return setContentEditable(el, text, options);
+        },
+        async send(el, options) {
+          const logger = options?.logger;
+          const sendTrace = {
+            matchedBy: "none",
+            clicked: false,
+            formSubmitted: false,
+            keyAttempts: [],
+            finalChanged: false
+          };
+          const selectors = [
+            'button[type="submit"]:not([disabled])',
+            'button[aria-label="Submit"]:not([disabled])',
+            'button[aria-label*="Submit"]:not([disabled])',
+            'button[aria-label*="Send"]:not([disabled])',
+            'button[data-testid*="send"]:not([disabled])',
+            '[role="button"][aria-label*="Send"]:not([aria-disabled="true"])',
+            '[role="button"][aria-label*="Submit"]:not([aria-disabled="true"])',
+            '[data-testid*="send"]',
+            '[data-testid*="submit"]'
+          ];
+          const isVisible = (node) => {
+            if (!node) return false;
+            const style = window.getComputedStyle(node);
+            if (style.display === "none" || style.visibility === "hidden") return false;
+            const rect = node.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0 && rect.bottom > 0;
+          };
+          const triggerClick = (node) => {
+            if (!node) return;
+            for (const evt of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+              try {
+                node.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, composed: true }));
+              } catch (err) {
+              }
+            }
+            try {
+              node.click?.();
+            } catch (err) {
+            }
+          };
+          const roots = () => {
+            const list = [
+              el?.closest("form"),
+              el?.parentElement,
+              el?.closest('div[class*="input"]'),
+              el?.closest("main"),
+              document
+            ].filter(Boolean);
+            const uniq = [];
+            const seen = /* @__PURE__ */ new Set();
+            for (const root of list) {
+              if (seen.has(root)) continue;
+              seen.add(root);
+              uniq.push(root);
+            }
+            return uniq;
+          };
+          const tryFindBtn = () => {
+            const inputRect = el?.getBoundingClientRect ? el.getBoundingClientRect() : null;
+            for (const root of roots()) {
+              for (const selector of selectors) {
+                const found = root.querySelector?.(selector);
+                if (found && isVisible(found) && !isNodeDisabled(found)) {
+                  sendTrace.matchedBy = `selector:${selector}`;
+                  return found;
+                }
+              }
+              const buttons = root.querySelectorAll ? root.querySelectorAll('button, [role="button"], div[role="button"], span[role="button"], div[class*="send"], button[class*="send"]') : [];
+              let fallbackCandidate = null;
+              let proximityCandidate = null;
+              let proximityScore = -Infinity;
+              for (const button of buttons) {
+                if (!isVisible(button) || isNodeDisabled(button)) continue;
+                const hint = `${button.getAttribute("aria-label") || ""} ${button.getAttribute("title") || ""} ${button.getAttribute("data-testid") || ""} ${button.className || ""} ${(button.textContent || "").trim()}`.toLowerCase();
+                if (hint.includes("upload") || hint.includes("attach") || hint.includes("mic") || hint.includes("voice") || hint.includes("search") || hint.includes("plus")) continue;
+                if (hint.includes("submit") || hint.includes("send") || hint.includes("\u53D1\u9001") || hint.includes("\u63D0\u4EA4")) {
+                  sendTrace.matchedBy = "hint:sendish";
+                  return button;
+                }
+                if (!fallbackCandidate && (hint.includes("composer") || hint.includes("arrow") || hint.includes("paper-plane"))) {
+                  fallbackCandidate = button;
+                }
+                if (!inputRect || !button.getBoundingClientRect) continue;
+                const r = button.getBoundingClientRect();
+                const centerX = r.left + r.width / 2;
+                const centerY = r.top + r.height / 2;
+                const dx = centerX - (inputRect.left + inputRect.width);
+                const dy = centerY - (inputRect.top + inputRect.height / 2);
+                const nearHorizontally = dx >= -24 && dx <= 240;
+                const nearVertically = Math.abs(dy) <= 140;
+                if (!nearHorizontally || !nearVertically) continue;
+                let score = 0;
+                score -= Math.abs(dx) * 0.45;
+                score -= Math.abs(dy) * 0.25;
+                if (r.width >= 20 && r.width <= 72 && r.height >= 20 && r.height <= 72) score += 12;
+                if (button.querySelector?.("svg")) score += 8;
+                if ((button.textContent || "").trim().length === 0) score += 6;
+                if ((button.getAttribute("aria-label") || "").trim()) score += 4;
+                if (score > proximityScore) {
+                  proximityScore = score;
+                  proximityCandidate = button;
+                }
+              }
+              if (fallbackCandidate) {
+                sendTrace.matchedBy = "hint:fallback-candidate";
+                return fallbackCandidate;
+              }
+              if (proximityCandidate) {
+                sendTrace.matchedBy = "proximity";
+                return proximityCandidate;
+              }
+            }
+            const localScope = el?.closest("form") || el?.closest('[class*="composer"]') || el?.closest('[class*="input"]') || el?.parentElement?.parentElement || null;
+            if (localScope && inputRect) {
+              const nodes = localScope.querySelectorAll("*");
+              let best = null;
+              let bestScore = -Infinity;
+              for (const node of nodes) {
+                if (!isVisible(node) || isNodeDisabled(node)) continue;
+                if (node === el || node.contains?.(el)) continue;
+                const r = node.getBoundingClientRect();
+                if (r.width < 16 || r.height < 16 || r.width > 84 || r.height > 84) continue;
+                const centerX = r.left + r.width / 2;
+                const centerY = r.top + r.height / 2;
+                const dx = centerX - (inputRect.left + inputRect.width);
+                const dy = centerY - (inputRect.top + inputRect.height / 2);
+                if (dx < -30 || dx > 260 || Math.abs(dy) > 150) continue;
+                const hasSvg = Boolean(node.querySelector?.("svg,path,use"));
+                const hint = `${node.getAttribute?.("aria-label") || ""} ${node.getAttribute?.("data-testid") || ""} ${node.className || ""}`.toLowerCase();
+                if (!hasSvg && !hint.includes("send") && !hint.includes("submit") && !hint.includes("arrow")) continue;
+                let score = 0;
+                score -= Math.abs(dx) * 0.4;
+                score -= Math.abs(dy) * 0.3;
+                if (hasSvg) score += 14;
+                if (hint.includes("send") || hint.includes("submit") || hint.includes("arrow")) score += 10;
+                if (score > bestScore) {
+                  bestScore = score;
+                  best = node;
+                }
+              }
+              if (best) {
+                sendTrace.matchedBy = "scope:svg-proximity";
+                return best;
+              }
+            }
+            return null;
+          };
+          const btn = await waitFor(tryFindBtn, 3500, 40);
+          const target = el || document.activeElement;
+          const before = normalizeText(getContent(target));
+          const tryKeySend = async () => {
+            if (!target) return false;
+            target.focus();
+            const attempts = [
+              { ctrlKey: false, metaKey: false, tag: "enter" },
+              { ctrlKey: true, metaKey: false, tag: "ctrl-enter" },
+              { ctrlKey: false, metaKey: true, tag: "meta-enter" }
+            ];
+            for (const attempt of attempts) {
+              target.dispatchEvent(new KeyboardEvent("keydown", {
+                key: "Enter",
+                code: "Enter",
+                keyCode: 13,
+                which: 13,
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                ctrlKey: attempt.ctrlKey,
+                metaKey: attempt.metaKey
+              }));
+              target.dispatchEvent(new KeyboardEvent("keypress", {
+                key: "Enter",
+                code: "Enter",
+                keyCode: 13,
+                which: 13,
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                ctrlKey: attempt.ctrlKey,
+                metaKey: attempt.metaKey
+              }));
+              target.dispatchEvent(new KeyboardEvent("keyup", {
+                key: "Enter",
+                code: "Enter",
+                keyCode: 13,
+                which: 13,
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                ctrlKey: attempt.ctrlKey,
+                metaKey: attempt.metaKey
+              }));
+              await sleep(180);
+              const after2 = normalizeText(getContent(target));
+              sendTrace.keyAttempts.push(attempt.tag);
+              if (!before || after2 !== before) {
+                sendTrace.finalChanged = true;
+                return true;
+              }
+              logger?.debug("grok-send-key-no-change", { mode: attempt.tag });
+            }
+            return false;
+          };
+          const tryFormSubmit = async () => {
+            const form = target?.closest?.("form");
+            if (!form) return false;
+            try {
+              if (typeof form.requestSubmit === "function") form.requestSubmit();
+              else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+            } catch (err) {
+            }
+            sendTrace.formSubmitted = true;
+            await sleep(220);
+            const after2 = normalizeText(getContent(target));
+            const changed2 = !before || after2 !== before;
+            if (changed2) sendTrace.finalChanged = true;
+            return changed2;
+          };
+          if (btn) {
+            triggerClick(btn);
+            sendTrace.clicked = true;
+            await sleep(220);
+            const afterClick = normalizeText(getContent(target));
+            if (!before || afterClick !== before) {
+              sendTrace.finalChanged = true;
+              return true;
+            }
+            logger?.debug("grok-send-click-no-change");
+            const formSubmitOk = await tryFormSubmit();
+            if (formSubmitOk) return true;
+            const keySendOk2 = await tryKeySend();
+            if (keySendOk2) return true;
+            throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
+          }
+          if (!target) {
+            pressEnterOn(null);
+            return false;
+          }
+          const keySendOk = await tryKeySend();
+          if (keySendOk) return true;
+          pressEnterOn(target);
+          await sleep(180);
+          const after = normalizeText(getContent(target));
+          const changed = !before || after !== before;
+          if (changed) {
+            sendTrace.finalChanged = true;
+            return true;
+          }
+          throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
+        }
+      },
+      deepseek: {
+        name: "DeepSeek",
+        findInput: async () => await findInputBySelectors("deepseek") || waitFor(
+          () => findInputHeuristically() || document.querySelector('div#chat-input[contenteditable="true"]') || document.querySelector('div[id*="chat-input"][contenteditable="true"]') || document.querySelector("textarea#chat-input") || document.querySelector('textarea[id*="chat-input"]') || document.querySelector('div[contenteditable="true"][data-placeholder]') || document.querySelector('textarea[placeholder*="Ask"]') || document.querySelector('div[contenteditable="true"][role="textbox"]') || document.querySelector("textarea")
+        ),
+        inject: async (el, text, options) => {
+          if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+          return setContentEditable(el, text, options);
+        },
+        async send(el) {
+          const btn = await waitFor(() => {
+            const found = document.querySelector('button[type="submit"]') || document.querySelector('[aria-label*="send" i]') || document.querySelector('[aria-label*="Send"]') || document.querySelector('button[data-testid*="send"]');
+            return found && !found.disabled ? found : null;
+          }, 3e3, 40);
+          if (btn) {
+            btn.click();
+            return;
+          }
+          const container = el?.closest("form") || el?.closest('div[class*="input"]') || document;
+          const buttons = container.querySelectorAll("button:not([disabled])");
+          for (const b of buttons) {
+            const hint = `${b.getAttribute("aria-label") || ""} ${b.textContent || ""}`.toLowerCase();
+            if (hint.includes("send") || hint.includes("\u53D1\u9001")) {
+              b.click();
+              return;
+            }
+          }
+          if (el) {
+            el.focus();
+            pressEnterOn(el);
+          }
+        }
+      },
+      doubao: {
+        name: "Doubao",
+        findInput: async () => {
+          if (isDoubaoVerificationPage()) {
+            const err = new Error("\u8C46\u5305\u5F53\u524D\u5904\u4E8E\u4EBA\u673A\u9A8C\u8BC1\u9875\u9762\uFF0C\u8BF7\u5148\u5B8C\u6210\u9A8C\u8BC1\u540E\u518D\u91CD\u8BD5");
+            err.stage = "findInput";
+            throw err;
+          }
+          return waitFor(
+            () => document.querySelector("textarea[placeholder]") || document.querySelector('div[contenteditable="true"]') || document.querySelector("textarea")
+          );
+        },
+        async inject(el, text, options) {
+          if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+          return setContentEditable(el, text, options);
+        },
+        async send(el) {
+          if (isDoubaoVerificationPage()) {
+            const err = new Error("\u8C46\u5305\u5F53\u524D\u5904\u4E8E\u4EBA\u673A\u9A8C\u8BC1\u9875\u9762\uFF0C\u8BF7\u5148\u5B8C\u6210\u9A8C\u8BC1\u540E\u518D\u91CD\u8BD5");
+            err.stage = "send";
+            throw err;
+          }
+          const container = el?.closest("form") || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
+          const inContainer = (sel) => container.querySelector && container.querySelector(sel);
+          const tryBtn = () => {
+            const c = inContainer('button[type="submit"]') || inContainer('button[aria-label*="\u53D1\u9001"]') || inContainer('button[aria-label*="Send"]') || inContainer('button[data-testid*="send"]');
+            if (c && !c.disabled) return c;
+            const d = document.querySelector('button[type="submit"]') || document.querySelector('button[aria-label*="\u53D1\u9001"]');
+            return d && !d.disabled ? d : null;
+          };
+          const btn = tryBtn() || await waitFor(tryBtn, 3e3, 30);
+          if (btn) {
+            btn.click();
+            return;
+          }
+          if (el) {
+            el.focus();
+            pressEnterOn(el);
+          }
+        }
+      },
+      qianwen: { name: "Qianwen", findInput: qianwenFindInput, inject: qianwenInject, send: qianwenSend },
+      yuanbao: { name: "Yuanbao", findInput: yuanbaoFindInput, inject: yuanbaoInject, send: yuanbaoSend },
+      kimi: { name: "Kimi", findInput: kimiFindInput, inject: kimiInject, send: kimiSend }
+    };
+    const platformIdByDomainFallback = {
+      "chatgpt.com": "chatgpt",
+      "chat.openai.com": "chatgpt",
+      "claude.ai": "claude",
+      "gemini.google.com": "gemini",
+      "grok.com": "grok",
+      "deepseek.com": "deepseek",
+      "doubao.com": "doubao",
+      "tongyi.aliyun.com": "qianwen",
+      "qianwen.com": "qianwen",
+      "yuanbao.tencent.com": "yuanbao",
+      "moonshot.cn": "kimi",
+      "kimi.ai": "kimi",
+      "kimi.com": "kimi"
+    };
+    const UPLOAD_HIGHLIGHT_STYLE_ID = "aib-upload-highlight-style";
+    const UPLOAD_HIGHLIGHT_ATTR = "data-aib-upload-highlight";
+    const UPLOAD_HINT_KEYWORDS = [
+      "upload",
+      "attach",
+      "attachment",
+      "file",
+      "image",
+      "photo",
+      "picture",
+      "media",
+      "\u4E0A\u4F20",
+      "\u9644\u4EF6",
+      "\u6587\u4EF6",
+      "\u56FE\u7247",
+      "\u7167\u7247",
+      "\u56FE\u50CF",
+      "\u7D20\u6750"
+    ];
+    const UPLOAD_NEGATIVE_HINT_KEYWORDS = [
+      "send",
+      "submit",
+      "search",
+      "login",
+      "log in",
+      "sign in",
+      "voice",
+      "record",
+      "\u53D1\u9001",
+      "\u63D0\u4EA4",
+      "\u641C\u7D22",
+      "\u767B\u5F55",
+      "\u8BED\u97F3",
+      "\u5F55\u97F3"
+    ];
+    let uploadHighlightTimer = null;
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === MESSAGE_TYPES.PING) {
+        const platform = getPlatform();
+        sendResponse({ success: true, platform: platform ? platform.name : "Unknown" });
+        return true;
+      }
+      if (message.type === MESSAGE_TYPES.INJECT_IMAGE) {
+        const requestId = message.requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+        const debug = Boolean(message.debug);
+        const logger = createLogger(requestId, debug);
+        const platform = getPlatform();
+        if (!platform) {
+          sendResponse({ success: false, error: "\u4E0D\u652F\u6301\u7684\u5E73\u53F0", platform: "Unknown" });
+          return true;
+        }
+        (async () => {
+          const startedAt = now();
+          try {
+            const riskReason = getHighRiskPageReason();
+            if (riskReason) {
+              sendResponse({ success: false, error: riskReason, platform: platform.name });
+              return;
+            }
+            const input = await platform.findInput();
+            if (!input) {
+              sendResponse({ success: false, error: `\u627E\u4E0D\u5230 ${platform.name} \u8F93\u5165\u6846`, platform: platform.name });
+              return;
+            }
+            const result = await pasteImageToInput(input, message.imageBase64, message.mimeType || "image/png", logger);
+            const totalMs = now() - startedAt;
+            sendResponse({
+              success: result.success,
+              platform: platform.name,
+              strategy: result.strategy,
+              totalMs,
+              error: result.success ? void 0 : "\u56FE\u7247\u7C98\u8D34\u5931\u8D25"
+            });
+          } catch (err) {
+            logger.error("inject-image-failure", { error: err?.message });
+            sendResponse({ success: false, error: err?.message || "\u56FE\u7247\u6CE8\u5165\u5931\u8D25", platform: platform.name });
+          }
+        })();
+        return true;
+      }
+      if (message.type === MESSAGE_TYPES.HIGHLIGHT_UPLOAD_ENTRY) {
+        const requestId = message.requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+        const debug = Boolean(message.debug);
+        const logger = createLogger(requestId, debug);
+        const platformName = getPlatform()?.name || "Unknown";
+        (async () => {
+          const startedAt = now();
+          try {
+            const target = await waitFor(() => findUploadEntryTarget(), 2200, 90);
+            if (!target?.element) {
+              sendResponse({
+                success: true,
+                found: false,
+                platform: platformName,
+                via: "none",
+                totalMs: now() - startedAt
+              });
+              return;
+            }
+            markUploadHighlight(target.element);
+            logger.debug("upload-entry-highlighted", { platform: platformName, via: target.via, score: target.score });
+            sendResponse({
+              success: true,
+              found: true,
+              platform: platformName,
+              via: target.via || "unknown",
+              totalMs: now() - startedAt
+            });
+          } catch (err) {
+            logger.error("upload-entry-highlight-failure", { error: err?.message });
+            sendResponse({
+              success: false,
+              found: false,
+              platform: platformName,
+              via: "error",
+              totalMs: now() - startedAt,
+              error: err?.message || "\u5B9A\u4F4D\u4E0A\u4F20\u5165\u53E3\u5931\u8D25"
+            });
+          }
+        })();
+        return true;
+      }
+      if (message.type === MESSAGE_TYPES.SEND_NOW) {
+        const requestId = message.requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+        const debug = Boolean(message.debug);
+        const safeMode = Boolean(message.safeMode);
+        const logger = createLogger(requestId, debug);
+        const platformId = resolvePlatformId();
+        const platform = getPlatform();
+        if (!platform) {
+          sendResponse({
+            success: false,
+            sendMs: 0,
+            error: "\u4E0D\u652F\u6301\u7684\u5E73\u53F0",
+            debugLog: "send_now | platform=Unknown | error=\u4E0D\u652F\u6301\u7684\u5E73\u53F0"
+          });
+          return true;
+        }
+        (async () => {
+          const t0 = now();
+          try {
+            const riskReason = getHighRiskPageReason();
+            if (riskReason) {
+              sendResponse({
+                success: false,
+                sendMs: now() - t0,
+                error: riskReason,
+                debugLog: `send_now | platform=${platform.name} | stage=risk | error=${riskReason}`
+              });
+              return;
+            }
+            const input = await platform.findInput();
+            if (!input) {
+              sendResponse({
+                success: false,
+                sendMs: now() - t0,
+                error: "\u627E\u4E0D\u5230\u8F93\u5165\u6846",
+                debugLog: `send_now | platform=${platform.name} | stage=findInput | error=\u627E\u4E0D\u5230\u8F93\u5165\u6846`
+              });
+              return;
+            }
+            const sent = await platform.send(input, { logger, debug, safeMode });
+            if (sent === false) {
+              sendResponse({
+                success: false,
+                sendMs: now() - t0,
+                error: "\u53D1\u9001\u52A8\u4F5C\u672A\u6267\u884C",
+                debugLog: `send_now | platform=${platform.name} | platformId=${platformId || "unknown"} | stage=send | error=\u53D1\u9001\u52A8\u4F5C\u672A\u6267\u884C`
+              });
+              return;
+            }
+            sendResponse({
+              success: true,
+              sendMs: now() - t0,
+              debugLog: `send_now | platform=${platform.name} | platformId=${platformId || "unknown"} | stage=send | ok=true`
+            });
+          } catch (e) {
+            logger.error("send-now-failure", { error: e?.message });
+            sendResponse({
+              success: false,
+              sendMs: now() - t0,
+              error: e?.message || "\u53D1\u9001\u5931\u8D25",
+              debugLog: `send_now | platform=${platform.name} | stage=exception | error=${e?.message || "\u53D1\u9001\u5931\u8D25"}`
+            });
+          }
+        })();
+        return true;
+      }
+      if (message.type === MESSAGE_TYPES.INJECT_MESSAGE) {
+        const requestId = message.requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+        const debug = Boolean(message.debug);
+        const fastPathEnabled = message.fastPathEnabled !== false;
+        const safeMode = Boolean(message.safeMode);
+        const text = message.text || "";
+        const autoSend = Boolean(message.autoSend);
+        const logger = createLogger(requestId, debug);
+        const platformId = resolvePlatformId();
+        const platform = platformId ? platformAdapters[platformId] : null;
+        if (!platform) {
+          sendResponse({
+            success: false,
+            platform: "Unknown",
+            error: "\u4E0D\u652F\u6301\u7684\u5E73\u53F0",
+            stage: "findInput",
+            strategy: "n/a",
+            fallbackUsed: false,
+            timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: 0 }
+          });
+          return true;
+        }
+        (async () => {
+          const timings = {
+            findInputMs: 0,
+            injectMs: 0,
+            sendMs: 0,
+            totalMs: 0
+          };
+          let stage = "findInput";
+          let strategy = "n/a";
+          let fallbackUsed = false;
+          let sent = false;
+          const startedAt = now();
+          logger.info("inject-start", {
+            platform: platform.name,
+            autoSend,
+            fastPathEnabled,
+            safeMode
+          });
+          try {
+            const riskReason = getHighRiskPageReason();
+            if (riskReason) {
+              const err = new Error(riskReason);
+              err.stage = "findInput";
+              throw err;
+            }
+            const findStartedAt = now();
+            const input = await platform.findInput();
+            timings.findInputMs = now() - findStartedAt;
+            if (!input) {
+              const err = new Error(`\u627E\u4E0D\u5230 ${platform.name} \u8F93\u5165\u6846`);
+              err.stage = "findInput";
+              throw err;
+            }
+            stage = "inject";
+            const injectStartedAt = now();
+            const injectMeta = await platform.inject(input, text, {
+              fastPathEnabled,
+              safeMode,
+              logger,
+              debug
+            });
+            timings.injectMs = now() - injectStartedAt;
+            strategy = injectMeta?.strategy || strategy;
+            fallbackUsed = Boolean(injectMeta?.fallbackUsed);
+            if (autoSend) {
+              stage = "send";
+              await waitForSendReady(platformId, input);
+              const sendStartedAt = now();
+              const sendResult = await platform.send(input, { logger, debug, text, safeMode });
+              if (sendResult === false) {
+                const sendErr = new Error("\u53D1\u9001\u52A8\u4F5C\u672A\u6267\u884C");
+                sendErr.stage = "send";
+                throw sendErr;
+              }
+              sent = true;
+              timings.sendMs = now() - sendStartedAt;
+            }
+            timings.totalMs = now() - startedAt;
+            logger.info("inject-end", {
+              platform: platform.name,
+              timings,
+              strategy,
+              fallbackUsed
+            });
+            sendResponse({
+              success: true,
+              platform: platform.name,
+              sent,
+              timings,
+              strategy,
+              fallbackUsed,
+              debugLog: `inject | platform=${platform.name} | platformId=${platformId || "unknown"} | stage=${autoSend ? "send" : "inject"} | sent=${sent} | strategy=${strategy} | fallback=${fallbackUsed} | ms=${timings.totalMs}`
+            });
+          } catch (err) {
+            timings.totalMs = now() - startedAt;
+            const failedStage = err.stage || stage || "inject";
+            logger.error("inject-failure", {
+              platform: platform.name,
+              stage: failedStage,
+              error: err.message,
+              timings,
+              strategy,
+              fallbackUsed
+            });
+            sendResponse({
+              success: false,
+              platform: platform.name,
+              sent: false,
+              error: err.message,
+              stage: failedStage,
+              timings,
+              strategy,
+              fallbackUsed,
+              debugLog: `inject | platform=${platform.name} | platformId=${platformId || "unknown"} | stage=${failedStage} | error=${err.message} | strategy=${strategy} | fallback=${fallbackUsed} | ms=${timings.totalMs}`
+            });
+          }
+        })();
+        return true;
+      }
+    });
+  }
+  var isNodeDisabled2;
+  var createLogger2;
+  var normalizeText2;
+  var includesAny2;
+  var isDoubaoVerificationPage2;
+  var getHighRiskPageReason2;
+  var getContent2;
+  var contentLooksInjected2;
+  var contentLooksInjectedStrict2;
+  var setReactValue2;
+  var notifyGeminiFramework2;
+  var pressEnterOn2;
+  var base64ToBlob2;
+  var resolvePlatformId2;
+  var getPlatform2;
+  var ensureUploadHighlightStyle2;
+  var clearUploadHighlight2;
+  var markUploadHighlight2;
+  var isElementVisible2;
+  var getElementHint2;
+  var scoreUploadHint2;
+  var escapeCssIdentifier2;
+  var getAssociatedLabel2;
+  var findNearInputTrigger2;
+  var pushUploadCandidate2;
+  var resolveVisibleUploadCandidate2;
+  var findUploadEntryTarget2;
+})();

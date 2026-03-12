@@ -49,6 +49,8 @@ export const defaultSelectors = {
   },
   grok: {
     findInput: [
+      'textarea[aria-label*="ask" i]',
+      'textarea[aria-label*="grok" i]',
       'textarea[placeholder]',
       'textarea',
       'div[contenteditable="true"][role="textbox"]',
@@ -59,13 +61,22 @@ export const defaultSelectors = {
       'button[aria-label="Submit"]:not([disabled])',
       'button[aria-label*="Submit"]:not([disabled])',
       'button[aria-label*="Send"]:not([disabled])',
-      'button[data-testid*="send"]:not([disabled])'
+      'button[data-testid*="send"]:not([disabled])',
+      '[role="button"][aria-label*="Send"]:not([aria-disabled="true"])',
+      '[role="button"][aria-label*="Submit"]:not([aria-disabled="true"])',
+      '[data-testid*="send"]',
+      '[data-testid*="submit"]'
     ]
   },
   deepseek: {
     findInput: [
+      'div#chat-input[contenteditable="true"]',
+      'div[id*="chat-input"][contenteditable="true"]',
       'textarea#chat-input',
+      'textarea[id*="chat-input"]',
+      'div[contenteditable="true"][data-placeholder]',
       'textarea[placeholder*="Ask"]',
+      'div[contenteditable="true"][role="textbox"]',
       'textarea'
     ],
     findSendBtn: [
@@ -109,12 +120,16 @@ export const defaultSelectors = {
   },
   kimi: {
     findInput: [
+      'div.chat-input-editor[contenteditable="true"]',
+      'div[class*="chat-input-editor"][contenteditable="true"]',
       'textarea[placeholder]',
       'div[contenteditable="true"][role="textbox"]',
       'div[contenteditable="true"]',
       'textarea'
     ],
     findSendBtn: [
+      'div.send-button-container:not(.disabled)',
+      'div[class*="send-button-container"]:not(.disabled)',
       'button[type="submit"]',
       'button[aria-label*="发送"]',
       'button[aria-label*="Send"]'

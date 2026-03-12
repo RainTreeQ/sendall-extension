@@ -60,6 +60,8 @@ if (!window.__aiBroadcastLoaded) {
   },
   "grok": {
     "findInput": [
+      "textarea[aria-label*=\"ask\" i]",
+      "textarea[aria-label*=\"grok\" i]",
       "textarea[placeholder]",
       "textarea",
       "div[contenteditable=\"true\"][role=\"textbox\"]",
@@ -70,13 +72,21 @@ if (!window.__aiBroadcastLoaded) {
       "button[aria-label=\"Submit\"]:not([disabled])",
       "button[aria-label*=\"Submit\"]:not([disabled])",
       "button[aria-label*=\"Send\"]:not([disabled])",
-      "button[data-testid*=\"send\"]:not([disabled])"
+      "button[data-testid*=\"send\"]:not([disabled])",
+      "[role=\"button\"][aria-label*=\"Send\"]:not([aria-disabled=\"true\"])",
+      "[role=\"button\"][aria-label*=\"Submit\"]:not([aria-disabled=\"true\"])",
+      "[data-testid*=\"send\"]"
     ]
   },
   "deepseek": {
     "findInput": [
+      "div#chat-input[contenteditable=\"true\"]",
+      "div[id*=\"chat-input\"][contenteditable=\"true\"]",
       "textarea#chat-input",
+      "textarea[id*=\"chat-input\"]",
+      "div[contenteditable=\"true\"][data-placeholder]",
       "textarea[placeholder*=\"Ask\"]",
+      "div[contenteditable=\"true\"][role=\"textbox\"]",
       "textarea"
     ],
     "findSendBtn": [
@@ -120,12 +130,16 @@ if (!window.__aiBroadcastLoaded) {
   },
   "kimi": {
     "findInput": [
+      "div.chat-input-editor[contenteditable=\"true\"]",
+      "div[class*=\"chat-input-editor\"][contenteditable=\"true\"]",
       "textarea[placeholder]",
       "div[contenteditable=\"true\"][role=\"textbox\"]",
       "div[contenteditable=\"true\"]",
       "textarea"
     ],
     "findSendBtn": [
+      "div.send-button-container:not(.disabled)",
+      "div[class*=\"send-button-container\"]:not(.disabled)",
       "button[type=\"submit\"]",
       "button[aria-label*=\"发送\"]",
       "button[aria-label*=\"Send\"]"
@@ -266,6 +280,29 @@ if (!window.__aiBroadcastLoaded) {
         if (found && !found.disabled) return found;
       }
       return null;
+    }
+
+    function isNodeDisabled(node) {
+      if (!node) return true;
+      if (node.disabled === true) return true;
+      const ariaDisabled = String(node.getAttribute?.('aria-disabled') || '').toLowerCase();
+      if (ariaDisabled === 'true') return true;
+      const className = node.className?.toString().toLowerCase() || '';
+      if (className.includes('disabled') || className.includes('is-disabled')) return true;
+      return false;
+    }
+
+    async function waitForSendReady(platformId, input, timeout = 260) {
+      if (!platformId) return false;
+      const startedAt = now();
+      while (now() - startedAt < timeout) {
+        const bySelector = await findSendBtnBySelectors(platformId);
+        if (bySelector && !isNodeDisabled(bySelector)) return true;
+        const heuristic = await findSendBtnHeuristically(input);
+        if (heuristic && !isNodeDisabled(heuristic)) return true;
+        await sleep(20);
+      }
+      return false;
     }
 
     const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -930,6 +967,8 @@ if (!window.__aiBroadcastLoaded) {
     };
 
     const kimiFindInput = () => waitFor(() =>
+      document.querySelector('div.chat-input-editor[contenteditable="true"]') ||
+      document.querySelector('div[class*="chat-input-editor"][contenteditable="true"]') ||
       document.querySelector('textarea[placeholder]') ||
       document.querySelector('div[contenteditable="true"][role="textbox"]') ||
       document.querySelector('div[contenteditable="true"]') ||
@@ -943,9 +982,14 @@ if (!window.__aiBroadcastLoaded) {
       const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
       const inContainer = (sel) => container.querySelector && container.querySelector(sel);
       const findSendBtn = () => {
-        const explicit = inContainer('button[type="submit"]') || inContainer('button[aria-label*="发送"]') ||
+        const explicit = inContainer('div.send-button-container:not(.disabled)') ||
+          inContainer('div[class*="send-button-container"]:not(.disabled)') ||
+          inContainer('button[type="submit"]') || inContainer('button[aria-label*="发送"]') ||
           inContainer('button[aria-label*="Send"]') ||
-          document.querySelector('button[type="submit"]') || document.querySelector('button[aria-label*="发送"]');
+          document.querySelector('div.send-button-container:not(.disabled)') ||
+          document.querySelector('div[class*="send-button-container"]:not(.disabled)') ||
+          document.querySelector('button[type="submit"]') ||
+          document.querySelector('button[aria-label*="发送"]');
         if (explicit && !explicit.disabled) return explicit;
         // Heuristic: look for send-like buttons by text/aria
         const buttons = container.querySelectorAll ? container.querySelectorAll('button:not([disabled]), [role="button"]') : [];
@@ -1177,59 +1221,98 @@ if (!window.__aiBroadcastLoaded) {
 
       grok: {
         name: 'Grok',
-        findInput: async () => await findInputBySelectors('gemini') || waitFor(() => {
-          const candidates = [
-            ...document.querySelectorAll('textarea[placeholder]'),
-            ...document.querySelectorAll('textarea'),
-            ...document.querySelectorAll('div[contenteditable="true"][role="textbox"]'),
-            ...document.querySelectorAll('div[contenteditable="true"]')
-          ];
-
-          const isVisible = (el) => {
-            if (!el) return false;
+        findInput: async () => {
+          const isVisibleInput = (el) => {
+            if (!el || el.disabled || el.readOnly) return false;
             const style = window.getComputedStyle(el);
             if (style.display === 'none' || style.visibility === 'hidden') return false;
             const rect = el.getBoundingClientRect();
             return rect.width > 120 && rect.height > 20 && rect.bottom > 0;
           };
 
-          const scoreInput = (el) => {
-            if (!el || el.disabled || el.readOnly || !isVisible(el)) return -1;
-            const rect = el.getBoundingClientRect();
-            const placeholder = (el.getAttribute('placeholder') || '').toLowerCase();
-            const root = el.closest('form') || el.parentElement || document;
-            let score = 0;
-            if (placeholder.includes('ask') || placeholder.includes('mind') || placeholder.includes('message')) score += 6;
-            if (el.closest('form')) score += 4;
-            if (root.querySelector?.('button[type="submit"], button[aria-label*="Submit"], button[aria-label*="Send"], button[data-testid*="send"]')) score += 4;
-            if (rect.top > 40 && rect.top < window.innerHeight) score += 2;
-            score += Math.min(4, Math.round(rect.width / 300));
-            return score;
+          const collectRoots = () => {
+            const roots = [document];
+            const queue = [document.documentElement];
+            const seen = new Set();
+            while (queue.length) {
+              const node = queue.shift();
+              if (!node || seen.has(node)) continue;
+              seen.add(node);
+              if (node.shadowRoot) roots.push(node.shadowRoot);
+              if (node.children) {
+                for (const child of node.children) queue.push(child);
+              }
+            }
+            return roots;
           };
 
-          let best = null;
-          let bestScore = -1;
-          for (const candidate of candidates) {
-            const score = scoreInput(candidate);
-            if (score > bestScore) {
-              bestScore = score;
-              best = candidate;
+          const pickBestInput = () => {
+            const candidates = [];
+            for (const root of collectRoots()) {
+              candidates.push(...root.querySelectorAll('textarea[placeholder], textarea, div[contenteditable="true"][role="textbox"], div[contenteditable="true"]'));
             }
-          }
-          return bestScore >= 0 ? best : null;
-        }),
+
+            const unique = [];
+            const seen = new Set();
+            for (const c of candidates) {
+              if (!c || seen.has(c)) continue;
+              seen.add(c);
+              unique.push(c);
+            }
+
+            const scoreInput = (el) => {
+              if (!isVisibleInput(el)) return -1;
+              const rect = el.getBoundingClientRect();
+              const placeholder = (el.getAttribute('placeholder') || '').toLowerCase();
+              const root = el.closest('form') || el.parentElement || document;
+              let score = 0;
+              if (placeholder.includes('ask') || placeholder.includes('mind') || placeholder.includes('message')) score += 6;
+              if (el.closest('form')) score += 4;
+              if (root.querySelector?.('button[type="submit"], button[aria-label*="Submit"], button[aria-label*="Send"], button[data-testid*="send"], [role="button"][aria-label*="Send"], [data-testid*="send"]')) score += 4;
+              if (rect.top > 40 && rect.top < window.innerHeight) score += 2;
+              score += Math.min(4, Math.round(rect.width / 300));
+              return score;
+            };
+
+            let best = null;
+            let bestScore = -1;
+            for (const candidate of unique) {
+              const score = scoreInput(candidate);
+              if (score > bestScore) {
+                bestScore = score;
+                best = candidate;
+              }
+            }
+            return bestScore >= 0 ? best : null;
+          };
+
+          const bySelectors = await findInputBySelectors('grok');
+          if (isVisibleInput(bySelectors)) return bySelectors;
+          return waitFor(() => pickBestInput(), 7000, 60);
+        },
         async inject(el, text, options) {
           if (el.tagName === 'TEXTAREA') return setReactValue(el, text);
           return setContentEditable(el, text, options);
         },
         async send(el, options) {
           const logger = options?.logger;
+          const sendTrace = {
+            matchedBy: 'none',
+            clicked: false,
+            formSubmitted: false,
+            keyAttempts: [],
+            finalChanged: false
+          };
           const selectors = [
             'button[type="submit"]:not([disabled])',
             'button[aria-label="Submit"]:not([disabled])',
             'button[aria-label*="Submit"]:not([disabled])',
             'button[aria-label*="Send"]:not([disabled])',
-            'button[data-testid*="send"]:not([disabled])'
+            'button[data-testid*="send"]:not([disabled])',
+            '[role="button"][aria-label*="Send"]:not([aria-disabled="true"])',
+            '[role="button"][aria-label*="Submit"]:not([aria-disabled="true"])',
+            '[data-testid*="send"]',
+            '[data-testid*="submit"]'
           ];
 
           const isVisible = (node) => {
@@ -1238,6 +1321,16 @@ if (!window.__aiBroadcastLoaded) {
             if (style.display === 'none' || style.visibility === 'hidden') return false;
             const rect = node.getBoundingClientRect();
             return rect.width > 0 && rect.height > 0 && rect.bottom > 0;
+          };
+
+          const triggerClick = (node) => {
+            if (!node) return;
+            for (const evt of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+              try {
+                node.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, composed: true }));
+              } catch (err) {}
+            }
+            try { node.click?.(); } catch (err) {}
           };
 
           const roots = () => {
@@ -1259,61 +1352,225 @@ if (!window.__aiBroadcastLoaded) {
           };
 
           const tryFindBtn = () => {
+            const inputRect = el?.getBoundingClientRect ? el.getBoundingClientRect() : null;
             for (const root of roots()) {
               for (const selector of selectors) {
                 const found = root.querySelector?.(selector);
-                if (found && isVisible(found)) return found;
+                if (found && isVisible(found) && !isNodeDisabled(found)) {
+                  sendTrace.matchedBy = `selector:${selector}`;
+                  return found;
+                }
               }
-              const buttons = root.querySelectorAll ? root.querySelectorAll('button:not([disabled])') : [];
+              const buttons = root.querySelectorAll
+                ? root.querySelectorAll('button, [role="button"], div[role="button"], span[role="button"], div[class*="send"], button[class*="send"]')
+                : [];
+              let fallbackCandidate = null;
+              let proximityCandidate = null;
+              let proximityScore = -Infinity;
               for (const button of buttons) {
-                if (!isVisible(button)) continue;
-                const hint = `${button.getAttribute('aria-label') || ''} ${button.getAttribute('title') || ''} ${button.getAttribute('data-testid') || ''} ${(button.textContent || '').trim()}`.toLowerCase();
-                if (hint.includes('submit') || hint.includes('send')) return button;
+                if (!isVisible(button) || isNodeDisabled(button)) continue;
+                const hint = `${button.getAttribute('aria-label') || ''} ${button.getAttribute('title') || ''} ${button.getAttribute('data-testid') || ''} ${button.className || ''} ${(button.textContent || '').trim()}`.toLowerCase();
+                if (hint.includes('upload') || hint.includes('attach') || hint.includes('mic') || hint.includes('voice') || hint.includes('search') || hint.includes('plus')) continue;
+                if (hint.includes('submit') || hint.includes('send') || hint.includes('发送') || hint.includes('提交')) {
+                  sendTrace.matchedBy = 'hint:sendish';
+                  return button;
+                }
+                if (!fallbackCandidate && (hint.includes('composer') || hint.includes('arrow') || hint.includes('paper-plane'))) {
+                  fallbackCandidate = button;
+                }
+
+                if (!inputRect || !button.getBoundingClientRect) continue;
+                const r = button.getBoundingClientRect();
+                const centerX = r.left + r.width / 2;
+                const centerY = r.top + r.height / 2;
+                const dx = centerX - (inputRect.left + inputRect.width);
+                const dy = centerY - (inputRect.top + inputRect.height / 2);
+                const nearHorizontally = dx >= -24 && dx <= 240;
+                const nearVertically = Math.abs(dy) <= 140;
+                if (!nearHorizontally || !nearVertically) continue;
+
+                let score = 0;
+                score -= Math.abs(dx) * 0.45;
+                score -= Math.abs(dy) * 0.25;
+                if (r.width >= 20 && r.width <= 72 && r.height >= 20 && r.height <= 72) score += 12;
+                if (button.querySelector?.('svg')) score += 8;
+                if ((button.textContent || '').trim().length === 0) score += 6;
+                if ((button.getAttribute('aria-label') || '').trim()) score += 4;
+                if (score > proximityScore) {
+                  proximityScore = score;
+                  proximityCandidate = button;
+                }
+              }
+              if (fallbackCandidate) {
+                sendTrace.matchedBy = 'hint:fallback-candidate';
+                return fallbackCandidate;
+              }
+              if (proximityCandidate) {
+                sendTrace.matchedBy = 'proximity';
+                return proximityCandidate;
+              }
+            }
+
+            const localScope = el?.closest('form') || el?.closest('[class*="composer"]') || el?.closest('[class*="input"]') || el?.parentElement?.parentElement || null;
+            if (localScope && inputRect) {
+              const nodes = localScope.querySelectorAll('*');
+              let best = null;
+              let bestScore = -Infinity;
+              for (const node of nodes) {
+                if (!isVisible(node) || isNodeDisabled(node)) continue;
+                if (node === el || node.contains?.(el)) continue;
+                const r = node.getBoundingClientRect();
+                if (r.width < 16 || r.height < 16 || r.width > 84 || r.height > 84) continue;
+                const centerX = r.left + r.width / 2;
+                const centerY = r.top + r.height / 2;
+                const dx = centerX - (inputRect.left + inputRect.width);
+                const dy = centerY - (inputRect.top + inputRect.height / 2);
+                if (dx < -30 || dx > 260 || Math.abs(dy) > 150) continue;
+                const hasSvg = Boolean(node.querySelector?.('svg,path,use'));
+                const hint = `${node.getAttribute?.('aria-label') || ''} ${node.getAttribute?.('data-testid') || ''} ${node.className || ''}`.toLowerCase();
+                if (!hasSvg && !hint.includes('send') && !hint.includes('submit') && !hint.includes('arrow')) continue;
+                let score = 0;
+                score -= Math.abs(dx) * 0.4;
+                score -= Math.abs(dy) * 0.3;
+                if (hasSvg) score += 14;
+                if (hint.includes('send') || hint.includes('submit') || hint.includes('arrow')) score += 10;
+                if (score > bestScore) {
+                  bestScore = score;
+                  best = node;
+                }
+              }
+              if (best) {
+                sendTrace.matchedBy = 'scope:svg-proximity';
+                return best;
               }
             }
             return null;
           };
 
           const btn = await waitFor(tryFindBtn, 3500, 40);
+          const target = el || document.activeElement;
+          const before = normalizeText(getContent(target));
+
+          const tryKeySend = async () => {
+            if (!target) return false;
+            target.focus();
+            const attempts = [
+              { ctrlKey: false, metaKey: false, tag: 'enter' },
+              { ctrlKey: true, metaKey: false, tag: 'ctrl-enter' },
+              { ctrlKey: false, metaKey: true, tag: 'meta-enter' }
+            ];
+            for (const attempt of attempts) {
+              target.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'Enter',
+                code: 'Enter',
+                keyCode: 13,
+                which: 13,
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                ctrlKey: attempt.ctrlKey,
+                metaKey: attempt.metaKey
+              }));
+              target.dispatchEvent(new KeyboardEvent('keypress', {
+                key: 'Enter',
+                code: 'Enter',
+                keyCode: 13,
+                which: 13,
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                ctrlKey: attempt.ctrlKey,
+                metaKey: attempt.metaKey
+              }));
+              target.dispatchEvent(new KeyboardEvent('keyup', {
+                key: 'Enter',
+                code: 'Enter',
+                keyCode: 13,
+                which: 13,
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                ctrlKey: attempt.ctrlKey,
+                metaKey: attempt.metaKey
+              }));
+              await sleep(180);
+              const after = normalizeText(getContent(target));
+              sendTrace.keyAttempts.push(attempt.tag);
+              if (!before || after !== before) {
+                sendTrace.finalChanged = true;
+                return true;
+              }
+              logger?.debug('grok-send-key-no-change', { mode: attempt.tag });
+            }
+            return false;
+          };
+
+          const tryFormSubmit = async () => {
+            const form = target?.closest?.('form');
+            if (!form) return false;
+            try {
+              if (typeof form.requestSubmit === 'function') form.requestSubmit();
+              else form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+            } catch (err) {}
+            sendTrace.formSubmitted = true;
+            await sleep(220);
+            const after = normalizeText(getContent(target));
+            const changed = !before || after !== before;
+            if (changed) sendTrace.finalChanged = true;
+            return changed;
+          };
+
           if (btn) {
-            btn.click();
-            return;
+            triggerClick(btn);
+            sendTrace.clicked = true;
+            await sleep(220);
+            const afterClick = normalizeText(getContent(target));
+            if (!before || afterClick !== before) {
+              sendTrace.finalChanged = true;
+              return true;
+            }
+            logger?.debug('grok-send-click-no-change');
+            const formSubmitOk = await tryFormSubmit();
+            if (formSubmitOk) return true;
+            const keySendOk = await tryKeySend();
+            if (keySendOk) return true;
+            throw new Error(`Grok发送未执行 matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(',') || 'none'}`);
           }
 
-          const target = el || document.activeElement;
           if (!target) {
             pressEnterOn(null);
-            return;
+            return false;
           }
-          const before = normalizeText(getContent(target));
-          target.focus();
+          const keySendOk = await tryKeySend();
+          if (keySendOk) return true;
           pressEnterOn(target);
-          await sleep(220);
+          await sleep(180);
           const after = normalizeText(getContent(target));
-          if (before && after === before) {
-            target.dispatchEvent(new KeyboardEvent('keydown', {
-              key: 'Enter',
-              code: 'Enter',
-              keyCode: 13,
-              which: 13,
-              bubbles: true,
-              cancelable: true,
-              composed: true,
-              ctrlKey: true
-            }));
-            logger?.debug('grok-send-ctrl-enter-fallback');
+          const changed = !before || after !== before;
+          if (changed) {
+            sendTrace.finalChanged = true;
+            return true;
           }
+          throw new Error(`Grok发送未执行 matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(',') || 'none'}`);
         }
       },
 
       deepseek: {
         name: 'DeepSeek',
-        findInput: async () => await findInputBySelectors('grok') || waitFor(() => findInputHeuristically() || 
+        findInput: async () => await findInputBySelectors('deepseek') || waitFor(() => findInputHeuristically() || 
+          document.querySelector('div#chat-input[contenteditable="true"]') ||
+          document.querySelector('div[id*="chat-input"][contenteditable="true"]') ||
           document.querySelector('textarea#chat-input') ||
+          document.querySelector('textarea[id*="chat-input"]') ||
+          document.querySelector('div[contenteditable="true"][data-placeholder]') ||
           document.querySelector('textarea[placeholder*="Ask"]') ||
+          document.querySelector('div[contenteditable="true"][role="textbox"]') ||
           document.querySelector('textarea')
         ),
-        inject: (el, text) => Promise.resolve(setReactValue(el, text)),
+        inject: async (el, text, options) => {
+          if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
+          return setContentEditable(el, text, options);
+        },
         async send(el) {
           const btn = await waitFor(() => {
             const found = document.querySelector('button[type="submit"]') ||
@@ -1742,9 +1999,15 @@ if (!window.__aiBroadcastLoaded) {
         const debug = Boolean(message.debug);
         const safeMode = Boolean(message.safeMode);
         const logger = createLogger(requestId, debug);
+        const platformId = resolvePlatformId();
         const platform = getPlatform();
         if (!platform) {
-          sendResponse({ success: false, sendMs: 0, error: '不支持的平台' });
+          sendResponse({
+            success: false,
+            sendMs: 0,
+            error: '不支持的平台',
+            debugLog: 'send_now | platform=Unknown | error=不支持的平台'
+          });
           return true;
         }
         (async () => {
@@ -1752,23 +2015,47 @@ if (!window.__aiBroadcastLoaded) {
           try {
             const riskReason = getHighRiskPageReason();
             if (riskReason) {
-              sendResponse({ success: false, sendMs: now() - t0, error: riskReason });
+              sendResponse({
+                success: false,
+                sendMs: now() - t0,
+                error: riskReason,
+                debugLog: `send_now | platform=${platform.name} | stage=risk | error=${riskReason}`
+              });
               return;
             }
             const input = await platform.findInput();
             if (!input) {
-              sendResponse({ success: false, sendMs: now() - t0, error: '找不到输入框' });
+              sendResponse({
+                success: false,
+                sendMs: now() - t0,
+                error: '找不到输入框',
+                debugLog: `send_now | platform=${platform.name} | stage=findInput | error=找不到输入框`
+              });
               return;
             }
             const sent = await platform.send(input, { logger, debug, safeMode });
             if (sent === false) {
-              sendResponse({ success: false, sendMs: now() - t0, error: '发送动作未执行' });
+              sendResponse({
+                success: false,
+                sendMs: now() - t0,
+                error: '发送动作未执行',
+                debugLog: `send_now | platform=${platform.name} | platformId=${platformId || 'unknown'} | stage=send | error=发送动作未执行`
+              });
               return;
             }
-            sendResponse({ success: true, sendMs: now() - t0 });
+            sendResponse({
+              success: true,
+              sendMs: now() - t0,
+              debugLog: `send_now | platform=${platform.name} | platformId=${platformId || 'unknown'} | stage=send | ok=true`
+            });
           } catch (e) {
             logger.error('send-now-failure', { error: e?.message });
-            sendResponse({ success: false, sendMs: now() - t0, error: e?.message || '发送失败' });
+            sendResponse({
+              success: false,
+              sendMs: now() - t0,
+              error: e?.message || '发送失败',
+              debugLog: `send_now | platform=${platform.name} | stage=exception | error=${e?.message || '发送失败'}`
+            });
           }
         })();
         return true;
@@ -1782,7 +2069,8 @@ if (!window.__aiBroadcastLoaded) {
         const text = message.text || '';
         const autoSend = Boolean(message.autoSend);
         const logger = createLogger(requestId, debug);
-        const platform = getPlatform();
+        const platformId = resolvePlatformId();
+        const platform = platformId ? platformAdapters[platformId] : null;
 
         if (!platform) {
           sendResponse({
@@ -1847,8 +2135,7 @@ if (!window.__aiBroadcastLoaded) {
 
             if (autoSend) {
               stage = 'send';
-              // Give the framework time to process the injected content and enable the send button
-              await sleep(300);
+              await waitForSendReady(platformId, input);
               const sendStartedAt = now();
               const sendResult = await platform.send(input, { logger, debug, text, safeMode });
               if (sendResult === false) {
@@ -1873,7 +2160,8 @@ if (!window.__aiBroadcastLoaded) {
               sent,
               timings,
               strategy,
-              fallbackUsed
+              fallbackUsed,
+              debugLog: `inject | platform=${platform.name} | platformId=${platformId || 'unknown'} | stage=${autoSend ? 'send' : 'inject'} | sent=${sent} | strategy=${strategy} | fallback=${fallbackUsed} | ms=${timings.totalMs}`
             });
           } catch (err) {
             timings.totalMs = now() - startedAt;
@@ -1894,7 +2182,8 @@ if (!window.__aiBroadcastLoaded) {
               stage: failedStage,
               timings,
               strategy,
-              fallbackUsed
+              fallbackUsed,
+              debugLog: `inject | platform=${platform.name} | platformId=${platformId || 'unknown'} | stage=${failedStage} | error=${err.message} | strategy=${strategy} | fallback=${fallbackUsed} | ms=${timings.totalMs}`
             });
           }
         })();
@@ -1903,4 +2192,3 @@ if (!window.__aiBroadcastLoaded) {
       }
     });
 }
-

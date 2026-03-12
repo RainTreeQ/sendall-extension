@@ -42,6 +42,11 @@ const FALLBACK_MESSAGES = {
     image_failed_simple: 'Image paste failed: $1',
     image_too_large: 'Image too large (max 4MB)',
     remove_image: 'Remove',
+    image_unsupported_platforms: 'Image support is currently limited to ChatGPT and Claude',
+    image_confirm_title: 'Limited Image Support',
+    image_confirm_body: 'Only ChatGPT and Claude can receive images right now. Continue sending anyway?',
+    image_confirm_send: 'Send now',
+    image_confirm_cancel: 'Let me think',
   },
   zh_CN: {
     popup_title: 'Sendol',
@@ -86,6 +91,11 @@ const FALLBACK_MESSAGES = {
     image_failed_simple: '图片粘贴失败：$1',
     image_too_large: '图片过大（最大 4MB）',
     remove_image: '移除',
+    image_unsupported_platforms: '图片能力暂仅支持 ChatGPT 和 Claude',
+    image_confirm_title: '图片发送提示',
+    image_confirm_body: '当前仅 ChatGPT 和 Claude 支持接收图片，是否仍继续发送？',
+    image_confirm_send: '继续发送',
+    image_confirm_cancel: '再想想',
   },
 }
 

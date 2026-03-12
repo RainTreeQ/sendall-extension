@@ -13,10 +13,16 @@ async function updateDynamicSelectors() {
   }
 }
 
-chrome.alarms.create("updateSelectors", { periodInMinutes: 12 * 60 });
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "updateSelectors") updateDynamicSelectors();
-});
+if (chrome.alarms?.create && chrome.alarms?.onAlarm?.addListener) {
+  try {
+    chrome.alarms.create("updateSelectors", { periodInMinutes: 12 * 60 });
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name === "updateSelectors") updateDynamicSelectors();
+    });
+  } catch (err) {
+    console.warn("[AIB] Failed to init alarms:", err);
+  }
+}
 
 chrome.runtime.onInstalled.addListener(() => {
   updateDynamicSelectors();
@@ -114,7 +120,7 @@ function now() {
   return Date.now();
 }
 
-const BROADCAST_HARD_TIMEOUT_MS = 50000;
+const BROADCAST_HARD_TIMEOUT_MS = 90000;
 const SAFE_MODE_WINDOW_MS = 10 * 60 * 1000;
 const SAFE_MODE_MIN_HOLD_MS = 10 * 60 * 1000;
 const SAFE_MODE_TRIGGER_HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -281,7 +287,12 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === MESSAGE_TYPES.GET_AI_TABS) {
-    getAITabs().then(tabs => sendResponse({ tabs }));
+    getAITabs()
+      .then(tabs => sendResponse({ tabs }))
+      .catch(err => {
+        console.error('[AIB] getAITabs failed:', err);
+        sendResponse({ tabs: [] });
+      });
     return true;
   }
   if (message.type === MESSAGE_TYPES.BROADCAST_MESSAGE) {
@@ -673,13 +684,15 @@ async function pingContent(tabId, requestId, debug) {
 }
 
 async function ensureContentReady(tabId, requestId, debug, logger) {
+  let tabActive = false;
   // Wait for page load to settle before probing/injecting content script.
   try {
     const tab = await chrome.tabs.get(tabId);
+    tabActive = Boolean(tab?.active);
     if (tab && tab.status !== 'complete') {
       logger.debug('content-wait-tab-load', { tabId, status: tab.status });
       try {
-        await waitForTabLoad(tabId, 15000);
+        await waitForTabLoad(tabId, tabActive ? 8000 : 15000);
       } catch (err) {
         logger.debug('content-wait-tab-load-timeout', { tabId, error: err?.message });
       }
@@ -708,11 +721,13 @@ async function ensureContentReady(tabId, requestId, debug, logger) {
     return;
   }
 
-  // Retry with longer backoffs to better tolerate slower page startup.
-  const backoffs = [120, 240, 480, 960, 1600];
+  // Retry with aggressive backoffs for active tabs to reduce user-visible latency.
+  const backoffs = tabActive ? [60, 120, 220, 420, 800] : [120, 240, 480, 960, 1600];
+  const reinjectThreshold = tabActive ? 220 : 480;
+  logger.debug('content-retry-plan', { tabId, tabActive, backoffs });
   for (const delay of backoffs) {
     await sleep(delay);
-    if (delay >= 480) {
+    if (delay >= reinjectThreshold) {
       try {
         await chrome.scripting.executeScript({
           target: { tabId },
@@ -775,7 +790,6 @@ async function broadcastToTabs(payload) {
   let successCount = 0;
   let failCount = 0;
   let finalized = false;
-  const jitter = (base, span) => Math.max(0, base + Math.floor(Math.random() * (span + 1)));
 
   const emitProgress = (extra = {}) => {
     chrome.runtime.sendMessage({
@@ -790,12 +804,39 @@ async function broadcastToTabs(payload) {
     }).catch(() => {});
   };
 
+  const composeDebugLog = (result) => {
+    const timings = result?.timings || {};
+    return result?.debugLog || [
+      `platform=${result?.platform || 'Unknown'}`,
+      `stage=${result?.stage || (result?.success ? 'done' : 'unknown')}`,
+      `ok=${Boolean(result?.success)}`,
+      `sent=${result?.sent === true}`,
+      `strategy=${result?.strategy || 'n/a'}`,
+      `fallback=${Boolean(result?.fallbackUsed || result?.sendFallbackUsed)}`,
+      `find=${Number(timings.findInputMs || 0)}ms`,
+      `inject=${Number(timings.injectMs || 0)}ms`,
+      `send=${Number(timings.sendMs || 0)}ms`,
+      `total=${Number(timings.totalMs || 0)}ms`,
+      result?.error ? `error=${result.error}` : ''
+    ].filter(Boolean).join(' | ');
+  };
+
   const recordResult = (tabId, result) => {
     if (finalized || resultMap.has(tabId)) return;
-    resultMap.set(tabId, result);
+    const normalizedResult = {
+      ...result,
+      debugLog: composeDebugLog(result)
+    };
+    resultMap.set(tabId, normalizedResult);
     completedCount += 1;
-    if (result.success) successCount += 1;
+    if (normalizedResult.success) successCount += 1;
     else failCount += 1;
+    logger.info('tab-debug', {
+      tabId,
+      platform: normalizedResult.platform || 'Unknown',
+      success: Boolean(normalizedResult.success),
+      debugLog: normalizedResult.debugLog
+    });
     emitProgress({ done: false, timedOut: false });
   };
 
@@ -858,6 +899,11 @@ async function broadcastToTabs(payload) {
             merged.error = sendOk ? undefined : (sendRes?.error || merged.error || '发送失败');
             merged.timings.sendMs = sendMs;
             merged.timings.totalMs = (merged.timings.findInputMs || 0) + (merged.timings.injectMs || 0) + sendMs;
+            if (sendRes?.debugLog) {
+              merged.debugLog = merged.debugLog
+                ? `${merged.debugLog} | fallback=${sendRes.debugLog}`
+                : `fallback=${sendRes.debugLog}`;
+            }
           } catch (sendErr) {
             const sendMs = now() - fallbackStartedAt;
             merged.sendFallbackUsed = true;
@@ -867,6 +913,9 @@ async function broadcastToTabs(payload) {
             merged.error = sendErr?.message || String(sendErr);
             merged.timings.sendMs = sendMs;
             merged.timings.totalMs = (merged.timings.findInputMs || 0) + (merged.timings.injectMs || 0) + sendMs;
+            merged.debugLog = merged.debugLog
+              ? `${merged.debugLog} | fallback=send_now_exception:${sendErr?.message || String(sendErr)}`
+              : `fallback=send_now_exception:${sendErr?.message || String(sendErr)}`;
           }
         }
       }
@@ -886,16 +935,23 @@ async function broadcastToTabs(payload) {
   }
 
   let timedOut = false;
-  // Sequential/staggered sends reduce simultaneous load/risk triggers on multiple sites.
-  const timeoutAt = startedAt + BROADCAST_HARD_TIMEOUT_MS;
-  for (let idx = 0; idx < tabIds.length; idx += 1) {
-    if (now() >= timeoutAt) {
-      timedOut = true;
-      break;
-    }
-    const tabId = tabIds[idx];
+  const withTabTimeout = (tabId) => Promise.race([
+    processTab(tabId),
+    sleep(BROADCAST_HARD_TIMEOUT_MS).then(() => ({
+      tabId,
+      success: false,
+      error: '广播超时',
+      stage: 'timeout',
+      strategy: 'n/a',
+      fallbackUsed: false,
+      timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: BROADCAST_HARD_TIMEOUT_MS }
+    }))
+  ]);
+
+  await Promise.allSettled(tabIds.map(async (tabId) => {
     try {
-      const res = await processTab(tabId);
+      const res = await withTabTimeout(tabId);
+      if (res?.stage === 'timeout') timedOut = true;
       recordResult(tabId, res);
     } catch (err) {
       recordResult(tabId, {
@@ -908,34 +964,24 @@ async function broadcastToTabs(payload) {
         timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: 0 }
       });
     }
-    if (idx < tabIds.length - 1) {
-      const pauseMs = jitter(guardMinDelayMs, guardJitterMs);
-      const remainingMs = timeoutAt - now();
-      if (remainingMs <= 0) {
-        timedOut = true;
-        break;
-      }
-      await sleep(Math.min(pauseMs, remainingMs));
-    }
+  }));
+
+  for (const tabId of tabIds) {
+    if (resultMap.has(tabId)) continue;
+    timedOut = true;
+    resultMap.set(tabId, {
+      tabId,
+      success: false,
+      error: '广播超时',
+      stage: 'timeout',
+      strategy: 'n/a',
+      fallbackUsed: false,
+      timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: BROADCAST_HARD_TIMEOUT_MS }
+    });
+    completedCount += 1;
+    failCount += 1;
   }
   finalized = true;
-
-  if (timedOut) {
-    for (const tabId of tabIds) {
-      if (resultMap.has(tabId)) continue;
-      resultMap.set(tabId, {
-        tabId,
-        success: false,
-        error: '广播超时',
-        stage: 'timeout',
-        strategy: 'n/a',
-        fallbackUsed: false,
-        timings: { findInputMs: 0, injectMs: 0, sendMs: 0, totalMs: BROADCAST_HARD_TIMEOUT_MS }
-      });
-      completedCount += 1;
-      failCount += 1;
-    }
-  }
   emitProgress({ done: true, timedOut });
 
   const results = tabIds.map((tabId) => resultMap.get(tabId) || {
@@ -1037,7 +1083,7 @@ async function broadcastToTabs(payload) {
       safeMode: Boolean(safeMode),
       effectiveAutoSend: Boolean(effectiveAutoSend),
       requestedAutoSend: Boolean(autoSend),
-      autoSendBlockedBySafeMode: Boolean(autoSend && safeMode),
+      autoSendBlockedBySafeMode: Boolean(autoSend && !effectiveAutoSend),
       riskEvents,
       hardTriggerEvents,
       triggerMode,
@@ -1152,3 +1198,82 @@ async function locateUploadEntries(payload) {
   logger.info('locate-upload-end', summary);
   return { results, summary };
 }
+
+// ── Persistent popup window ──
+let boundsSaveTimer = null;
+
+chrome.action.onClicked.addListener(async () => {
+  const session = await chrome.storage.session.get('popupWindowId');
+  const popupWindowId = session.popupWindowId || null;
+
+  if (popupWindowId !== null) {
+    try {
+      const popupWindow = await chrome.windows.get(popupWindowId);
+      if (popupWindow?.id) {
+        await chrome.windows.update(popupWindowId, { focused: true });
+        return;
+      }
+    } catch (err) {
+      await chrome.storage.session.remove('popupWindowId');
+    }
+  }
+
+  // 读取上次保存的窗口状态
+  const savedState = await chrome.storage.local.get('popupWindowState');
+  const bounds = savedState.popupWindowState || {};
+  
+  const createOptions = {
+    url: chrome.runtime.getURL('app/dist-extension/popup.html'),
+    type: 'popup',
+    width: bounds.width || 420,
+    height: bounds.height || 620,
+    setSelfAsOpener: true, // 试图彻底剥离地址栏（一些 Chrome 版本上有效）
+    focused: true
+  };
+
+  if (Number.isInteger(bounds.left)) createOptions.left = bounds.left;
+  if (Number.isInteger(bounds.top)) createOptions.top = bounds.top;
+
+  const popupWindow = await chrome.windows.create(createOptions);
+  if (popupWindow?.id) {
+    await chrome.storage.session.set({ popupWindowId: popupWindow.id });
+  }
+});
+
+// 监听窗口尺寸或位置变化，保存最新状态
+if (chrome.windows.onBoundsChanged) {
+  chrome.windows.onBoundsChanged.addListener((window) => {
+    // 立即捕获我们需要的属性值，因为对象可能会在异步回调后被垃圾回收或者变更
+    const newBounds = {
+      width: window.width,
+      height: window.height,
+      left: window.left,
+      top: window.top,
+      id: window.id
+    };
+
+    // 同步清除旧定时器
+    if (boundsSaveTimer) {
+      clearTimeout(boundsSaveTimer);
+    }
+
+    boundsSaveTimer = setTimeout(async () => {
+      boundsSaveTimer = null;
+      try {
+        const session = await chrome.storage.session.get('popupWindowId');
+        if (newBounds.id === session.popupWindowId) {
+          await chrome.storage.local.set({ popupWindowState: newBounds });
+        }
+      } catch (err) {
+        console.warn('[AIB] Failed to save window bounds:', err);
+      }
+    }, 500); // 防抖 500ms
+  });
+}
+
+chrome.windows.onRemoved.addListener(async (windowId) => {
+  const session = await chrome.storage.session.get('popupWindowId');
+  if (windowId === session.popupWindowId) {
+    await chrome.storage.session.remove('popupWindowId');
+  }
+});
