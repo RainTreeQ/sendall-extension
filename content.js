@@ -84,6 +84,35 @@
     return null;
   }
 
+  // src/content/core/dom-cache.js
+  var cache = /* @__PURE__ */ new Map();
+  var lastUrl = location.href;
+  function getCached(key) {
+    const entry = cache.get(key);
+    if (!entry) return null;
+    if (!entry.node || !entry.node.isConnected) {
+      cache.delete(key);
+      return null;
+    }
+    return entry.node;
+  }
+  function setCache(key, node) {
+    if (!node) return;
+    cache.set(key, { node, cachedAt: Date.now() });
+  }
+  function invalidate(key) {
+    if (key) cache.delete(key);
+    else cache.clear();
+  }
+  function checkNavigation() {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+      cache.clear();
+      return true;
+    }
+    return false;
+  }
+
   // src/content/selectors.js
   var defaultSelectors = {
     chatgpt: {
@@ -236,6 +265,14 @@
     }
   };
   var cachedSelectors = null;
+  if (chrome.storage?.onChanged?.addListener) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== "local") return;
+      if (!changes || !changes.aib_dynamic_selectors) return;
+      cachedSelectors = null;
+      invalidate();
+    });
+  }
   function normalizeSelectorConfig(config) {
     return {
       findInput: Array.isArray(config?.findInput) ? config.findInput : [],
@@ -294,29 +331,1086 @@
     return cachedSelectors;
   }
   async function findInputForPlatform(platformId) {
+    checkNavigation();
+    const cacheKey = `${platformId}:input`;
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
     const selectors = await getDynamicSelectors();
     const list = selectors?.[platformId]?.findInput || [];
     for (const selector of list) {
       try {
         const found = document.querySelector(selector);
-        if (found) return found;
+        if (found) {
+          setCache(cacheKey, found);
+          return found;
+        }
       } catch (_) {
       }
     }
     return null;
   }
   async function findSendBtnForPlatform(platformId) {
+    checkNavigation();
+    const cacheKey = `${platformId}:send`;
+    const cached = getCached(cacheKey);
+    if (cached && !cached.disabled && cached.getAttribute("aria-disabled") !== "true") {
+      return cached;
+    }
     const selectors = await getDynamicSelectors();
     const list = selectors?.[platformId]?.findSendBtn || [];
     for (const selector of list) {
       try {
         const found = document.querySelector(selector);
-        if (found && !found.disabled && found.getAttribute("aria-disabled") !== "true") return found;
+        if (found && !found.disabled && found.getAttribute("aria-disabled") !== "true") {
+          setCache(cacheKey, found);
+          return found;
+        }
       } catch (_) {
       }
     }
     return null;
   }
+
+  // src/content/adapters/chatgpt.js
+  function createChatgptAdapter(deps) {
+    const {
+      findInputForPlatform: findInputForPlatform2,
+      findInputHeuristically: findInputHeuristically2,
+      waitFor,
+      setReactValue,
+      setContentEditable,
+      findSendBtnForPlatform: findSendBtnForPlatform2,
+      findSendBtnHeuristically: findSendBtnHeuristically2,
+      pressEnterOn
+    } = deps;
+    return {
+      name: "ChatGPT",
+      findInput: async () => {
+        return await findInputForPlatform2("chatgpt") || waitFor(() => findInputHeuristically2());
+      },
+      async inject(el, text, options) {
+        if (el.tagName === "TEXTAREA") return setReactValue(el, text);
+        return setContentEditable(el, text, options);
+      },
+      async send(el) {
+        const btn = await findSendBtnForPlatform2("chatgpt") || await waitFor(() => findSendBtnHeuristically2(el), 4e3, 40);
+        if (btn) {
+          btn.click();
+          return;
+        }
+        const target = el || document.activeElement;
+        if (target) {
+          target.focus();
+          pressEnterOn(target);
+        } else {
+          pressEnterOn(null);
+        }
+      }
+    };
+  }
+
+  // src/content/adapters/claude.js
+  function createClaudeAdapter(deps) {
+    const {
+      findInputForPlatform: findInputForPlatform2,
+      findInputHeuristically: findInputHeuristically2,
+      waitFor,
+      setContentEditable,
+      findSendBtnForPlatform: findSendBtnForPlatform2,
+      findSendBtnHeuristically: findSendBtnHeuristically2,
+      pressEnterOn
+    } = deps;
+    return {
+      name: "Claude",
+      findInput: async () => {
+        return await findInputForPlatform2("claude") || waitFor(() => findInputHeuristically2());
+      },
+      inject: (el, text, options) => setContentEditable(el, text, options),
+      async send(el) {
+        const btn = await findSendBtnForPlatform2("claude") || await waitFor(() => findSendBtnHeuristically2(el) || (() => {
+          const candidates = [
+            ...[...document.querySelectorAll("fieldset button, form button")]
+          ].filter(Boolean);
+          for (const candidate of candidates) {
+            if (candidate.disabled) continue;
+            const label = (candidate.getAttribute("aria-label") || "").toLowerCase();
+            if (label.includes("attach") || label.includes("file") || label.includes("upload")) continue;
+            if (candidate.querySelector("svg")) return candidate;
+          }
+          return null;
+        })(), 4e3, 40);
+        if (btn) {
+          btn.click();
+          return;
+        }
+        const input = el || document.activeElement;
+        if (input) {
+          input.focus();
+          pressEnterOn(input);
+        }
+      }
+    };
+  }
+
+  // src/content/adapters/deepseek.js
+  function createDeepseekAdapter(deps) {
+    const {
+      findInputForPlatform: findInputForPlatform2,
+      findInputHeuristically: findInputHeuristically2,
+      waitFor,
+      setReactValue,
+      setContentEditable,
+      findSendBtnForPlatform: findSendBtnForPlatform2,
+      findSendBtnHeuristically: findSendBtnHeuristically2,
+      pressEnterOn
+    } = deps;
+    return {
+      name: "DeepSeek",
+      findInput: async () => await findInputForPlatform2("deepseek") || waitFor(() => findInputHeuristically2()),
+      inject: async (el, text, options) => {
+        if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+        return setContentEditable(el, text, options);
+      },
+      async send(el) {
+        const selectorBtn = await findSendBtnForPlatform2("deepseek");
+        const btn = selectorBtn || await waitFor(() => findSendBtnHeuristically2(el), 3e3, 40);
+        if (btn) {
+          btn.click();
+          return;
+        }
+        if (el) {
+          el.focus();
+          pressEnterOn(el);
+        }
+      }
+    };
+  }
+
+  // src/content/adapters/mistral.js
+  function createMistralAdapter(deps) {
+    const {
+      findInputForPlatform: findInputForPlatform2,
+      findInputHeuristically: findInputHeuristically2,
+      waitFor,
+      setReactValue,
+      setContentEditable,
+      findSendBtnForPlatform: findSendBtnForPlatform2,
+      findSendBtnHeuristically: findSendBtnHeuristically2,
+      pressEnterOn
+    } = deps;
+    return {
+      name: "Mistral",
+      findInput: async () => await findInputForPlatform2("mistral") || waitFor(() => findInputHeuristically2()),
+      inject: async (el, text, options) => {
+        if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+        return setContentEditable(el, text, options);
+      },
+      async send(el) {
+        const btn = await findSendBtnForPlatform2("mistral") || await waitFor(() => findSendBtnHeuristically2(el), 4e3, 40);
+        if (btn) {
+          btn.click();
+          return;
+        }
+        if (el) {
+          el.focus();
+          pressEnterOn(el);
+        }
+      }
+    };
+  }
+
+  // src/content/adapters/gemini.js
+  function createGeminiAdapter(deps) {
+    const {
+      findInputForPlatform: findInputForPlatform2,
+      findInputHeuristically: findInputHeuristically2,
+      waitFor,
+      setGeminiInput,
+      sleep,
+      normalizeText,
+      getContent,
+      pressEnterOn,
+      findSendBtnForPlatform: findSendBtnForPlatform2
+    } = deps;
+    return {
+      name: "Gemini",
+      findInput: async () => await findInputForPlatform2("gemini") || waitFor(() => findInputHeuristically2()),
+      inject: (el, text, options) => setGeminiInput(el, text, options),
+      async send(el, options) {
+        const logger = options?.logger;
+        await sleep(80);
+        const before = normalizeText(getContent(el));
+        const keySend = async () => {
+          const target = el || document.activeElement;
+          if (!target) return false;
+          target.focus();
+          pressEnterOn(target);
+          await sleep(220);
+          let after = normalizeText(getContent(target));
+          if (!before || after !== before) return true;
+          target.dispatchEvent(new KeyboardEvent("keydown", {
+            key: "Enter",
+            code: "Enter",
+            keyCode: 13,
+            which: 13,
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            ctrlKey: true
+          }));
+          await sleep(220);
+          after = normalizeText(getContent(target));
+          if (!before || after !== before) return true;
+          target.dispatchEvent(new KeyboardEvent("keydown", {
+            key: "Enter",
+            code: "Enter",
+            keyCode: 13,
+            which: 13,
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            metaKey: true
+          }));
+          await sleep(220);
+          after = normalizeText(getContent(target));
+          return !before || after !== before;
+        };
+        const directBtn = await findSendBtnForPlatform2("gemini");
+        const btn = directBtn || await waitFor(() => {
+          const container = el?.closest("rich-textarea")?.parentElement?.parentElement || el?.closest(".input-area-container") || el?.closest('[role="complementary"]')?.parentElement;
+          if (container) {
+            for (const b of container.querySelectorAll("button:not([disabled])")) {
+              const hint = `${b.getAttribute("aria-label") || ""} ${b.getAttribute("mattooltip") || ""} ${b.getAttribute("title") || ""}`.toLowerCase();
+              if (hint.includes("send") || hint.includes("submit") || hint.includes("\u53D1\u9001") || hint.includes("\u63D0\u4EA4")) return b;
+            }
+          }
+          return null;
+        }, 6500, 50);
+        if (btn) {
+          btn.click();
+          if (!before) return true;
+          await sleep(220);
+          const afterClick = normalizeText(getContent(el));
+          if (afterClick !== before) return true;
+          logger?.debug("gemini-send-click-no-change");
+        } else {
+          logger?.debug("gemini-send-button-not-found", { hasInput: Boolean(el) });
+        }
+        const keySendOk = await keySend();
+        if (keySendOk) return true;
+        logger?.debug("gemini-send-failed-after-key-fallback");
+        return false;
+      }
+    };
+  }
+
+  // src/content/adapters/grok.js
+  function createGrokAdapter(deps) {
+    const {
+      findInputForPlatform: findInputForPlatform2,
+      waitFor,
+      setReactValue,
+      setContentEditable,
+      findSendBtnForPlatform: findSendBtnForPlatform2,
+      normalizeText,
+      getContent,
+      sleep,
+      pressEnterOn,
+      isNodeDisabled
+    } = deps;
+    return {
+      name: "Grok",
+      findInput: async () => {
+        const isVisibleInput = (el) => {
+          if (!el || el.disabled || el.readOnly) return false;
+          const style = window.getComputedStyle(el);
+          if (style.display === "none" || style.visibility === "hidden") return false;
+          const rect = el.getBoundingClientRect();
+          return rect.width > 120 && rect.height > 20 && rect.bottom > 0;
+        };
+        const collectRoots = () => {
+          const roots = [document];
+          const queue = [document.documentElement];
+          const seen = /* @__PURE__ */ new Set();
+          while (queue.length) {
+            const node = queue.shift();
+            if (!node || seen.has(node)) continue;
+            seen.add(node);
+            if (node.shadowRoot) roots.push(node.shadowRoot);
+            if (node.children) {
+              for (const child of node.children) queue.push(child);
+            }
+          }
+          return roots;
+        };
+        const pickBestInput = () => {
+          const candidates = [];
+          for (const root of collectRoots()) {
+            candidates.push(...root.querySelectorAll('textarea[placeholder], textarea, div[contenteditable="true"][role="textbox"], div[contenteditable="true"]'));
+          }
+          const unique = [];
+          const seen = /* @__PURE__ */ new Set();
+          for (const c of candidates) {
+            if (!c || seen.has(c)) continue;
+            seen.add(c);
+            unique.push(c);
+          }
+          const scoreInput = (el) => {
+            if (!isVisibleInput(el)) return -1;
+            const rect = el.getBoundingClientRect();
+            const placeholder = (el.getAttribute("placeholder") || "").toLowerCase();
+            const root = el.closest("form") || el.parentElement || document;
+            let score = 0;
+            if (placeholder.includes("ask") || placeholder.includes("mind") || placeholder.includes("message")) score += 6;
+            if (el.closest("form")) score += 4;
+            if (root.querySelector?.('button[type="submit"], button[aria-label*="Submit"], button[aria-label*="Send"], button[data-testid*="send"], [role="button"][aria-label*="Send"], [data-testid*="send"]')) score += 4;
+            if (rect.top > 40 && rect.top < window.innerHeight) score += 2;
+            score += Math.min(4, Math.round(rect.width / 300));
+            return score;
+          };
+          let best = null;
+          let bestScore = -1;
+          for (const candidate of unique) {
+            const score = scoreInput(candidate);
+            if (score > bestScore) {
+              bestScore = score;
+              best = candidate;
+            }
+          }
+          return bestScore >= 0 ? best : null;
+        };
+        const bySelectors = await findInputForPlatform2("grok");
+        if (isVisibleInput(bySelectors)) return bySelectors;
+        return waitFor(() => pickBestInput(), 7e3, 60);
+      },
+      async inject(el, text, options) {
+        if (el.tagName === "TEXTAREA") return setReactValue(el, text);
+        return setContentEditable(el, text, options);
+      },
+      async send(el, options) {
+        const logger = options?.logger;
+        const sendTrace = {
+          matchedBy: "none",
+          clicked: false,
+          formSubmitted: false,
+          keyAttempts: [],
+          finalChanged: false
+        };
+        const isVisible = (node) => {
+          if (!node) return false;
+          const style = window.getComputedStyle(node);
+          if (style.display === "none" || style.visibility === "hidden") return false;
+          const rect = node.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0 && rect.bottom > 0;
+        };
+        const triggerClick = (node) => {
+          if (!node) return;
+          for (const evt of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+            try {
+              node.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, composed: true }));
+            } catch (err) {
+            }
+          }
+          try {
+            node.click?.();
+          } catch (err) {
+          }
+        };
+        const roots = () => {
+          const list = [
+            el?.closest("form"),
+            el?.parentElement,
+            el?.closest('div[class*="input"]'),
+            el?.closest("main"),
+            document
+          ].filter(Boolean);
+          const uniq = [];
+          const seen = /* @__PURE__ */ new Set();
+          for (const root of list) {
+            if (seen.has(root)) continue;
+            seen.add(root);
+            uniq.push(root);
+          }
+          return uniq;
+        };
+        const tryFindBtn = () => {
+          const inputRect = el?.getBoundingClientRect ? el.getBoundingClientRect() : null;
+          for (const root of roots()) {
+            const buttons = root.querySelectorAll ? root.querySelectorAll('button, [role="button"], div[role="button"], span[role="button"], div[class*="send"], button[class*="send"]') : [];
+            let fallbackCandidate = null;
+            let proximityCandidate = null;
+            let proximityScore = -Infinity;
+            for (const button of buttons) {
+              if (!isVisible(button) || isNodeDisabled(button)) continue;
+              const hint = `${button.getAttribute("aria-label") || ""} ${button.getAttribute("title") || ""} ${button.getAttribute("data-testid") || ""} ${button.className || ""} ${(button.textContent || "").trim()}`.toLowerCase();
+              if (hint.includes("upload") || hint.includes("attach") || hint.includes("mic") || hint.includes("voice") || hint.includes("search") || hint.includes("plus")) continue;
+              if (hint.includes("submit") || hint.includes("send") || hint.includes("\u53D1\u9001") || hint.includes("\u63D0\u4EA4")) {
+                sendTrace.matchedBy = "hint:sendish";
+                return button;
+              }
+              if (!fallbackCandidate && (hint.includes("composer") || hint.includes("arrow") || hint.includes("paper-plane"))) {
+                fallbackCandidate = button;
+              }
+              if (!inputRect || !button.getBoundingClientRect) continue;
+              const r = button.getBoundingClientRect();
+              const centerX = r.left + r.width / 2;
+              const centerY = r.top + r.height / 2;
+              const dx = centerX - (inputRect.left + inputRect.width);
+              const dy = centerY - (inputRect.top + inputRect.height / 2);
+              const nearHorizontally = dx >= -24 && dx <= 240;
+              const nearVertically = Math.abs(dy) <= 140;
+              if (!nearHorizontally || !nearVertically) continue;
+              let score = 0;
+              score -= Math.abs(dx) * 0.45;
+              score -= Math.abs(dy) * 0.25;
+              if (r.width >= 20 && r.width <= 72 && r.height >= 20 && r.height <= 72) score += 12;
+              if (button.querySelector?.("svg")) score += 8;
+              if ((button.textContent || "").trim().length === 0) score += 6;
+              if ((button.getAttribute("aria-label") || "").trim()) score += 4;
+              if (score > proximityScore) {
+                proximityScore = score;
+                proximityCandidate = button;
+              }
+            }
+            if (fallbackCandidate) {
+              sendTrace.matchedBy = "hint:fallback-candidate";
+              return fallbackCandidate;
+            }
+            if (proximityCandidate) {
+              sendTrace.matchedBy = "proximity";
+              return proximityCandidate;
+            }
+          }
+          const localScope = el?.closest("form") || el?.closest('[class*="composer"]') || el?.closest('[class*="input"]') || el?.parentElement?.parentElement || null;
+          if (localScope && inputRect) {
+            const nodes = localScope.querySelectorAll("*");
+            let best = null;
+            let bestScore = -Infinity;
+            for (const node of nodes) {
+              if (!isVisible(node) || isNodeDisabled(node)) continue;
+              if (node === el || node.contains?.(el)) continue;
+              const r = node.getBoundingClientRect();
+              if (r.width < 16 || r.height < 16 || r.width > 84 || r.height > 84) continue;
+              const centerX = r.left + r.width / 2;
+              const centerY = r.top + r.height / 2;
+              const dx = centerX - (inputRect.left + inputRect.width);
+              const dy = centerY - (inputRect.top + inputRect.height / 2);
+              if (dx < -30 || dx > 260 || Math.abs(dy) > 150) continue;
+              const hasSvg = Boolean(node.querySelector?.("svg,path,use"));
+              const hint = `${node.getAttribute?.("aria-label") || ""} ${node.getAttribute?.("data-testid") || ""} ${node.className || ""}`.toLowerCase();
+              if (!hasSvg && !hint.includes("send") && !hint.includes("submit") && !hint.includes("arrow")) continue;
+              let score = 0;
+              score -= Math.abs(dx) * 0.4;
+              score -= Math.abs(dy) * 0.3;
+              if (hasSvg) score += 14;
+              if (hint.includes("send") || hint.includes("submit") || hint.includes("arrow")) score += 10;
+              if (score > bestScore) {
+                bestScore = score;
+                best = node;
+              }
+            }
+            if (best) {
+              sendTrace.matchedBy = "scope:svg-proximity";
+              return best;
+            }
+          }
+          return null;
+        };
+        const selectorBtn = await findSendBtnForPlatform2("grok");
+        const btn = selectorBtn || await waitFor(tryFindBtn, 3500, 40);
+        const target = el || document.activeElement;
+        const before = normalizeText(getContent(target));
+        const tryKeySend = async () => {
+          if (!target) return false;
+          target.focus();
+          const attempts = [
+            { ctrlKey: false, metaKey: false, tag: "enter" },
+            { ctrlKey: true, metaKey: false, tag: "ctrl-enter" },
+            { ctrlKey: false, metaKey: true, tag: "meta-enter" }
+          ];
+          for (const attempt of attempts) {
+            target.dispatchEvent(new KeyboardEvent("keydown", {
+              key: "Enter",
+              code: "Enter",
+              keyCode: 13,
+              which: 13,
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              ctrlKey: attempt.ctrlKey,
+              metaKey: attempt.metaKey
+            }));
+            target.dispatchEvent(new KeyboardEvent("keypress", {
+              key: "Enter",
+              code: "Enter",
+              keyCode: 13,
+              which: 13,
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              ctrlKey: attempt.ctrlKey,
+              metaKey: attempt.metaKey
+            }));
+            target.dispatchEvent(new KeyboardEvent("keyup", {
+              key: "Enter",
+              code: "Enter",
+              keyCode: 13,
+              which: 13,
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              ctrlKey: attempt.ctrlKey,
+              metaKey: attempt.metaKey
+            }));
+            await sleep(180);
+            const after2 = normalizeText(getContent(target));
+            sendTrace.keyAttempts.push(attempt.tag);
+            if (!before || after2 !== before) {
+              sendTrace.finalChanged = true;
+              return true;
+            }
+            logger?.debug("grok-send-key-no-change", { mode: attempt.tag });
+          }
+          return false;
+        };
+        const tryFormSubmit = async () => {
+          const form = target?.closest?.("form");
+          if (!form) return false;
+          try {
+            if (typeof form.requestSubmit === "function") form.requestSubmit();
+            else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+          } catch (err) {
+          }
+          sendTrace.formSubmitted = true;
+          await sleep(220);
+          const after2 = normalizeText(getContent(target));
+          const changed2 = !before || after2 !== before;
+          if (changed2) sendTrace.finalChanged = true;
+          return changed2;
+        };
+        if (btn) {
+          triggerClick(btn);
+          sendTrace.clicked = true;
+          await sleep(220);
+          const afterClick = normalizeText(getContent(target));
+          if (!before || afterClick !== before) {
+            sendTrace.finalChanged = true;
+            return true;
+          }
+          logger?.debug("grok-send-click-no-change");
+          const formSubmitOk = await tryFormSubmit();
+          if (formSubmitOk) return true;
+          const keySendOk2 = await tryKeySend();
+          if (keySendOk2) return true;
+          throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
+        }
+        if (!target) {
+          pressEnterOn(null);
+          return false;
+        }
+        const keySendOk = await tryKeySend();
+        if (keySendOk) return true;
+        pressEnterOn(target);
+        await sleep(180);
+        const after = normalizeText(getContent(target));
+        const changed = !before || after !== before;
+        if (changed) {
+          sendTrace.finalChanged = true;
+          return true;
+        }
+        throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
+      }
+    };
+  }
+
+  // src/content/adapters/doubao.js
+  function createDoubaoAdapter(deps) {
+    const {
+      findInputForPlatform: findInputForPlatform2,
+      findInputHeuristically: findInputHeuristically2,
+      waitFor,
+      setReactValue,
+      setContentEditable,
+      findSendBtnForPlatform: findSendBtnForPlatform2,
+      findSendBtnHeuristically: findSendBtnHeuristically2,
+      pressEnterOn,
+      isDoubaoVerificationPage
+    } = deps;
+    return {
+      name: "Doubao",
+      findInput: async () => {
+        if (isDoubaoVerificationPage()) {
+          const err = new Error("\u8C46\u5305\u5F53\u524D\u5904\u4E8E\u4EBA\u673A\u9A8C\u8BC1\u9875\u9762\uFF0C\u8BF7\u5148\u5B8C\u6210\u9A8C\u8BC1\u540E\u518D\u91CD\u8BD5");
+          err.stage = "findInput";
+          throw err;
+        }
+        return await findInputForPlatform2("doubao") || waitFor(() => findInputHeuristically2());
+      },
+      async inject(el, text, options) {
+        if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+        return setContentEditable(el, text, options);
+      },
+      async send(el) {
+        if (isDoubaoVerificationPage()) {
+          const err = new Error("\u8C46\u5305\u5F53\u524D\u5904\u4E8E\u4EBA\u673A\u9A8C\u8BC1\u9875\u9762\uFF0C\u8BF7\u5148\u5B8C\u6210\u9A8C\u8BC1\u540E\u518D\u91CD\u8BD5");
+          err.stage = "send";
+          throw err;
+        }
+        const btn = await findSendBtnForPlatform2("doubao") || await waitFor(() => findSendBtnHeuristically2(el), 3e3, 30);
+        if (btn) {
+          btn.click();
+          return;
+        }
+        if (el) {
+          el.focus();
+          pressEnterOn(el);
+        }
+      }
+    };
+  }
+
+  // src/content/adapters/qianwen.js
+  function createQianwenAdapter(deps) {
+    const {
+      findInputForPlatform: findInputForPlatform2,
+      findInputHeuristically: findInputHeuristically2,
+      waitFor,
+      qianwenInject,
+      qianwenSend
+    } = deps;
+    return {
+      name: "Qianwen",
+      findInput: async () => await findInputForPlatform2("qianwen") || waitFor(() => findInputHeuristically2()),
+      inject: qianwenInject,
+      send: qianwenSend
+    };
+  }
+
+  // src/content/adapters/yuanbao.js
+  function createYuanbaoAdapter(deps) {
+    const {
+      findInputForPlatform: findInputForPlatform2,
+      findInputHeuristically: findInputHeuristically2,
+      waitFor,
+      yuanbaoInject,
+      yuanbaoSend
+    } = deps;
+    return {
+      name: "Yuanbao",
+      findInput: async () => await findInputForPlatform2("yuanbao") || waitFor(() => findInputHeuristically2()),
+      inject: yuanbaoInject,
+      send: yuanbaoSend
+    };
+  }
+
+  // src/content/adapters/kimi.js
+  function createKimiAdapter(deps) {
+    const {
+      findInputForPlatform: findInputForPlatform2,
+      findInputHeuristically: findInputHeuristically2,
+      waitFor,
+      kimiInject,
+      kimiSend
+    } = deps;
+    return {
+      name: "Kimi",
+      findInput: async () => await findInputForPlatform2("kimi") || waitFor(() => findInputHeuristically2()),
+      inject: kimiInject,
+      send: kimiSend
+    };
+  }
+
+  // src/content/core/observer.js
+  function waitForElementByMutation(matchFn, options = {}) {
+    const timeout = Number.isFinite(options.timeout) ? options.timeout : 6e3;
+    const root = options.root || document.body || document.documentElement;
+    return new Promise((resolve) => {
+      try {
+        const immediate = matchFn();
+        if (immediate) {
+          resolve(immediate);
+          return;
+        }
+      } catch (_) {
+      }
+      let done = false;
+      let observer = null;
+      let timer = null;
+      const finish = (value) => {
+        if (done) return;
+        done = true;
+        if (timer) clearTimeout(timer);
+        if (observer) observer.disconnect();
+        resolve(value || null);
+      };
+      timer = setTimeout(() => finish(null), timeout);
+      try {
+        observer = new MutationObserver(() => {
+          try {
+            const next = matchFn();
+            if (next) finish(next);
+          } catch (_) {
+          }
+        });
+        observer.observe(root, { childList: true, subtree: true });
+      } catch (_) {
+        finish(null);
+      }
+    });
+  }
+
+  // src/content/core/injection.js
+  function createInjectionTools(deps) {
+    const {
+      sleep,
+      waitForCheck,
+      normalizeText,
+      getContent
+    } = deps;
+    async function verifyContent(el, text, timeout = 280, interval = 25) {
+      const contentLooksInjected = (node, value) => {
+        const expected = normalizeText(value);
+        const actual = normalizeText(getContent(node));
+        if (!expected) return actual.length === 0;
+        if (!actual) return false;
+        if (actual === expected) return true;
+        return actual.includes(expected.slice(0, Math.min(expected.length, 24)));
+      };
+      return waitForCheck(() => contentLooksInjected(el, text), timeout, interval);
+    }
+    async function verifyContentStrict(el, text, timeout = 200, interval = 25) {
+      const contentLooksInjectedStrict = (node, value) => {
+        const expected = normalizeText(value);
+        const actual = normalizeText(getContent(node));
+        if (!expected) return actual.length === 0;
+        if (!actual) return false;
+        if (actual === expected) return true;
+        if (actual.length < expected.length * 0.95) return false;
+        return actual.includes(expected) || expected.includes(actual);
+      };
+      return waitForCheck(() => contentLooksInjectedStrict(el, text), timeout, interval);
+    }
+    function setReactValue(el, value) {
+      const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      if (setter) setter.call(el, value);
+      else el.value = value;
+      const tracker = el._valueTracker;
+      if (tracker) tracker.setValue("");
+      el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return { strategy: "react-value", fallbackUsed: false };
+    }
+    async function tryInsertText(el, text) {
+      el.focus();
+      await sleep(16);
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false, null);
+      await sleep(8);
+      el.dispatchEvent(new InputEvent("beforeinput", {
+        inputType: "insertText",
+        data: text,
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }));
+      document.execCommand("insertText", false, text);
+      const verified = await verifyContent(el, text);
+      if (verified) {
+        el.dispatchEvent(new InputEvent("input", {
+          bubbles: true,
+          inputType: "insertText",
+          data: text
+        }));
+      }
+      return verified;
+    }
+    async function tryClipboardPaste(el, text) {
+      await navigator.clipboard.writeText(text);
+      el.focus();
+      await sleep(12);
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false, null);
+      document.execCommand("paste");
+      return verifyContent(el, text);
+    }
+    async function tryDataTransferPaste(el, text) {
+      el.focus();
+      await sleep(12);
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false, null);
+      const dt = new DataTransfer();
+      dt.setData("text/plain", text);
+      el.dispatchEvent(new ClipboardEvent("paste", {
+        clipboardData: dt,
+        bubbles: true,
+        cancelable: true
+      }));
+      return verifyContent(el, text);
+    }
+    async function tryDirectDom(el, text) {
+      el.innerHTML = "";
+      const p = document.createElement("p");
+      p.textContent = text;
+      el.appendChild(p);
+      el.dispatchEvent(new InputEvent("input", { bubbles: true }));
+      return verifyContent(el, text);
+    }
+    async function trySlateBeforeInput(el, text) {
+      el.focus();
+      await sleep(20);
+      const sel = window.getSelection();
+      if (sel && el.childNodes.length > 0) {
+        try {
+          sel.selectAllChildren(el);
+          el.dispatchEvent(new InputEvent("beforeinput", {
+            inputType: "deleteContentBackward",
+            bubbles: true,
+            cancelable: true
+          }));
+          await sleep(10);
+        } catch (_) {
+        }
+      }
+      const chunkSize = text.length > 30 ? 3 : 1;
+      for (let i = 0; i < text.length; i += chunkSize) {
+        const chunk = text.slice(i, i + chunkSize);
+        el.dispatchEvent(new InputEvent("beforeinput", {
+          inputType: "insertText",
+          data: chunk,
+          bubbles: true,
+          cancelable: true
+        }));
+        await sleep(chunkSize > 1 ? 2 : 1);
+      }
+      el.dispatchEvent(new InputEvent("input", { inputType: "insertText", data: text, bubbles: true }));
+      return verifyContent(el, text);
+    }
+    async function runStrategies(el, strategyList, logger) {
+      for (const strategy of strategyList) {
+        try {
+          if (await strategy.run()) {
+            logger.debug("inject-strategy-success", { strategy: strategy.name });
+            return { strategy: strategy.name, fallbackUsed: Boolean(strategy.fallbackUsed) };
+          }
+          logger.debug("inject-strategy-miss", { strategy: strategy.name });
+        } catch (err) {
+          logger.debug("inject-strategy-error", {
+            strategy: strategy.name,
+            error: err.message
+          });
+        }
+      }
+      throw new Error("\u8F93\u5165\u6CE8\u5165\u5931\u8D25");
+    }
+    async function setContentEditable(el, text, options) {
+      const { fastPathEnabled, logger, safeMode } = options;
+      if (safeMode) {
+        return runStrategies(el, [
+          { name: "insertText-safe", fallbackUsed: false, run: () => tryInsertText(el, text) },
+          { name: "insertText-safe-retry", fallbackUsed: true, run: () => tryInsertText(el, text) }
+        ], logger);
+      }
+      if (fastPathEnabled) {
+        return runStrategies(el, [
+          { name: "insertText-fast", fallbackUsed: false, run: () => tryInsertText(el, text) },
+          { name: "clipboard-paste", fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
+          { name: "datatransfer-paste", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
+          { name: "direct-dom", fallbackUsed: true, run: () => tryDirectDom(el, text) }
+        ], logger);
+      }
+      return runStrategies(el, [
+        { name: "clipboard-legacy", fallbackUsed: false, run: () => tryClipboardPaste(el, text) },
+        { name: "insertText-legacy", fallbackUsed: true, run: () => tryInsertText(el, text) },
+        { name: "datatransfer-legacy", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
+        { name: "direct-dom-legacy", fallbackUsed: true, run: () => tryDirectDom(el, text) }
+      ], logger);
+    }
+    const GEMINI_CHUNK_SIZE = 1200;
+    function notifyGeminiFramework(el, text) {
+      el.dispatchEvent(new InputEvent("input", {
+        bubbles: true,
+        inputType: "insertText",
+        data: text
+      }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      const richTextarea = el.closest("rich-textarea");
+      if (richTextarea) {
+        richTextarea.dispatchEvent(new Event("input", { bubbles: true }));
+        richTextarea.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+    async function insertTextInChunks(el, text) {
+      const len = text.length;
+      if (len <= 0) return;
+      if (len <= GEMINI_CHUNK_SIZE) {
+        document.execCommand("insertText", false, text);
+        return;
+      }
+      for (let i = 0; i < len; i += GEMINI_CHUNK_SIZE) {
+        const chunk = text.slice(i, i + GEMINI_CHUNK_SIZE);
+        document.execCommand("insertText", false, chunk);
+        await sleep(12);
+      }
+    }
+    async function setGeminiInput(el, text, options) {
+      const { logger } = options;
+      el.focus();
+      await sleep(40);
+      const richTextarea = el.closest("rich-textarea") || el.parentElement;
+      const quill = richTextarea?.__quill || el.__quill;
+      if (quill) {
+        quill.setText("");
+        if (text.length <= GEMINI_CHUNK_SIZE) {
+          quill.insertText(0, text, "user");
+        } else {
+          for (let i = 0; i < text.length; i += GEMINI_CHUNK_SIZE) {
+            const chunk = text.slice(i, i + GEMINI_CHUNK_SIZE);
+            quill.insertText(i, chunk, "user");
+            await sleep(10);
+          }
+        }
+        quill.setSelection(text.length, 0);
+        notifyGeminiFramework(el, text);
+        await sleep(30);
+        if (await verifyContentStrict(el, text, 300, 30)) {
+          return { strategy: "gemini-quill", fallbackUsed: false };
+        }
+        quill.setText("");
+        await sleep(16);
+      }
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false, null);
+      await insertTextInChunks(el, text);
+      if (await verifyContentStrict(el, text, 250, 25)) {
+        notifyGeminiFramework(el, text);
+        return { strategy: "gemini-insertText", fallbackUsed: Boolean(quill) };
+      }
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false, null);
+      await insertTextInChunks(el, text);
+      if (await verifyContentStrict(el, text, 250, 25)) {
+        notifyGeminiFramework(el, text);
+        return { strategy: "gemini-insertText-retry", fallbackUsed: true };
+      }
+      el.innerHTML = "";
+      const p = document.createElement("p");
+      p.textContent = text;
+      el.appendChild(p);
+      notifyGeminiFramework(el, text);
+      if (await verifyContentStrict(el, text, 200, 25)) {
+        return { strategy: "gemini-direct-dom", fallbackUsed: true };
+      }
+      logger.debug("gemini-inject-failed-after-fallbacks");
+      throw new Error("Gemini \u8F93\u5165\u6CE8\u5165\u5931\u8D25");
+    }
+    async function setYuanbaoInput(el, text, options) {
+      el.focus();
+      await sleep(28);
+      const quill = el.__quill || el.closest(".ql-container")?.__quill || el.closest(".ql-editor")?.__quill;
+      if (quill) {
+        quill.setText("");
+        quill.insertText(0, text, "user");
+        quill.setSelection(text.length, 0);
+        el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        if (await verifyContent(el, text, 260, 25)) {
+          return { strategy: "yuanbao-quill", fallbackUsed: false };
+        }
+      }
+      return setContentEditable(el, text, options);
+    }
+    async function closeQianwenTaskAssistant() {
+      const allTags = document.querySelectorAll('[class*="tagBtn"][class*="selected"], [class*="tag"][aria-selected="true"]');
+      let tag = null;
+      for (const node of allTags) {
+        if (node.textContent && node.textContent.includes("\u4EFB\u52A1\u52A9\u7406")) {
+          tag = node;
+          break;
+        }
+      }
+      if (!tag) return;
+      const closeIcon = tag.querySelector('[data-icon-type*="close"]') || tag.querySelector("svg");
+      const target = closeIcon || tag;
+      target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+      target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+      target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+      await sleep(120);
+    }
+    async function setQianwenInput(el, text, options) {
+      const { logger } = options || {};
+      el.focus();
+      await sleep(20);
+      const slateNode = el.closest('[data-slate-editor="true"]') || el;
+      const fiberKey = Object.keys(slateNode).find((k) => k.startsWith("__reactFiber$") || k.startsWith("__reactInternalInstance$"));
+      if (fiberKey) {
+        try {
+          let fiber = slateNode[fiberKey];
+          for (let i = 0; i < 15 && fiber; i++) {
+            const editor = fiber.memoizedProps?.editor || fiber.stateNode?.editor;
+            if (editor && typeof editor.insertText === "function" && typeof editor.deleteFragment === "function") {
+              try {
+                editor.deleteFragment();
+              } catch (_) {
+              }
+              editor.insertText(text);
+              el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+              if (await verifyContent(el, text)) {
+                return { strategy: "qianwen-slate-api", fallbackUsed: false };
+              }
+            }
+            fiber = fiber.return;
+          }
+        } catch (_) {
+        }
+      }
+      return runStrategies(el, [
+        { name: "qw-insertText", fallbackUsed: false, run: () => tryInsertText(el, text) },
+        { name: "qw-beforeinput", fallbackUsed: true, run: () => trySlateBeforeInput(el, text) },
+        { name: "qw-datatransfer", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
+        { name: "qw-clipboard", fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
+        { name: "qw-direct-dom", fallbackUsed: true, run: () => tryDirectDom(el, text) }
+      ], logger);
+    }
+    const qianwenInject = async (el, text, options) => {
+      await closeQianwenTaskAssistant();
+      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+      return setQianwenInput(el, text, options);
+    };
+    const kimiInject = async (el, text, options) => {
+      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+      return setContentEditable(el, text, options);
+    };
+    const yuanbaoInject = async (el, text, options) => {
+      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+      return setYuanbaoInput(el, text, options);
+    };
+    return {
+      setReactValue,
+      setContentEditable,
+      setGeminiInput,
+      closeQianwenTaskAssistant,
+      qianwenInject,
+      kimiInject,
+      yuanbaoInject
+    };
+  }
+
+  // src/content/core/lifecycle.js
+  var cleanupFns = [];
+  function onCleanup(fn) {
+    if (typeof fn === "function") cleanupFns.push(fn);
+  }
+  function runCleanup() {
+    while (cleanupFns.length) {
+      try {
+        cleanupFns.pop()();
+      } catch (e) {
+      }
+    }
+  }
+  window.addEventListener("pagehide", runCleanup, { once: true });
+  window.addEventListener("beforeunload", runCleanup, { once: true });
 
   // src/content/index.js
   if (!window.__aiBroadcastLoaded) {
@@ -397,43 +1491,6 @@
         return (el.value || "").trim();
       }
       return (el.innerText || el.textContent || "").trim();
-    }, contentLooksInjected = function(el, text) {
-      const expected = normalizeText(text);
-      const actual = normalizeText(getContent(el));
-      if (!expected) return actual.length === 0;
-      if (!actual) return false;
-      if (actual === expected) return true;
-      return actual.includes(expected.slice(0, Math.min(expected.length, 24)));
-    }, contentLooksInjectedStrict = function(el, text) {
-      const expected = normalizeText(text);
-      const actual = normalizeText(getContent(el));
-      if (!expected) return actual.length === 0;
-      if (!actual) return false;
-      if (actual === expected) return true;
-      if (actual.length < expected.length * 0.95) return false;
-      return actual.includes(expected) || expected.includes(actual);
-    }, setReactValue = function(el, value) {
-      const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-      if (setter) setter.call(el, value);
-      else el.value = value;
-      const tracker = el._valueTracker;
-      if (tracker) tracker.setValue("");
-      el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-      return { strategy: "react-value", fallbackUsed: false };
-    }, notifyGeminiFramework = function(el, text) {
-      el.dispatchEvent(new InputEvent("input", {
-        bubbles: true,
-        inputType: "insertText",
-        data: text
-      }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-      const richTextarea = el.closest("rich-textarea");
-      if (richTextarea) {
-        richTextarea.dispatchEvent(new Event("input", { bubbles: true }));
-        richTextarea.dispatchEvent(new Event("change", { bubbles: true }));
-      }
     }, pressEnterOn = function(el) {
       const target = el || document.activeElement;
       if (!target) return;
@@ -660,7 +1717,23 @@
       HIGHLIGHT_UPLOAD_ENTRY: "HIGHLIGHT_UPLOAD_ENTRY"
     };
     async function waitFor(fn, timeout = 6e3, interval = 50) {
-      const deadline = now() + timeout;
+      const immediate = (() => {
+        try {
+          return fn();
+        } catch (err) {
+          return null;
+        }
+      })();
+      if (immediate) return immediate;
+      const observed = await waitForElementByMutation(() => {
+        try {
+          return fn();
+        } catch (err) {
+          return null;
+        }
+      }, { timeout });
+      if (observed) return observed;
+      const deadline = now() + Math.min(400, timeout);
       while (now() < deadline) {
         try {
           const result = fn();
@@ -682,237 +1755,20 @@
       }
       return false;
     }
-    async function verifyContent(el, text, timeout = 280, interval = 25) {
-      return waitForCheck(() => contentLooksInjected(el, text), timeout, interval);
-    }
-    async function verifyContentStrict(el, text, timeout = 200, interval = 25) {
-      return waitForCheck(() => contentLooksInjectedStrict(el, text), timeout, interval);
-    }
-    async function tryInsertText(el, text) {
-      el.focus();
-      await sleep(16);
-      document.execCommand("selectAll", false, null);
-      document.execCommand("delete", false, null);
-      await sleep(8);
-      el.dispatchEvent(new InputEvent("beforeinput", {
-        inputType: "insertText",
-        data: text,
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      }));
-      document.execCommand("insertText", false, text);
-      const verified = await verifyContent(el, text);
-      if (verified) {
-        el.dispatchEvent(new InputEvent("input", {
-          bubbles: true,
-          inputType: "insertText",
-          data: text
-        }));
-      }
-      return verified;
-    }
-    async function tryClipboardPaste(el, text) {
-      await navigator.clipboard.writeText(text);
-      el.focus();
-      await sleep(12);
-      document.execCommand("selectAll", false, null);
-      document.execCommand("delete", false, null);
-      document.execCommand("paste");
-      return verifyContent(el, text);
-    }
-    async function tryDataTransferPaste(el, text) {
-      el.focus();
-      await sleep(12);
-      document.execCommand("selectAll", false, null);
-      document.execCommand("delete", false, null);
-      const dt = new DataTransfer();
-      dt.setData("text/plain", text);
-      el.dispatchEvent(new ClipboardEvent("paste", {
-        clipboardData: dt,
-        bubbles: true,
-        cancelable: true
-      }));
-      return verifyContent(el, text);
-    }
-    async function tryDirectDom(el, text) {
-      el.innerHTML = "";
-      const p = document.createElement("p");
-      p.textContent = text;
-      el.appendChild(p);
-      el.dispatchEvent(new InputEvent("input", { bubbles: true }));
-      return verifyContent(el, text);
-    }
-    async function trySlateBeforeInput(el, text) {
-      el.focus();
-      await sleep(20);
-      const sel = window.getSelection();
-      if (sel && el.childNodes.length > 0) {
-        try {
-          sel.selectAllChildren(el);
-          el.dispatchEvent(new InputEvent("beforeinput", {
-            inputType: "deleteContentBackward",
-            bubbles: true,
-            cancelable: true
-          }));
-          await sleep(10);
-        } catch (_) {
-        }
-      }
-      const chunkSize = text.length > 30 ? 3 : 1;
-      for (let i = 0; i < text.length; i += chunkSize) {
-        const chunk = text.slice(i, i + chunkSize);
-        el.dispatchEvent(new InputEvent("beforeinput", {
-          inputType: "insertText",
-          data: chunk,
-          bubbles: true,
-          cancelable: true
-        }));
-        await sleep(chunkSize > 1 ? 2 : 1);
-      }
-      el.dispatchEvent(new InputEvent("input", { inputType: "insertText", data: text, bubbles: true }));
-      return verifyContent(el, text);
-    }
-    async function runStrategies(el, strategyList, logger) {
-      for (const strategy of strategyList) {
-        try {
-          if (await strategy.run()) {
-            logger.debug("inject-strategy-success", { strategy: strategy.name });
-            return { strategy: strategy.name, fallbackUsed: Boolean(strategy.fallbackUsed) };
-          }
-          logger.debug("inject-strategy-miss", { strategy: strategy.name });
-        } catch (err) {
-          logger.debug("inject-strategy-error", {
-            strategy: strategy.name,
-            error: err.message
-          });
-        }
-      }
-      throw new Error("\u8F93\u5165\u6CE8\u5165\u5931\u8D25");
-    }
-    async function setContentEditable(el, text, options) {
-      const { fastPathEnabled, logger, safeMode } = options;
-      if (safeMode) {
-        return runStrategies(el, [
-          { name: "insertText-safe", fallbackUsed: false, run: () => tryInsertText(el, text) },
-          { name: "insertText-safe-retry", fallbackUsed: true, run: () => tryInsertText(el, text) }
-        ], logger);
-      }
-      if (fastPathEnabled) {
-        return runStrategies(el, [
-          { name: "insertText-fast", fallbackUsed: false, run: () => tryInsertText(el, text) },
-          { name: "clipboard-paste", fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
-          { name: "datatransfer-paste", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
-          { name: "direct-dom", fallbackUsed: true, run: () => tryDirectDom(el, text) }
-        ], logger);
-      }
-      return runStrategies(el, [
-        { name: "clipboard-legacy", fallbackUsed: false, run: () => tryClipboardPaste(el, text) },
-        { name: "insertText-legacy", fallbackUsed: true, run: () => tryInsertText(el, text) },
-        { name: "datatransfer-legacy", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
-        { name: "direct-dom-legacy", fallbackUsed: true, run: () => tryDirectDom(el, text) }
-      ], logger);
-    }
-    const GEMINI_CHUNK_SIZE = 1200;
-    async function insertTextInChunks(el, text, options) {
-      const { logger } = options || {};
-      const len = text.length;
-      if (len <= 0) return;
-      if (len <= GEMINI_CHUNK_SIZE) {
-        document.execCommand("insertText", false, text);
-        return;
-      }
-      for (let i = 0; i < len; i += GEMINI_CHUNK_SIZE) {
-        const chunk = text.slice(i, i + GEMINI_CHUNK_SIZE);
-        document.execCommand("insertText", false, chunk);
-        await sleep(12);
-      }
-    }
-    async function setGeminiInput(el, text, options) {
-      const { logger } = options;
-      el.focus();
-      await sleep(40);
-      const richTextarea = el.closest("rich-textarea") || el.parentElement;
-      const quill = richTextarea?.__quill || el.__quill;
-      if (quill) {
-        quill.setText("");
-        if (text.length <= GEMINI_CHUNK_SIZE) {
-          quill.insertText(0, text, "user");
-        } else {
-          for (let i = 0; i < text.length; i += GEMINI_CHUNK_SIZE) {
-            const chunk = text.slice(i, i + GEMINI_CHUNK_SIZE);
-            quill.insertText(i, chunk, "user");
-            await sleep(10);
-          }
-        }
-        quill.setSelection(text.length, 0);
-        notifyGeminiFramework(el, text);
-        await sleep(30);
-        if (await verifyContentStrict(el, text, 300, 30)) {
-          return { strategy: "gemini-quill", fallbackUsed: false };
-        }
-        quill.setText("");
-        await sleep(16);
-      }
-      document.execCommand("selectAll", false, null);
-      document.execCommand("delete", false, null);
-      await insertTextInChunks(el, text, options);
-      if (await verifyContentStrict(el, text, 250, 25)) {
-        notifyGeminiFramework(el, text);
-        return { strategy: "gemini-insertText", fallbackUsed: Boolean(quill) };
-      }
-      document.execCommand("selectAll", false, null);
-      document.execCommand("delete", false, null);
-      await insertTextInChunks(el, text, options);
-      if (await verifyContentStrict(el, text, 250, 25)) {
-        notifyGeminiFramework(el, text);
-        return { strategy: "gemini-insertText-retry", fallbackUsed: true };
-      }
-      el.innerHTML = "";
-      const p = document.createElement("p");
-      p.textContent = text;
-      el.appendChild(p);
-      notifyGeminiFramework(el, text);
-      if (await verifyContentStrict(el, text, 200, 25)) {
-        return { strategy: "gemini-direct-dom", fallbackUsed: true };
-      }
-      logger.debug("gemini-inject-failed-after-fallbacks");
-      throw new Error("Gemini \u8F93\u5165\u6CE8\u5165\u5931\u8D25");
-    }
-    async function setYuanbaoInput(el, text, options) {
-      const { logger } = options || {};
-      el.focus();
-      await sleep(28);
-      const quill = el.__quill || el.closest(".ql-container")?.__quill || el.closest(".ql-editor")?.__quill;
-      if (quill) {
-        quill.setText("");
-        quill.insertText(0, text, "user");
-        quill.setSelection(text.length, 0);
-        el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
-        if (await verifyContent(el, text, 260, 25)) {
-          return { strategy: "yuanbao-quill", fallbackUsed: false };
-        }
-      }
-      return setContentEditable(el, text, options);
-    }
-    async function closeQianwenTaskAssistant() {
-      const allTags = document.querySelectorAll('[class*="tagBtn"][class*="selected"], [class*="tag"][aria-selected="true"]');
-      let tag = null;
-      for (const node of allTags) {
-        if (node.textContent && node.textContent.includes("\u4EFB\u52A1\u52A9\u7406")) {
-          tag = node;
-          break;
-        }
-      }
-      if (!tag) return;
-      const closeIcon = tag.querySelector('[data-icon-type*="close"]') || tag.querySelector("svg");
-      const target = closeIcon || tag;
-      target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
-      target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
-      target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-      await sleep(120);
-    }
+    const {
+      setReactValue,
+      setContentEditable,
+      setGeminiInput,
+      closeQianwenTaskAssistant,
+      qianwenInject,
+      kimiInject,
+      yuanbaoInject
+    } = createInjectionTools({
+      sleep,
+      waitForCheck,
+      normalizeText,
+      getContent
+    });
     async function pasteImageToInput(el, base64, mimeType, logger) {
       const blob = base64ToBlob(base64, mimeType);
       const ext = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
@@ -958,46 +1814,6 @@
       }
       return { success: false, strategy: "none" };
     }
-    async function setQianwenInput(el, text, options) {
-      const { logger } = options || {};
-      el.focus();
-      await sleep(20);
-      const slateNode = el.closest('[data-slate-editor="true"]') || el;
-      const fiberKey = Object.keys(slateNode).find((k) => k.startsWith("__reactFiber$") || k.startsWith("__reactInternalInstance$"));
-      if (fiberKey) {
-        try {
-          let fiber = slateNode[fiberKey];
-          for (let i = 0; i < 15 && fiber; i++) {
-            const editor = fiber.memoizedProps?.editor || fiber.stateNode?.editor;
-            if (editor && typeof editor.insertText === "function" && typeof editor.deleteFragment === "function") {
-              try {
-                editor.deleteFragment();
-              } catch (_) {
-              }
-              editor.insertText(text);
-              el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
-              if (await verifyContent(el, text)) {
-                return { strategy: "qianwen-slate-api", fallbackUsed: false };
-              }
-            }
-            fiber = fiber.return;
-          }
-        } catch (_) {
-        }
-      }
-      return runStrategies(el, [
-        { name: "qw-insertText", fallbackUsed: false, run: () => tryInsertText(el, text) },
-        { name: "qw-beforeinput", fallbackUsed: true, run: () => trySlateBeforeInput(el, text) },
-        { name: "qw-datatransfer", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
-        { name: "qw-clipboard", fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
-        { name: "qw-direct-dom", fallbackUsed: true, run: () => tryDirectDom(el, text) }
-      ], logger);
-    }
-    const qianwenInject = async (el, text, options) => {
-      await closeQianwenTaskAssistant();
-      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
-      return setQianwenInput(el, text, options);
-    };
     const qianwenSend = async (el) => {
       const selectorBtn = await findSendBtnForPlatform("qianwen");
       if (selectorBtn) {
@@ -1039,10 +1855,6 @@
         pressEnterOn(el);
       }
     };
-    const kimiInject = async (el, text, options) => {
-      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
-      return setContentEditable(el, text, options);
-    };
     const kimiSend = async (el) => {
       const selectorBtn = await findSendBtnForPlatform("kimi");
       if (selectorBtn) {
@@ -1064,10 +1876,6 @@
         el?.focus();
         pressEnterOn(el);
       }
-    };
-    const yuanbaoInject = async (el, text, options) => {
-      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
-      return setYuanbaoInput(el, text, options);
     };
     const yuanbaoSend = async (el, options) => {
       const logger = options?.logger;
@@ -1111,520 +1919,111 @@
       if (!sent) logger?.debug?.("yuanbao-send-no-change");
       return sent;
     };
+    const chatgptAdapter = createChatgptAdapter({
+      findInputForPlatform,
+      findInputHeuristically,
+      waitFor,
+      setReactValue,
+      setContentEditable,
+      findSendBtnForPlatform,
+      findSendBtnHeuristically,
+      pressEnterOn
+    });
+    const claudeAdapter = createClaudeAdapter({
+      findInputForPlatform,
+      findInputHeuristically,
+      waitFor,
+      setContentEditable,
+      findSendBtnForPlatform,
+      findSendBtnHeuristically,
+      pressEnterOn
+    });
+    const deepseekAdapter = createDeepseekAdapter({
+      findInputForPlatform,
+      findInputHeuristically,
+      waitFor,
+      setReactValue,
+      setContentEditable,
+      findSendBtnForPlatform,
+      findSendBtnHeuristically,
+      pressEnterOn
+    });
+    const geminiAdapter = createGeminiAdapter({
+      findInputForPlatform,
+      findInputHeuristically,
+      waitFor,
+      setGeminiInput,
+      sleep,
+      normalizeText,
+      getContent,
+      pressEnterOn,
+      findSendBtnForPlatform
+    });
+    const grokAdapter = createGrokAdapter({
+      findInputForPlatform,
+      waitFor,
+      setReactValue,
+      setContentEditable,
+      findSendBtnForPlatform,
+      normalizeText,
+      getContent,
+      sleep,
+      pressEnterOn,
+      isNodeDisabled
+    });
+    const mistralAdapter = createMistralAdapter({
+      findInputForPlatform,
+      findInputHeuristically,
+      waitFor,
+      setReactValue,
+      setContentEditable,
+      findSendBtnForPlatform,
+      findSendBtnHeuristically,
+      pressEnterOn
+    });
+    const doubaoAdapter = createDoubaoAdapter({
+      findInputForPlatform,
+      findInputHeuristically,
+      waitFor,
+      setReactValue,
+      setContentEditable,
+      findSendBtnForPlatform,
+      findSendBtnHeuristically,
+      pressEnterOn,
+      isDoubaoVerificationPage
+    });
+    const qianwenAdapter = createQianwenAdapter({
+      findInputForPlatform,
+      findInputHeuristically,
+      waitFor,
+      qianwenInject,
+      qianwenSend
+    });
+    const yuanbaoAdapter = createYuanbaoAdapter({
+      findInputForPlatform,
+      findInputHeuristically,
+      waitFor,
+      yuanbaoInject,
+      yuanbaoSend
+    });
+    const kimiAdapter = createKimiAdapter({
+      findInputForPlatform,
+      findInputHeuristically,
+      waitFor,
+      kimiInject,
+      kimiSend
+    });
     const platformAdapters = {
-      chatgpt: {
-        name: "ChatGPT",
-        findInput: async () => {
-          return await findInputForPlatform("chatgpt") || waitFor(() => findInputHeuristically());
-        },
-        async inject(el, text, options) {
-          if (el.tagName === "TEXTAREA") return setReactValue(el, text);
-          return setContentEditable(el, text, options);
-        },
-        async send(el) {
-          const btn = await findSendBtnForPlatform("chatgpt") || await waitFor(() => findSendBtnHeuristically(el), 4e3, 40);
-          if (btn) {
-            btn.click();
-            return;
-          }
-          const target = el || document.activeElement;
-          if (target) {
-            target.focus();
-            pressEnterOn(target);
-          } else pressEnterOn(null);
-        }
-      },
-      claude: {
-        name: "Claude",
-        findInput: async () => {
-          return await findInputForPlatform("claude") || waitFor(() => findInputHeuristically());
-        },
-        inject: (el, text, options) => setContentEditable(el, text, options),
-        async send(el) {
-          const btn = await findSendBtnForPlatform("claude") || await waitFor(() => findSendBtnHeuristically(el) || (() => {
-            const candidates = [
-              ...[...document.querySelectorAll("fieldset button, form button")]
-            ].filter(Boolean);
-            for (const candidate of candidates) {
-              if (candidate.disabled) continue;
-              const label = (candidate.getAttribute("aria-label") || "").toLowerCase();
-              if (label.includes("attach") || label.includes("file") || label.includes("upload")) continue;
-              if (candidate.querySelector("svg")) return candidate;
-            }
-            return null;
-          })(), 4e3, 40);
-          if (btn) {
-            btn.click();
-            return;
-          }
-          const input = el || document.activeElement;
-          if (input) {
-            input.focus();
-            pressEnterOn(input);
-          }
-        }
-      },
-      gemini: {
-        name: "Gemini",
-        findInput: async () => await findInputForPlatform("gemini") || waitFor(() => findInputHeuristically()),
-        inject: (el, text, options) => setGeminiInput(el, text, options),
-        async send(el, options) {
-          const logger = options?.logger;
-          await sleep(80);
-          const before = normalizeText(getContent(el));
-          const keySend = async () => {
-            const target = el || document.activeElement;
-            if (!target) return false;
-            target.focus();
-            pressEnterOn(target);
-            await sleep(220);
-            let after = normalizeText(getContent(target));
-            if (!before || after !== before) return true;
-            target.dispatchEvent(new KeyboardEvent("keydown", {
-              key: "Enter",
-              code: "Enter",
-              keyCode: 13,
-              which: 13,
-              bubbles: true,
-              cancelable: true,
-              composed: true,
-              ctrlKey: true
-            }));
-            await sleep(220);
-            after = normalizeText(getContent(target));
-            if (!before || after !== before) return true;
-            target.dispatchEvent(new KeyboardEvent("keydown", {
-              key: "Enter",
-              code: "Enter",
-              keyCode: 13,
-              which: 13,
-              bubbles: true,
-              cancelable: true,
-              composed: true,
-              metaKey: true
-            }));
-            await sleep(220);
-            after = normalizeText(getContent(target));
-            return !before || after !== before;
-          };
-          const directBtn = await findSendBtnForPlatform("gemini");
-          const btn = directBtn || await waitFor(() => {
-            const container = el?.closest("rich-textarea")?.parentElement?.parentElement || el?.closest(".input-area-container") || el?.closest('[role="complementary"]')?.parentElement;
-            if (container) {
-              for (const b of container.querySelectorAll("button:not([disabled])")) {
-                const hint = `${b.getAttribute("aria-label") || ""} ${b.getAttribute("mattooltip") || ""} ${b.getAttribute("title") || ""}`.toLowerCase();
-                if (hint.includes("send") || hint.includes("submit") || hint.includes("\u53D1\u9001") || hint.includes("\u63D0\u4EA4")) return b;
-              }
-            }
-            return null;
-          }, 6500, 50);
-          if (btn) {
-            btn.click();
-            if (!before) return true;
-            await sleep(220);
-            const afterClick = normalizeText(getContent(el));
-            if (afterClick !== before) return true;
-            logger?.debug("gemini-send-click-no-change");
-          } else {
-            logger?.debug("gemini-send-button-not-found", { hasInput: Boolean(el) });
-          }
-          const keySendOk = await keySend();
-          if (keySendOk) return true;
-          logger?.debug("gemini-send-failed-after-key-fallback");
-          return false;
-        }
-      },
-      grok: {
-        name: "Grok",
-        findInput: async () => {
-          const isVisibleInput = (el) => {
-            if (!el || el.disabled || el.readOnly) return false;
-            const style = window.getComputedStyle(el);
-            if (style.display === "none" || style.visibility === "hidden") return false;
-            const rect = el.getBoundingClientRect();
-            return rect.width > 120 && rect.height > 20 && rect.bottom > 0;
-          };
-          const collectRoots = () => {
-            const roots = [document];
-            const queue = [document.documentElement];
-            const seen = /* @__PURE__ */ new Set();
-            while (queue.length) {
-              const node = queue.shift();
-              if (!node || seen.has(node)) continue;
-              seen.add(node);
-              if (node.shadowRoot) roots.push(node.shadowRoot);
-              if (node.children) {
-                for (const child of node.children) queue.push(child);
-              }
-            }
-            return roots;
-          };
-          const pickBestInput = () => {
-            const candidates = [];
-            for (const root of collectRoots()) {
-              candidates.push(...root.querySelectorAll('textarea[placeholder], textarea, div[contenteditable="true"][role="textbox"], div[contenteditable="true"]'));
-            }
-            const unique = [];
-            const seen = /* @__PURE__ */ new Set();
-            for (const c of candidates) {
-              if (!c || seen.has(c)) continue;
-              seen.add(c);
-              unique.push(c);
-            }
-            const scoreInput = (el) => {
-              if (!isVisibleInput(el)) return -1;
-              const rect = el.getBoundingClientRect();
-              const placeholder = (el.getAttribute("placeholder") || "").toLowerCase();
-              const root = el.closest("form") || el.parentElement || document;
-              let score = 0;
-              if (placeholder.includes("ask") || placeholder.includes("mind") || placeholder.includes("message")) score += 6;
-              if (el.closest("form")) score += 4;
-              if (root.querySelector?.('button[type="submit"], button[aria-label*="Submit"], button[aria-label*="Send"], button[data-testid*="send"], [role="button"][aria-label*="Send"], [data-testid*="send"]')) score += 4;
-              if (rect.top > 40 && rect.top < window.innerHeight) score += 2;
-              score += Math.min(4, Math.round(rect.width / 300));
-              return score;
-            };
-            let best = null;
-            let bestScore = -1;
-            for (const candidate of unique) {
-              const score = scoreInput(candidate);
-              if (score > bestScore) {
-                bestScore = score;
-                best = candidate;
-              }
-            }
-            return bestScore >= 0 ? best : null;
-          };
-          const bySelectors = await findInputForPlatform("grok");
-          if (isVisibleInput(bySelectors)) return bySelectors;
-          return waitFor(() => pickBestInput(), 7e3, 60);
-        },
-        async inject(el, text, options) {
-          if (el.tagName === "TEXTAREA") return setReactValue(el, text);
-          return setContentEditable(el, text, options);
-        },
-        async send(el, options) {
-          const logger = options?.logger;
-          const sendTrace = {
-            matchedBy: "none",
-            clicked: false,
-            formSubmitted: false,
-            keyAttempts: [],
-            finalChanged: false
-          };
-          const isVisible = (node) => {
-            if (!node) return false;
-            const style = window.getComputedStyle(node);
-            if (style.display === "none" || style.visibility === "hidden") return false;
-            const rect = node.getBoundingClientRect();
-            return rect.width > 0 && rect.height > 0 && rect.bottom > 0;
-          };
-          const triggerClick = (node) => {
-            if (!node) return;
-            for (const evt of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
-              try {
-                node.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, composed: true }));
-              } catch (err) {
-              }
-            }
-            try {
-              node.click?.();
-            } catch (err) {
-            }
-          };
-          const roots = () => {
-            const list = [
-              el?.closest("form"),
-              el?.parentElement,
-              el?.closest('div[class*="input"]'),
-              el?.closest("main"),
-              document
-            ].filter(Boolean);
-            const uniq = [];
-            const seen = /* @__PURE__ */ new Set();
-            for (const root of list) {
-              if (seen.has(root)) continue;
-              seen.add(root);
-              uniq.push(root);
-            }
-            return uniq;
-          };
-          const tryFindBtn = () => {
-            const inputRect = el?.getBoundingClientRect ? el.getBoundingClientRect() : null;
-            for (const root of roots()) {
-              const buttons = root.querySelectorAll ? root.querySelectorAll('button, [role="button"], div[role="button"], span[role="button"], div[class*="send"], button[class*="send"]') : [];
-              let fallbackCandidate = null;
-              let proximityCandidate = null;
-              let proximityScore = -Infinity;
-              for (const button of buttons) {
-                if (!isVisible(button) || isNodeDisabled(button)) continue;
-                const hint = `${button.getAttribute("aria-label") || ""} ${button.getAttribute("title") || ""} ${button.getAttribute("data-testid") || ""} ${button.className || ""} ${(button.textContent || "").trim()}`.toLowerCase();
-                if (hint.includes("upload") || hint.includes("attach") || hint.includes("mic") || hint.includes("voice") || hint.includes("search") || hint.includes("plus")) continue;
-                if (hint.includes("submit") || hint.includes("send") || hint.includes("\u53D1\u9001") || hint.includes("\u63D0\u4EA4")) {
-                  sendTrace.matchedBy = "hint:sendish";
-                  return button;
-                }
-                if (!fallbackCandidate && (hint.includes("composer") || hint.includes("arrow") || hint.includes("paper-plane"))) {
-                  fallbackCandidate = button;
-                }
-                if (!inputRect || !button.getBoundingClientRect) continue;
-                const r = button.getBoundingClientRect();
-                const centerX = r.left + r.width / 2;
-                const centerY = r.top + r.height / 2;
-                const dx = centerX - (inputRect.left + inputRect.width);
-                const dy = centerY - (inputRect.top + inputRect.height / 2);
-                const nearHorizontally = dx >= -24 && dx <= 240;
-                const nearVertically = Math.abs(dy) <= 140;
-                if (!nearHorizontally || !nearVertically) continue;
-                let score = 0;
-                score -= Math.abs(dx) * 0.45;
-                score -= Math.abs(dy) * 0.25;
-                if (r.width >= 20 && r.width <= 72 && r.height >= 20 && r.height <= 72) score += 12;
-                if (button.querySelector?.("svg")) score += 8;
-                if ((button.textContent || "").trim().length === 0) score += 6;
-                if ((button.getAttribute("aria-label") || "").trim()) score += 4;
-                if (score > proximityScore) {
-                  proximityScore = score;
-                  proximityCandidate = button;
-                }
-              }
-              if (fallbackCandidate) {
-                sendTrace.matchedBy = "hint:fallback-candidate";
-                return fallbackCandidate;
-              }
-              if (proximityCandidate) {
-                sendTrace.matchedBy = "proximity";
-                return proximityCandidate;
-              }
-            }
-            const localScope = el?.closest("form") || el?.closest('[class*="composer"]') || el?.closest('[class*="input"]') || el?.parentElement?.parentElement || null;
-            if (localScope && inputRect) {
-              const nodes = localScope.querySelectorAll("*");
-              let best = null;
-              let bestScore = -Infinity;
-              for (const node of nodes) {
-                if (!isVisible(node) || isNodeDisabled(node)) continue;
-                if (node === el || node.contains?.(el)) continue;
-                const r = node.getBoundingClientRect();
-                if (r.width < 16 || r.height < 16 || r.width > 84 || r.height > 84) continue;
-                const centerX = r.left + r.width / 2;
-                const centerY = r.top + r.height / 2;
-                const dx = centerX - (inputRect.left + inputRect.width);
-                const dy = centerY - (inputRect.top + inputRect.height / 2);
-                if (dx < -30 || dx > 260 || Math.abs(dy) > 150) continue;
-                const hasSvg = Boolean(node.querySelector?.("svg,path,use"));
-                const hint = `${node.getAttribute?.("aria-label") || ""} ${node.getAttribute?.("data-testid") || ""} ${node.className || ""}`.toLowerCase();
-                if (!hasSvg && !hint.includes("send") && !hint.includes("submit") && !hint.includes("arrow")) continue;
-                let score = 0;
-                score -= Math.abs(dx) * 0.4;
-                score -= Math.abs(dy) * 0.3;
-                if (hasSvg) score += 14;
-                if (hint.includes("send") || hint.includes("submit") || hint.includes("arrow")) score += 10;
-                if (score > bestScore) {
-                  bestScore = score;
-                  best = node;
-                }
-              }
-              if (best) {
-                sendTrace.matchedBy = "scope:svg-proximity";
-                return best;
-              }
-            }
-            return null;
-          };
-          const selectorBtn = await findSendBtnForPlatform("grok");
-          const btn = selectorBtn || await waitFor(tryFindBtn, 3500, 40);
-          const target = el || document.activeElement;
-          const before = normalizeText(getContent(target));
-          const tryKeySend = async () => {
-            if (!target) return false;
-            target.focus();
-            const attempts = [
-              { ctrlKey: false, metaKey: false, tag: "enter" },
-              { ctrlKey: true, metaKey: false, tag: "ctrl-enter" },
-              { ctrlKey: false, metaKey: true, tag: "meta-enter" }
-            ];
-            for (const attempt of attempts) {
-              target.dispatchEvent(new KeyboardEvent("keydown", {
-                key: "Enter",
-                code: "Enter",
-                keyCode: 13,
-                which: 13,
-                bubbles: true,
-                cancelable: true,
-                composed: true,
-                ctrlKey: attempt.ctrlKey,
-                metaKey: attempt.metaKey
-              }));
-              target.dispatchEvent(new KeyboardEvent("keypress", {
-                key: "Enter",
-                code: "Enter",
-                keyCode: 13,
-                which: 13,
-                bubbles: true,
-                cancelable: true,
-                composed: true,
-                ctrlKey: attempt.ctrlKey,
-                metaKey: attempt.metaKey
-              }));
-              target.dispatchEvent(new KeyboardEvent("keyup", {
-                key: "Enter",
-                code: "Enter",
-                keyCode: 13,
-                which: 13,
-                bubbles: true,
-                cancelable: true,
-                composed: true,
-                ctrlKey: attempt.ctrlKey,
-                metaKey: attempt.metaKey
-              }));
-              await sleep(180);
-              const after2 = normalizeText(getContent(target));
-              sendTrace.keyAttempts.push(attempt.tag);
-              if (!before || after2 !== before) {
-                sendTrace.finalChanged = true;
-                return true;
-              }
-              logger?.debug("grok-send-key-no-change", { mode: attempt.tag });
-            }
-            return false;
-          };
-          const tryFormSubmit = async () => {
-            const form = target?.closest?.("form");
-            if (!form) return false;
-            try {
-              if (typeof form.requestSubmit === "function") form.requestSubmit();
-              else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-            } catch (err) {
-            }
-            sendTrace.formSubmitted = true;
-            await sleep(220);
-            const after2 = normalizeText(getContent(target));
-            const changed2 = !before || after2 !== before;
-            if (changed2) sendTrace.finalChanged = true;
-            return changed2;
-          };
-          if (btn) {
-            triggerClick(btn);
-            sendTrace.clicked = true;
-            await sleep(220);
-            const afterClick = normalizeText(getContent(target));
-            if (!before || afterClick !== before) {
-              sendTrace.finalChanged = true;
-              return true;
-            }
-            logger?.debug("grok-send-click-no-change");
-            const formSubmitOk = await tryFormSubmit();
-            if (formSubmitOk) return true;
-            const keySendOk2 = await tryKeySend();
-            if (keySendOk2) return true;
-            throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
-          }
-          if (!target) {
-            pressEnterOn(null);
-            return false;
-          }
-          const keySendOk = await tryKeySend();
-          if (keySendOk) return true;
-          pressEnterOn(target);
-          await sleep(180);
-          const after = normalizeText(getContent(target));
-          const changed = !before || after !== before;
-          if (changed) {
-            sendTrace.finalChanged = true;
-            return true;
-          }
-          throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
-        }
-      },
-      deepseek: {
-        name: "DeepSeek",
-        findInput: async () => await findInputForPlatform("deepseek") || waitFor(() => findInputHeuristically()),
-        inject: async (el, text, options) => {
-          if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
-          return setContentEditable(el, text, options);
-        },
-        async send(el) {
-          const selectorBtn = await findSendBtnForPlatform("deepseek");
-          const btn = selectorBtn || await waitFor(() => findSendBtnHeuristically(el), 3e3, 40);
-          if (btn) {
-            btn.click();
-            return;
-          }
-          if (el) {
-            el.focus();
-            pressEnterOn(el);
-          }
-        }
-      },
-      doubao: {
-        name: "Doubao",
-        findInput: async () => {
-          if (isDoubaoVerificationPage()) {
-            const err = new Error("\u8C46\u5305\u5F53\u524D\u5904\u4E8E\u4EBA\u673A\u9A8C\u8BC1\u9875\u9762\uFF0C\u8BF7\u5148\u5B8C\u6210\u9A8C\u8BC1\u540E\u518D\u91CD\u8BD5");
-            err.stage = "findInput";
-            throw err;
-          }
-          return await findInputForPlatform("doubao") || waitFor(() => findInputHeuristically());
-        },
-        async inject(el, text, options) {
-          if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
-          return setContentEditable(el, text, options);
-        },
-        async send(el) {
-          if (isDoubaoVerificationPage()) {
-            const err = new Error("\u8C46\u5305\u5F53\u524D\u5904\u4E8E\u4EBA\u673A\u9A8C\u8BC1\u9875\u9762\uFF0C\u8BF7\u5148\u5B8C\u6210\u9A8C\u8BC1\u540E\u518D\u91CD\u8BD5");
-            err.stage = "send";
-            throw err;
-          }
-          const btn = await findSendBtnForPlatform("doubao") || await waitFor(() => findSendBtnHeuristically(el), 3e3, 30);
-          if (btn) {
-            btn.click();
-            return;
-          }
-          if (el) {
-            el.focus();
-            pressEnterOn(el);
-          }
-        }
-      },
-      qianwen: {
-        name: "Qianwen",
-        findInput: async () => await findInputForPlatform("qianwen") || waitFor(() => findInputHeuristically()),
-        inject: qianwenInject,
-        send: qianwenSend
-      },
-      yuanbao: {
-        name: "Yuanbao",
-        findInput: async () => await findInputForPlatform("yuanbao") || waitFor(() => findInputHeuristically()),
-        inject: yuanbaoInject,
-        send: yuanbaoSend
-      },
-      kimi: {
-        name: "Kimi",
-        findInput: async () => await findInputForPlatform("kimi") || waitFor(() => findInputHeuristically()),
-        inject: kimiInject,
-        send: kimiSend
-      },
-      mistral: {
-        name: "Mistral",
-        findInput: async () => await findInputForPlatform("mistral") || waitFor(() => findInputHeuristically()),
-        inject: async (el, text, options) => {
-          if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
-          return setContentEditable(el, text, options);
-        },
-        async send(el) {
-          const btn = await findSendBtnForPlatform("mistral") || await waitFor(() => findSendBtnHeuristically(el), 4e3, 40);
-          if (btn) {
-            btn.click();
-            return;
-          }
-          if (el) {
-            el.focus();
-            pressEnterOn(el);
-          }
-        }
-      }
+      chatgpt: chatgptAdapter,
+      claude: claudeAdapter,
+      gemini: geminiAdapter,
+      grok: grokAdapter,
+      deepseek: deepseekAdapter,
+      doubao: doubaoAdapter,
+      qianwen: qianwenAdapter,
+      yuanbao: yuanbaoAdapter,
+      kimi: kimiAdapter,
+      mistral: mistralAdapter
     };
     const platformIdByDomainFallback = {
       "chatgpt.com": "chatgpt",
@@ -1678,7 +2077,7 @@
       "\u5F55\u97F3"
     ];
     let uploadHighlightTimer = null;
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    const runtimeMessageListener = (message, sender, sendResponse) => {
       if (message.type === MESSAGE_TYPES.PING) {
         const platform = getPlatform();
         sendResponse({ success: true, platform: platform ? platform.name : "Unknown" });
@@ -1950,6 +2349,21 @@
           }
         })();
         return true;
+      }
+    };
+    chrome.runtime.onMessage.addListener(runtimeMessageListener);
+    onCleanup(() => {
+      chrome.runtime.onMessage.removeListener(runtimeMessageListener);
+      if (uploadHighlightTimer) {
+        clearTimeout(uploadHighlightTimer);
+        uploadHighlightTimer = null;
+      }
+      invalidate();
+    });
+    onCleanup(() => {
+      try {
+        window.__aiBroadcastLoaded = false;
+      } catch (_) {
       }
     });
   }

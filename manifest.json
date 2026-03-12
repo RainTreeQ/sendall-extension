@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "default_locale": "en",
   "name": "__MSG_extName__",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "__MSG_extDescription__",
   "permissions": [
     "activeTab",
@@ -42,6 +42,33 @@
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://chat.mistral.ai/*",
+        "https://grok.com/*",
+        "https://*.deepseek.com/*",
+        "https://*.doubao.com/*",
+        "https://tongyi.aliyun.com/*",
+        "https://www.qianwen.com/*",
+        "https://qianwen.com/*",
+        "https://yuanbao.tencent.com/*",
+        "https://*.moonshot.cn/*",
+        "https://kimi.ai/*",
+        "https://kimi.com/*",
+        "https://*.kimi.com/*"
+      ],
+      "js": [
+        "shared/platform-registry.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

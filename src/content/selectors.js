@@ -1,3 +1,5 @@
+import { checkNavigation, getCached, invalidate, setCache } from './core/dom-cache.js';
+
 export const defaultSelectors = {
   chatgpt: {
     findInput: [
@@ -151,6 +153,15 @@ export const defaultSelectors = {
 
 let cachedSelectors = null;
 
+if (chrome.storage?.onChanged?.addListener) {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local') return;
+    if (!changes || !changes.aib_dynamic_selectors) return;
+    cachedSelectors = null;
+    invalidate();
+  });
+}
+
 function normalizeSelectorConfig(config) {
   return {
     findInput: Array.isArray(config?.findInput) ? config.findInput : [],
@@ -215,24 +226,42 @@ export async function getDynamicSelectors() {
 }
 
 export async function findInputForPlatform(platformId) {
+  checkNavigation();
+  const cacheKey = `${platformId}:input`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
   const selectors = await getDynamicSelectors();
   const list = selectors?.[platformId]?.findInput || [];
   for (const selector of list) {
     try {
       const found = document.querySelector(selector);
-      if (found) return found;
+      if (found) {
+        setCache(cacheKey, found);
+        return found;
+      }
     } catch (_) {}
   }
   return null;
 }
 
 export async function findSendBtnForPlatform(platformId) {
+  checkNavigation();
+  const cacheKey = `${platformId}:send`;
+  const cached = getCached(cacheKey);
+  if (cached && !cached.disabled && cached.getAttribute('aria-disabled') !== 'true') {
+    return cached;
+  }
+
   const selectors = await getDynamicSelectors();
   const list = selectors?.[platformId]?.findSendBtn || [];
   for (const selector of list) {
     try {
       const found = document.querySelector(selector);
-      if (found && !found.disabled && found.getAttribute('aria-disabled') !== 'true') return found;
+      if (found && !found.disabled && found.getAttribute('aria-disabled') !== 'true') {
+        setCache(cacheKey, found);
+        return found;
+      }
     } catch (_) {}
   }
   return null;
