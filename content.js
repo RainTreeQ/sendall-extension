@@ -1258,10 +1258,10 @@
     function setReactValue(el, value) {
       const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
       const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      const tracker = el._valueTracker;
+      if (tracker) tracker.setValue(el.value || "");
       if (setter) setter.call(el, value);
       else el.value = value;
-      const tracker = el._valueTracker;
-      if (tracker) tracker.setValue("");
       el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
       el.dispatchEvent(new Event("change", { bubbles: true }));
       return { strategy: "react-value", fallbackUsed: false };
@@ -1351,7 +1351,8 @@
       document.execCommand("delete", false, null);
       await sleep(8);
     }
-    async function runStrategies(el, strategyList, logger) {
+    async function runStrategies(el, strategyList, logger, opts = {}) {
+      const skipClear = Boolean(opts.skipClear);
       for (const strategy of strategyList) {
         try {
           if (await strategy.run()) {
@@ -1359,15 +1360,17 @@
             return { strategy: strategy.name, fallbackUsed: Boolean(strategy.fallbackUsed) };
           }
           logger.debug("inject-strategy-miss", { strategy: strategy.name });
-          await clearElement(el);
+          if (!skipClear) await clearElement(el);
         } catch (err) {
           logger.debug("inject-strategy-error", {
             strategy: strategy.name,
             error: err.message
           });
-          try {
-            await clearElement(el);
-          } catch (_) {
+          if (!skipClear) {
+            try {
+              await clearElement(el);
+            } catch (_) {
+            }
           }
         }
       }
@@ -1540,7 +1543,7 @@
         { name: "qw-datatransfer", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
         { name: "qw-clipboard", fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
         { name: "qw-direct-dom", fallbackUsed: true, run: () => tryDirectDom(el, text) }
-      ], logger);
+      ], logger, { skipClear: true });
     }
     const qianwenInject = async (el, text, options) => {
       await closeQianwenTaskAssistant();
