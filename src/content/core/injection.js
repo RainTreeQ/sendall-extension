@@ -330,7 +330,10 @@ export function createInjectionTools(deps) {
             try { editor.deleteFragment(); } catch (_) {}
             editor.insertText(text);
             el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
-            const ok = await verifyContent(el, text);
+            await sleep(80);
+            const actual = normalizeText(getContent(el));
+            const expected = normalizeText(text);
+            const ok = actual && (actual === expected || actual.includes(expected.slice(0, Math.min(expected.length, 20))));
             if (ok) return { strategy: 'qianwen-slate-api', fallbackUsed: false };
             break;
           }

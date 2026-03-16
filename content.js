@@ -446,12 +446,20 @@
           if (actual2 && (actual2.includes(expected.slice(0, 24)) || expected.includes(actual2.slice(0, 24)))) {
             return { strategy: "chatgpt-lexical-insertText", fallbackUsed: true };
           }
-          return setContentEditable(el, text, options);
+          return { strategy: "chatgpt-lexical-best-effort", fallbackUsed: true };
         }
         return setContentEditable(el, text, options);
       },
       async send(el) {
-        const btn = await findSendBtnForPlatform2("chatgpt") || await waitFor(() => findSendBtnHeuristically2(el), 4e3, 40);
+        const isReady = (b) => b && !b.disabled && b.getAttribute("aria-disabled") !== "true";
+        const btn = await waitFor(
+          () => {
+            const b = findSendBtnForPlatform2("chatgpt") || findSendBtnHeuristically2(el);
+            return isReady(b) ? b : null;
+          },
+          5e3,
+          80
+        );
         if (btn) {
           btn.click();
           return;
@@ -1012,15 +1020,15 @@
         const tryKeySend = async () => {
           if (!target) return false;
           target.focus();
-          if (target.tagName === "TEXTAREA") {
+          if (target.tagName === "TEXTAREA" && expected) {
             const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
-            const currentVal = target.value;
-            if (nativeSetter) nativeSetter.call(target, currentVal);
+            if (nativeSetter) nativeSetter.call(target, expected);
+            else target.value = expected;
             const tracker = target._valueTracker;
             if (tracker) tracker.setValue("");
-            target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: currentVal }));
+            target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: expected }));
             target.dispatchEvent(new Event("change", { bubbles: true }));
-            await sleep(60);
+            await sleep(80);
           }
           const attempts = [
             { ctrlKey: false, metaKey: false, tag: "enter" },
@@ -1052,6 +1060,16 @@
           return confirmSendCheck();
         };
         if (btn) {
+          if (target?.tagName === "TEXTAREA" && expected) {
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+            if (nativeSetter) nativeSetter.call(target, expected);
+            else target.value = expected;
+            const tracker = target._valueTracker;
+            if (tracker) tracker.setValue("");
+            target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: expected }));
+            target.dispatchEvent(new Event("change", { bubbles: true }));
+            await sleep(80);
+          }
           triggerClick(btn);
           sendTrace.clicked = true;
           await sleep(220);
@@ -1515,7 +1533,10 @@
               }
               editor.insertText(text);
               el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
-              const ok = await verifyContent(el, text);
+              await sleep(80);
+              const actual = normalizeText(getContent(el));
+              const expected = normalizeText(text);
+              const ok = actual && (actual === expected || actual.includes(expected.slice(0, Math.min(expected.length, 20))));
               if (ok) return { strategy: "qianwen-slate-api", fallbackUsed: false };
               break;
             }

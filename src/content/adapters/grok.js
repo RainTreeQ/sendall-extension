@@ -390,15 +390,15 @@ export function createGrokAdapter(deps) {
       const tryKeySend = async () => {
         if (!target) return false;
         target.focus();
-        if (target.tagName === 'TEXTAREA') {
+        if (target.tagName === 'TEXTAREA' && expected) {
           const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-          const currentVal = target.value;
-          if (nativeSetter) nativeSetter.call(target, currentVal);
+          if (nativeSetter) nativeSetter.call(target, expected);
+          else target.value = expected;
           const tracker = target._valueTracker;
           if (tracker) tracker.setValue('');
-          target.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: currentVal }));
+          target.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: expected }));
           target.dispatchEvent(new Event('change', { bubbles: true }));
-          await sleep(60);
+          await sleep(80);
         }
         const attempts = [
           { ctrlKey: false, metaKey: false, tag: 'enter' },
@@ -431,6 +431,16 @@ export function createGrokAdapter(deps) {
       };
 
       if (btn) {
+        if (target?.tagName === 'TEXTAREA' && expected) {
+          const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+          if (nativeSetter) nativeSetter.call(target, expected);
+          else target.value = expected;
+          const tracker = target._valueTracker;
+          if (tracker) tracker.setValue('');
+          target.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: expected }));
+          target.dispatchEvent(new Event('change', { bubbles: true }));
+          await sleep(80);
+        }
         triggerClick(btn);
         sendTrace.clicked = true;
         await sleep(220);

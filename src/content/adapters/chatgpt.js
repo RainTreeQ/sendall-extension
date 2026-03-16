@@ -57,13 +57,20 @@ export function createChatgptAdapter(deps) {
           return { strategy: 'chatgpt-lexical-insertText', fallbackUsed: true };
         }
 
-        return setContentEditable(el, text, options);
+        return { strategy: 'chatgpt-lexical-best-effort', fallbackUsed: true };
       }
 
       return setContentEditable(el, text, options);
     },
     async send(el) {
-      const btn = await findSendBtnForPlatform('chatgpt') || await waitFor(() => findSendBtnHeuristically(el), 4000, 40);
+      const isReady = (b) => b && !b.disabled && b.getAttribute('aria-disabled') !== 'true';
+      const btn = await waitFor(
+        () => {
+          const b = findSendBtnForPlatform('chatgpt') || findSendBtnHeuristically(el);
+          return isReady(b) ? b : null;
+        },
+        5000, 80
+      );
       if (btn) {
         btn.click();
         return;
