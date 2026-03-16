@@ -1,8 +1,7 @@
 /* global chrome */
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, ArrowUp, Check, ImagePlus, X } from 'lucide-react'
+import { RefreshCw, ArrowUp, Check, ImagePlus, X, Zap, MessageSquarePlus } from 'lucide-react'
 import { t } from '@/lib/i18n'
 import {
   clearDraftFromStorage,
@@ -805,26 +804,40 @@ export default function Popup() {
             />
             <div className="flex items-center justify-between px-3 pb-3">
               <div className="flex items-center gap-1.5">
-                <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors">
-                  <Switch
-                    checked={autoSend}
-                    onCheckedChange={(v) => {
-                      setAutoSend(v)
-                      void setPopupSettingsPatch({ autoSend: v })
-                    }}
-                  />
-                  <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{t('auto_send')}</span>
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors">
-                  <Switch
-                    checked={newChat}
-                    onCheckedChange={(v) => {
-                      setNewChat(v)
-                      void setPopupSettingsPatch({ newChat: v })
-                    }}
-                  />
-                  <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{t('new_chat')}</span>
-                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const v = !autoSend
+                    setAutoSend(v)
+                    void setPopupSettingsPatch({ autoSend: v })
+                  }}
+                  title={t('auto_send')}
+                  className={`flex items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
+                    autoSend
+                      ? 'bg-blue-100 text-blue-600 px-2.5 py-1.5 dark:bg-blue-500/25 dark:text-blue-400'
+                      : 'text-gray-500 hover:bg-gray-200/60 hover:text-gray-900 p-1.5 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100'
+                  }`}
+                >
+                  <Zap className="h-4 w-4" />
+                  {autoSend && <span className="text-[11px] font-semibold">{t('auto_send')}</span>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const v = !newChat
+                    setNewChat(v)
+                    void setPopupSettingsPatch({ newChat: v })
+                  }}
+                  title={t('new_chat')}
+                  className={`flex items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
+                    newChat
+                      ? 'bg-blue-100 text-blue-600 px-2.5 py-1.5 dark:bg-blue-500/25 dark:text-blue-400'
+                      : 'text-gray-500 hover:bg-gray-200/60 hover:text-gray-900 p-1.5 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100'
+                  }`}
+                >
+                  <MessageSquarePlus className="h-4 w-4" />
+                  {newChat && <span className="text-[11px] font-semibold">{t('new_chat')}</span>}
+                </button>
               </div>
               <div className="flex items-center gap-2">
                 <button

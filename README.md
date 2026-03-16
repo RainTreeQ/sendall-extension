@@ -26,6 +26,8 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-16 16:17 | v2.13.0 (MINOR) | Popup UI | `app/src/popup/Popup.jsx` <!-- auto:94b213bc4cd6 -->
+- 2026-03-16 16:16 | v2.12.0 (MINOR) | Popup UI | `app/src/popup/Popup.jsx` <!-- auto:5066b88d3d85 -->
 - 2026-03-16 15:03 | v2.11.9 (PATCH) | Core | `selectors.json`, `src/content/selectors.js` <!-- auto:35e816541370 -->
 - 2026-03-16 14:45 | v2.11.8 (PATCH) | Core | `.github/workflows/auto-fix-selectors.yml`, `.github/workflows/retry-failed.yml` <!-- auto:bc71c47c2c36 -->
 - 2026-03-16 14:41 | v2.11.7 (PATCH) | Core | `.github/workflows/auto-fix-selectors.yml` <!-- auto:f1a32c508036 -->
@@ -36,8 +38,6 @@
 - 2026-03-13 15:55 | v2.11.2 (PATCH) | Tooling | `scripts/discover-selectors.mjs`, `scripts/test-input-support.mjs` <!-- auto:46ff3d6d992f -->
 - 2026-03-13 15:43 | v2.11.1 (PATCH) | Tooling | `scripts/export-auth-state.mjs` <!-- auto:ddf4b54df87c -->
 - 2026-03-13 15:33 | v2.11.0 (MINOR) | Core / Popup UI / Background / Content Script / Tooling | `.github/workflows/auto-fix-selectors.yml`, `.github/workflows/retry-failed.yml`, `.gitignore`, `app/src/popup/Popup.jsx`, `background.js`, `content.js`, +9 <!-- auto:faf365cd50c7 -->
-- 2026-03-12 16:04 | v2.10.0 (MINOR) | Background | `background.js` <!-- auto:c98aa7de5324 -->
-- 2026-03-12 15:51 | v2.9.0 (MINOR) | Content Script / Manifest/Permissions / Core | `content.js`, `manifest.json`, `src/content/adapters/chatgpt.js`, `src/content/adapters/claude.js`, `src/content/adapters/deepseek.js`, `src/content/adapters/doubao.js`, +13 <!-- auto:f8ad4ef06b83 -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---
