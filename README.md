@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-16 16:48 | v2.16.0 (MINOR) | Manifest/Permissions / Core | `manifest.json`, `package.json` <!-- auto:0c8f1b2f947e -->
 - 2026-03-16 16:37 | v2.15.0 (MINOR) | Background / Content Script / Core | `background.js`, `content.js`, `src/content/core/utils.js`, `src/content/index.js`, `test-results.json` <!-- auto:3df9b82bd1ef -->
 - 2026-03-16 16:29 | v2.14.0 (MINOR) | Popup UI | `app/src/popup/Popup.jsx` <!-- auto:91dd9c02ddff -->
 - 2026-03-16 16:17 | v2.13.0 (MINOR) | Popup UI | `app/src/popup/Popup.jsx` <!-- auto:94b213bc4cd6 -->
@@ -37,7 +38,6 @@
 - 2026-03-16 14:28 | v2.11.5 (PATCH) | Core | `.github/workflows/auto-fix-selectors.yml`, `.github/workflows/e2e-monitor.yml`, `.github/workflows/retry-failed.yml` <!-- auto:0845865a50df -->
 - 2026-03-14 09:00 | v2.11.4 (PATCH) | Core | `.github/workflows/e2e-monitor.yml`, `.github/workflows/retry-failed.yml` <!-- auto:19843862dfd1 -->
 - 2026-03-13 16:04 | v2.11.3 (PATCH) | Tooling | `scripts/discover-selectors.mjs`, `scripts/test-input-support.mjs` <!-- auto:2b626a9fd634 -->
-- 2026-03-13 15:55 | v2.11.2 (PATCH) | Tooling | `scripts/discover-selectors.mjs`, `scripts/test-input-support.mjs` <!-- auto:46ff3d6d992f -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---

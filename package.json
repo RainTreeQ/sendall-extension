@@ -1,6 +1,6 @@
 {
   "name": "ai-broadcast-extension",
-  "version": "2.15.0",
+  "version": "2.16.0",
   "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
@@ -15,7 +15,7 @@
     "package:extension:min": "node scripts/package-extension.mjs --minify-runtime",
     "capture:screenshot": "node scripts/capture-popup-screenshot.mjs",
     "build:icons": "node scripts/build-icons.mjs",
-    "hooks:install": "git config --local core.hooksPath .githooks",
+    "hooks:install": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git config --local core.hooksPath .githooks || true",
     "release:stage": "npm run build:extension && npm run package:extension && git add -A app/dist-extension && git status --short -- app/dist-extension",
     "test:input": "node scripts/test-input-support.mjs",
     "test:popup": "node scripts/test-popup-ui.mjs",
