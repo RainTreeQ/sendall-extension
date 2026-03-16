@@ -105,11 +105,19 @@ export const defaultSelectors = {
     findInput: [
       'div[data-slate-editor="true"][contenteditable="true"]',
       'div[contenteditable="true"][role="textbox"]',
+      'textarea.message-input-textarea',
       'div[contenteditable="true"]',
       'textarea[placeholder]',
       'textarea'
     ],
-    findSendBtn: []
+    findSendBtn: [
+      '[data-icon-type="qwpcicon-sendChat"]',
+      'div[class*="operatebtn"]:not([class*="disabled"])',
+      'div.message-input-right-button-send button',
+      'div.message-input-right-button-send',
+      'button[aria-label*="发送"]',
+      'button[aria-label*="Send"]'
+    ]
   },
   yuanbao: {
     findInput: [
@@ -118,7 +126,14 @@ export const defaultSelectors = {
       'div[contenteditable="true"]',
       'textarea'
     ],
-    findSendBtn: []
+    findSendBtn: [
+      'a#yuanbao-send-btn',
+      'a[id*="send-btn"]',
+      'span.icon-send',
+      '[class*="send-btn"]:not([class*="disabled"])',
+      'button[aria-label*="发送"]',
+      'button[aria-label*="Send"]'
+    ]
   },
   kimi: {
     findInput: [
