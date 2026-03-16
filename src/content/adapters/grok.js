@@ -170,33 +170,8 @@ export function createGrokAdapter(deps) {
         return verifyAfterFlush(400);
       };
 
-      // Textarea fallback (Grok currently does not use textarea, but keep for safety)
       if (el.tagName === 'TEXTAREA') {
-        el.focus();
-        await sleep(30);
-        el.value = '';
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        await sleep(16);
-
-        setReactValue(el, text);
-        await sleep(80);
-        if (await verifyAfterFlush(200)) return { strategy: 'grok-react-value', fallbackUsed: false };
-
-        el.focus();
-        el.value = '';
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        await sleep(16);
-        for (let i = 0; i < text.length; i++) {
-          el.dispatchEvent(new KeyboardEvent('keydown', { key: text[i], bubbles: true }));
-          el.value += text[i];
-          el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text[i] }));
-          el.dispatchEvent(new KeyboardEvent('keyup', { key: text[i], bubbles: true }));
-          if (i % 20 === 19) await sleep(1);
-        }
-        await sleep(80);
-        if (await verifyAfterFlush(200)) return { strategy: 'grok-char-by-char', fallbackUsed: true };
-
-        throw new Error('Grok textarea 注入失败');
+        return setReactValue(el, text);
       }
 
       // ProseMirror / contenteditable path
@@ -233,8 +208,12 @@ export function createGrokAdapter(deps) {
 
       const triggerClick = (node) => {
         if (!node) return;
-        // Only use node.click() — dispatching click + calling .click() causes double submit.
-        try { node.click(); } catch (_) {}
+        for (const evt of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+          try {
+            node.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, composed: true }));
+          } catch (_) {}
+        }
+        try { node.click?.(); } catch (_) {}
       };
 
       const roots = () => {
@@ -357,29 +336,10 @@ export function createGrokAdapter(deps) {
       }
       const target = el || document.activeElement;
       const before = normalizeText(getContent(target));
-      const expected = normalizeText(options?.text || before);
-      const probe = expected.length >= 4 ? expected.slice(0, 24) : '';
-      const threadBefore = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || '').slice(0, 12000));
 
       const confirmSendCheck = () => {
         const after = normalizeText(getContent(target));
-        // Input was cleared after send
-        if (before && after.length === 0) return true;
-        // Input changed and button became disabled (generating)
-        if (before && after !== before && btn && isNodeDisabled(btn)) return true;
-        // For new chat: before may be empty. Check if input is now empty
-        // (ProseMirror clears it after submit) AND probe appears in thread.
-        if (!before && after.length === 0 && probe) {
-          const threadNow = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || '').slice(0, 12000));
-          if (threadNow.includes(probe)) return true;
-        }
-        // Probe appeared in thread (works for both new and existing chats)
-        if (probe) {
-          const threadNow = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || '').slice(0, 12000));
-          if (!threadBefore.includes(probe) && threadNow.includes(probe)) return true;
-        }
-        // For new chat: if before was the injected text and now it's empty, send happened
-        if (expected && before === expected && after.length === 0) return true;
+        if (!before || after !== before) return true;
         return false;
       };
 
@@ -395,25 +355,6 @@ export function createGrokAdapter(deps) {
         }
         return false;
       };
-
-      if (el?.tagName === 'TEXTAREA') {
-        el.focus();
-        await sleep(30);
-        el.dispatchEvent(new KeyboardEvent('keydown', {
-          key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-          bubbles: true, cancelable: true, composed: true
-        }));
-        el.dispatchEvent(new KeyboardEvent('keypress', {
-          key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-          bubbles: true, cancelable: true, composed: true
-        }));
-        el.dispatchEvent(new KeyboardEvent('keyup', {
-          key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-          bubbles: true, cancelable: true, composed: true
-        }));
-        sendTrace.keyAttempts.push('enter-textarea');
-        if (await waitForConfirm(3000)) return true;
-      }
 
       if (!btn) {
         throw new Error(`Grok发送未执行 matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(',') || 'none'}`);

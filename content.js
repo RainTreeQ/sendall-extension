@@ -825,28 +825,7 @@
           return verifyAfterFlush(400);
         };
         if (el.tagName === "TEXTAREA") {
-          el.focus();
-          await sleep(30);
-          el.value = "";
-          el.dispatchEvent(new Event("input", { bubbles: true }));
-          await sleep(16);
-          setReactValue(el, text);
-          await sleep(80);
-          if (await verifyAfterFlush(200)) return { strategy: "grok-react-value", fallbackUsed: false };
-          el.focus();
-          el.value = "";
-          el.dispatchEvent(new Event("input", { bubbles: true }));
-          await sleep(16);
-          for (let i = 0; i < text.length; i++) {
-            el.dispatchEvent(new KeyboardEvent("keydown", { key: text[i], bubbles: true }));
-            el.value += text[i];
-            el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text[i] }));
-            el.dispatchEvent(new KeyboardEvent("keyup", { key: text[i], bubbles: true }));
-            if (i % 20 === 19) await sleep(1);
-          }
-          await sleep(80);
-          if (await verifyAfterFlush(200)) return { strategy: "grok-char-by-char", fallbackUsed: true };
-          throw new Error("Grok textarea \u6CE8\u5165\u5931\u8D25");
+          return setReactValue(el, text);
         }
         try {
           if (await tryPasteEvent()) return { strategy: "grok-paste-event", fallbackUsed: false };
@@ -886,8 +865,14 @@
         };
         const triggerClick = (node) => {
           if (!node) return;
+          for (const evt of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+            try {
+              node.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, composed: true }));
+            } catch (_) {
+            }
+          }
           try {
-            node.click();
+            node.click?.();
           } catch (_) {
           }
         };
@@ -998,22 +983,9 @@
         }
         const target = el || document.activeElement;
         const before = normalizeText(getContent(target));
-        const expected = normalizeText(options?.text || before);
-        const probe = expected.length >= 4 ? expected.slice(0, 24) : "";
-        const threadBefore = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || "").slice(0, 12e3));
         const confirmSendCheck = () => {
           const after = normalizeText(getContent(target));
-          if (before && after.length === 0) return true;
-          if (before && after !== before && btn && isNodeDisabled(btn)) return true;
-          if (!before && after.length === 0 && probe) {
-            const threadNow = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || "").slice(0, 12e3));
-            if (threadNow.includes(probe)) return true;
-          }
-          if (probe) {
-            const threadNow = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || "").slice(0, 12e3));
-            if (!threadBefore.includes(probe) && threadNow.includes(probe)) return true;
-          }
-          if (expected && before === expected && after.length === 0) return true;
+          if (!before || after !== before) return true;
           return false;
         };
         const waitForConfirm = async (maxMs = 2e3) => {
@@ -1025,39 +997,6 @@
           }
           return false;
         };
-        if (el?.tagName === "TEXTAREA") {
-          el.focus();
-          await sleep(30);
-          el.dispatchEvent(new KeyboardEvent("keydown", {
-            key: "Enter",
-            code: "Enter",
-            keyCode: 13,
-            which: 13,
-            bubbles: true,
-            cancelable: true,
-            composed: true
-          }));
-          el.dispatchEvent(new KeyboardEvent("keypress", {
-            key: "Enter",
-            code: "Enter",
-            keyCode: 13,
-            which: 13,
-            bubbles: true,
-            cancelable: true,
-            composed: true
-          }));
-          el.dispatchEvent(new KeyboardEvent("keyup", {
-            key: "Enter",
-            code: "Enter",
-            keyCode: 13,
-            which: 13,
-            bubbles: true,
-            cancelable: true,
-            composed: true
-          }));
-          sendTrace.keyAttempts.push("enter-textarea");
-          if (await waitForConfirm(3e3)) return true;
-        }
         if (!btn) {
           throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
         }
