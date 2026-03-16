@@ -825,7 +825,42 @@
           return verifyAfterFlush(400);
         };
         if (el.tagName === "TEXTAREA") {
-          return setReactValue(el, text);
+          el.focus();
+          await sleep(20);
+          const fiberKey = Object.keys(el).find(
+            (k) => k.startsWith("__reactFiber$") || k.startsWith("__reactInternalInstance$")
+          );
+          if (fiberKey) {
+            try {
+              let fiber = el[fiberKey];
+              for (let i = 0; i < 20 && fiber; i++) {
+                const onChange = fiber.memoizedProps?.onChange || fiber.pendingProps?.onChange;
+                if (typeof onChange === "function") {
+                  const nativeSetter = Object.getOwnPropertyDescriptor(
+                    window.HTMLTextAreaElement.prototype,
+                    "value"
+                  )?.set;
+                  if (nativeSetter) nativeSetter.call(el, text);
+                  else el.value = text;
+                  const tracker = el._valueTracker;
+                  if (tracker) tracker.setValue("");
+                  onChange({ target: el, currentTarget: el, type: "change", bubbles: true });
+                  el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+                  el.dispatchEvent(new Event("change", { bubbles: true }));
+                  await sleep(80);
+                  if (normalizeText(getContent(el)) === normalizeText(text)) {
+                    return { strategy: "grok-react-fiber", fallbackUsed: false };
+                  }
+                  break;
+                }
+                fiber = fiber.return;
+              }
+            } catch (_) {
+            }
+          }
+          setReactValue(el, text);
+          await sleep(80);
+          return { strategy: "grok-react-value", fallbackUsed: false };
         }
         try {
           if (await tryPasteEvent()) return { strategy: "grok-paste-event", fallbackUsed: false };
