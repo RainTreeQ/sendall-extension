@@ -20,23 +20,8 @@ export function createChatgptAdapter(deps) {
     },
     async inject(el, text, options) {
       if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
-        el.focus();
-        await sleep(30);
-        el.select();
-        el.dispatchEvent(new InputEvent('beforeinput', {
-          inputType: 'insertText',
-          data: text,
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        }));
         setReactValue(el, text);
-        await sleep(60);
-        const actual = normalizeText(getContent(el));
-        const expected = normalizeText(text);
-        if (actual && (actual.includes(expected.slice(0, Math.min(expected.length, 24))) || expected.includes(actual.slice(0, 24)))) {
-          return { strategy: 'chatgpt-react-value', fallbackUsed: false };
-        }
+        return { strategy: 'chatgpt-react-value', fallbackUsed: false };
       }
 
       const isLexical = el.hasAttribute('data-lexical-editor') || el.closest('[data-lexical-editor]');
@@ -71,6 +56,8 @@ export function createChatgptAdapter(deps) {
         if (actual2 && (actual2.includes(expected.slice(0, 24)) || expected.includes(actual2.slice(0, 24)))) {
           return { strategy: 'chatgpt-lexical-insertText', fallbackUsed: true };
         }
+
+        return setContentEditable(el, text, options);
       }
 
       return setContentEditable(el, text, options);
