@@ -63,10 +63,11 @@ export function createChatgptAdapter(deps) {
       return setContentEditable(el, text, options);
     },
     async send(el) {
+      const selectorCandidate = await findSendBtnForPlatform('chatgpt');
       const isReady = (b) => b && !b.disabled && b.getAttribute('aria-disabled') !== 'true';
       const btn = await waitFor(
         () => {
-          const b = findSendBtnForPlatform('chatgpt') || findSendBtnHeuristically(el);
+          const b = selectorCandidate || findSendBtnHeuristically(el);
           return isReady(b) ? b : null;
         },
         5000, 80

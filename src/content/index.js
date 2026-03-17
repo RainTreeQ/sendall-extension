@@ -316,9 +316,25 @@ if (!window.__aiBroadcastLoaded) {
         const nodes = root.querySelectorAll('button, [role="button"]');
         for (const node of nodes) {
           if (isBtnDisabled(node)) continue;
-          const hint = `${node.getAttribute('aria-label') || ''} ${node.getAttribute('title') || ''} ${(node.textContent || '').trim()}`.toLowerCase();
+          const hint = `${node.getAttribute('aria-label') || ''} ${node.getAttribute('title') || ''} ${node.getAttribute('data-icon-type') || ''} ${(node.textContent || '').trim()}`.toLowerCase();
           if (hint.includes('登录') || hint.includes('log in') || hint.includes('上传') || hint.includes('attach') || hint.includes('搜索') || hint.includes('search')) continue;
-          if (hint.includes('发送') || hint.includes('send') || hint.includes('提交') || hint.includes('submit')) return node;
+          if (hint.includes('发送') || hint.includes('send') || hint.includes('提交') || hint.includes('submit') || hint.includes('sendchat')) return node;
+        }
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const allBtns = document.querySelectorAll('button:not([disabled]), [role="button"]');
+          let best = null, bestScore = -Infinity;
+          for (const b of allBtns) {
+            if (isBtnDisabled(b)) continue;
+            const br = b.getBoundingClientRect();
+            const dx = (br.left + br.width / 2) - (rect.left + rect.width);
+            const dy = (br.top + br.height / 2) - (rect.top + rect.height / 2);
+            if (dx < -20 || dx > 300 || Math.abs(dy) > 120) continue;
+            if (!b.querySelector('svg') && !(b.textContent || '').trim()) continue;
+            const score = -Math.abs(dx) * 0.5 - Math.abs(dy) * 0.3;
+            if (score > bestScore) { bestScore = score; best = b; }
+          }
+          if (best) return best;
         }
         return null;
       };
@@ -339,7 +355,8 @@ if (!window.__aiBroadcastLoaded) {
     const kimiSend = async (el) => {
       const selectorBtn = await findSendBtnForPlatform('kimi');
       if (selectorBtn) {
-        selectorBtn.click();
+        const innerBtn = selectorBtn.tagName !== 'BUTTON' ? selectorBtn.querySelector('button') : null;
+        (innerBtn || selectorBtn).click();
         return;
       }
       const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
@@ -448,15 +465,16 @@ if (!window.__aiBroadcastLoaded) {
 
     const grokAdapter = createGrokAdapter({
       findInputForPlatform,
+      findInputHeuristically,
       waitFor,
       setReactValue,
       setContentEditable,
       findSendBtnForPlatform,
+      findSendBtnHeuristically,
       normalizeText,
       getContent,
       sleep,
-      pressEnterOn,
-      isNodeDisabled
+      pressEnterOn
     });
 
     const mistralAdapter = createMistralAdapter({

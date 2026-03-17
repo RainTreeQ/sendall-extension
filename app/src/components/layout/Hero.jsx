@@ -2,7 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUpRight, Coins, Crown, Globe, HandHeart, Languages, MoonStar, ShieldCheck, Sparkles, SunMoon, Wallet } from "lucide-react";
+import { Claude, DeepSeek, Doubao, Gemini, Kimi, Mistral, OpenAI, Yuanbao } from "@lobehub/icons";
 import { useSiteSettings } from "@/lib/site-settings";
+import { HeroShapeGrid } from "@/components/landing/HeroShapeGrid";
 
 const COPY = {
   "zh-CN": {
@@ -52,7 +54,7 @@ const COPY = {
     languagePractice3: "如果遇到暂未翻译的语种，将自动回退为英文。",
     languagePractice4: "界面和演示截图均支持 System / Light / Dark 模式实时切换。",
     roadmapTitle: "计划支持的语言",
-    roadmapDesc: "当前优先打磨中文与英文体验，后续将逐步扩展更多语种。",
+    roadmapDesc: "后续将持续添加更多语言支持，并不断完善本地化体验。",
     supportTitle: "适用场景",
     supportDesc: "专为需要同时向多个 AI 提问的高效工作者设计。",
     supportBody1: "极具竞争力的工具，适用于写作、研发、运营等多平台并行提问。",
@@ -109,7 +111,7 @@ const COPY = {
     languagePractice3: "Seamlessly falls back to English for unsupported languages.",
     languagePractice4: "Full support for System / Light / Dark themes, complete with synchronized screenshots.",
     roadmapTitle: "Upcoming Languages",
-    roadmapDesc: "Focusing on top-tier English and Chinese experiences first before expanding.",
+    roadmapDesc: "We will continue to add support for more languages and improve localization.",
     supportTitle: "Perfect For...",
     supportDesc: "Designed for power users who consult multiple AI models simultaneously.",
     supportBody1: "Ideal for coding, writing, and research tasks requiring parallel AI assistance.",
@@ -119,39 +121,397 @@ const COPY = {
     supportCtaBody1: "Try the free Community version first to see how it transforms your workflow.",
     supportCtaBody2: "Feel free to support our ongoing development via feedback or sponsorship.",
   },
+  "zh-TW": {
+    heroBadge: "Chrome / Edge 瀏覽器擴展",
+    title1: "一次輸入，",
+    title2: "同時對比不同 AI 的回答",
+    subtitle:
+      "Sendol 幫你把多個 AI 平台聚合在一個彈窗中。只需輸入一次，即可一鍵多發，同時支援自動發送與開啟新對話。",
+    ctaPricing: "查看收費方案",
+    ctaSupport: "支持項目",
+    ctaInstall: "安裝與使用指南",
+    statPlatforms: "支援平台",
+    statMode: "發送模式",
+    statDraft: "草稿保護",
+    statModeValue: "手動/自動/新對話",
+    statDraftValue: "意外關閉自動恢復",
+    popupScreenshotAlt: "Sendol 擴展彈窗演示",
+    featureTitle: "核心功能",
+    featureDesc: "化繁為簡：輸入、勾選、發送，就這麼簡單。",
+    featureOneTitle: "一次輸入，多端同步",
+    featureOneBody: "告別在多個 AI 平台間的繁瑣複製貼上，讓提問更高效。",
+    featureTwoTitle: "狀態可視，發送無憂",
+    featureTwoBody: "智能識別當前已打開的 AI 標籤頁，並清晰展示發送狀態及錯誤提示。",
+    featureThreeTitle: "草稿保護，內容不丟",
+    featureThreeBody: "即使彈窗意外關閉或發生中斷，未發送的草稿也會被優先恢復。",
+    pricingTitle: "免費可用，靈活升級",
+    pricingDesc: "社區版即可滿足日常核心需求，Pro 版為您解鎖更強大的效率工具。",
+    communityTitle: "社區版",
+    communityDesc: "完全免費 / 核心開源",
+    communityBody1: "包含基礎廣播、自動發送及草稿保護功能。",
+    communityBody2: "滿足個人輕量化、高頻次的提問需求。",
+    communityBtn: "查看開源代碼",
+    proTitle: "專業版",
+    proDesc: "預計定價: ¥19/月 或 ¥149/年",
+    proBody1: "即將推出：提示詞模板、內容整理筆記、歷史記錄、自定義規則、以上支持本地保存。",
+    proBody2: "享受平台改版的優先適配服務，確保工作流不中斷。",
+    proBtn: "加入 Pro 候補名單",
+    sponsorTitle: "贊助支持",
+    sponsorDesc: "用愛發電 / 支持獨立開發者",
+    sponsorBody1: "如果您覺得這個工具對您有幫助，歡迎以贊助的方式支持項目維護。",
+    sponsorBody2: "您的支持將成為產品持續迭代的最大動力。",
+    sponsorBtn: "前往贊助頁面",
+    languageTitle: "多語言與深色模式",
+    languageDesc: "界面提供多語言支持，並支援自動跟隨系統切換深淺色模式。",
+    languagePractice1: "初次使用會自動匹配您的瀏覽器語言設置。",
+    languagePractice2: "可通過頂部菜單手動切換語言，偏好會自動保存。",
+    languagePractice3: "如果遇到暫未翻譯的語種，將自動回退為英文。",
+    languagePractice4: "界面和演示截圖均支援 System / Light / Dark 模式實時切換。",
+    roadmapTitle: "計劃支持的語言",
+    roadmapDesc: "後續將持續添加更多語言支援，並不斷完善本地化體驗。",
+    supportTitle: "適用場景",
+    supportDesc: "專為需要同時向多個 AI 提問的高效工作者設計。",
+    supportBody1: "極具競爭力的工具，適用於寫作、研發、運營等多平台並行提問。",
+    supportBody2: "快速將同一個問題發給多個大模型，直觀對比並獲取最佳回答。",
+    supportCtaTitle: "即刻開始",
+    supportCtaDesc: "零配置上手：安裝擴展後，只需打開所需的 AI 頁面即可使用。",
+    supportCtaBody1: "建議先用社區版體驗流暢工作流，如有進階需求再考慮升級。",
+    supportCtaBody2: "隨時歡迎通過反饋或贊助來支持我們的持續迭代。",
+  },
+  "ja": {
+    heroBadge: "Chrome / Edge 拡張機能",
+    title1: "一度の入力で、",
+    title2: "すべての AI に同時質問",
+    subtitle:
+      "Sendol は複数の AI タブを1つのポップアップに統合します。一度の入力で一斉送信でき、自動送信や新しいチャットもサポートします。",
+    ctaPricing: "料金プラン",
+    ctaSupport: "プロジェクトを支援",
+    ctaInstall: "インストールと使い方",
+    statPlatforms: "対応プラットフォーム",
+    statMode: "送信モード",
+    statDraft: "下書き保護",
+    statModeValue: "手動/自動/新規",
+    statDraftValue: "閉じた時に自動復元",
+    popupScreenshotAlt: "Sendol 拡張機能のUI",
+    featureTitle: "主な機能",
+    featureDesc: "シンプルさを追求：入力、選択、送信、それだけです。",
+    featureOneTitle: "一度の入力で複数に同期",
+    featureOneBody: "AI プラットフォーム間での面倒なコピペ作業から解放され、より効率的に質問できます。",
+    featureTwoTitle: "送信ステータスが明確",
+    featureTwoBody: "開いている AI タブを自動検出し、送信状況やエラーをわかりやすく表示します。",
+    featureThreeTitle: "下書き保護で安心",
+    featureThreeBody: "ポップアップを誤って閉じても、未送信の下書きは自動的に保存・復元されます。",
+    pricingTitle: "無料の基本機能、柔軟なアップグレード",
+    pricingDesc: "日常的なニーズにはコミュニティ版で十分です。Pro 版ではさらに強力な効率化ツールを利用できます。",
+    communityTitle: "コミュニティ版",
+    communityDesc: "完全無料 / オープンソース",
+    communityBody1: "一斉送信、自動送信、下書き保護の基本機能が含まれます。",
+    communityBody2: "個人の軽量かつ高頻度な利用に最適です。",
+    communityBtn: "GitHub で見る",
+    proTitle: "Pro 版",
+    proDesc: "予定価格: $5/月 または $49/年",
+    proBody1: "近日公開: テンプレート、ノート、履歴、カスタムルール。すべてローカル保存。",
+    proBody2: "AI プラットフォームの UI 変更に優先的に対応し、作業の中断を防ぎます。",
+    proBtn: "Pro 版のウェイティングリストに参加",
+    sponsorTitle: "スポンサー",
+    sponsorDesc: "開発者を支援",
+    sponsorBody1: "このツールが役立つと感じたら、プロジェクトの維持のために支援をお願いします。",
+    sponsorBody2: "皆様の支援が製品の継続的なアップデートの最大の原動力となります。",
+    sponsorBtn: "スポンサーページへ",
+    languageTitle: "多言語とダークモード",
+    languageDesc: "安定した多言語対応と、ライト/ダークモードの自動切り替え機能。",
+    languagePractice1: "初回利用時はブラウザの言語設定に自動で合わせます。",
+    languagePractice2: "ヘッダーから簡単に言語を切り替えられ、設定は保存されます。",
+    languagePractice3: "未対応の言語の場合は、自動的に英語にフォールバックします。",
+    languagePractice4: "UI とスクリーンショットは System / Light / Dark テーマに対応しています。",
+    roadmapTitle: "対応予定の言語",
+    roadmapDesc: "今後も引き続き多くの言語を追加し、ローカリゼーションを改善していきます。",
+    supportTitle: "こんな方におすすめ",
+    supportDesc: "複数の AI モデルを同時に利用するパワーユーザー向けに設計されています。",
+    supportBody1: "執筆、開発、リサーチなど、並行して AI の支援が必要な作業に最適です。",
+    supportBody2: "異なるモデルの回答を素早く比較し、最良の答えを見つけることができます。",
+    supportCtaTitle: "今すぐ始める",
+    supportCtaDesc: "設定は不要：拡張機能をインストールし、必要な AI タブを開くだけです。",
+    supportCtaBody1: "まずは無料のコミュニティ版でスムーズなワークフローを体験してください。",
+    supportCtaBody2: "フィードバックやスポンサー支援での応援をお待ちしております。",
+  },
+  "ko": {
+    heroBadge: "Chrome / Edge 확장 프로그램",
+    title1: "한 번의 입력으로,",
+    title2: "모든 AI에게 동시 질문",
+    subtitle:
+      "Sendol은 여러 AI 탭을 하나의 팝업으로 통합합니다. 한 번만 입력하여 모든 AI에 전송할 수 있으며, 자동 전송 및 새 채팅 시작도 지원합니다.",
+    ctaPricing: "가격 확인",
+    ctaSupport: "프로젝트 후원",
+    ctaInstall: "설치 및 사용 가이드",
+    statPlatforms: "지원 플랫폼",
+    statMode: "전송 모드",
+    statDraft: "초안 보호",
+    statModeValue: "수동/자동/신규",
+    statDraftValue: "종료 시 자동 복구",
+    popupScreenshotAlt: "Sendol 확장 프로그램 팝업",
+    featureTitle: "주요 기능",
+    featureDesc: "가장 단순한 워크플로우: 입력, 선택, 그리고 전송.",
+    featureOneTitle: "한 번 입력으로 여러 곳에 동기화",
+    featureOneBody: "AI 플랫폼 간의 번거로운 복사-붙여넣기 없이 더 효율적으로 질문하세요.",
+    featureTwoTitle: "명확한 전송 상태",
+    featureTwoBody: "열려있는 AI 탭을 자동으로 감지하고, 전송 상태 및 오류를 명확하게 표시합니다.",
+    featureThreeTitle: "안전한 초안 복구",
+    featureThreeBody: "팝업이 예기치 않게 닫혀도 전송하지 않은 초안은 자동으로 저장되고 복구됩니다.",
+    pricingTitle: "무료 핵심 기능, 유연한 업그레이드",
+    pricingDesc: "커뮤니티 버전으로 일상적인 요구를 모두 충족하세요. Pro 버전으로 더 강력한 기능을 만나볼 수 있습니다.",
+    communityTitle: "커뮤니티 버전",
+    communityDesc: "완전 무료 / 오픈 소스",
+    communityBody1: "핵심 동시 전송, 자동 전송 및 초안 보호 기능이 포함됩니다.",
+    communityBody2: "개인적이고 가벼운 고빈도 사용에 적합합니다.",
+    communityBtn: "GitHub에서 보기",
+    proTitle: "Pro 버전",
+    proDesc: "예상 가격: $5/월 또는 $49/년",
+    proBody1: "출시 예정: 프롬프트 템플릿, 노트, 기록, 사용자 지정 규칙 (모두 로컬에 저장).",
+    proBody2: "AI 플랫폼의 UI 변경에 대한 우선 업데이트를 제공하여 작업 중단을 방지합니다.",
+    proBtn: "Pro 대기자 명단 참여",
+    sponsorTitle: "스폰서",
+    sponsorDesc: "개발자 후원",
+    sponsorBody1: "이 도구가 유용하다면 프로젝트 유지를 위해 후원해 주세요.",
+    sponsorBody2: "여러분의 후원은 지속적인 제품 업데이트의 가장 큰 원동력이 됩니다.",
+    sponsorBtn: "스폰서 페이지로 이동",
+    languageTitle: "다국어 및 다크 모드",
+    languageDesc: "안정적인 다국어 지원과 자동 라이트/다크 모드를 제공합니다.",
+    languagePractice1: "처음 사용할 때는 브라우저의 언어 설정에 자동으로 맞춰집니다.",
+    languagePractice2: "상단 메뉴에서 언어를 쉽게 전환할 수 있으며, 설정은 저장됩니다.",
+    languagePractice3: "지원되지 않는 언어의 경우 자동으로 영어로 표시됩니다.",
+    languagePractice4: "인터페이스 및 스크린샷은 시스템 / 라이트 / 다크 테마를 실시간으로 지원합니다.",
+    roadmapTitle: "지원 예정 언어",
+    roadmapDesc: "앞으로 계속해서 더 많은 언어를 추가하고 현지화 환경을 개선할 예정입니다.",
+    supportTitle: "이런 분들께 추천",
+    supportDesc: "여러 AI 모델을 동시에 활용해야 하는 파워 유저를 위해 설계되었습니다.",
+    supportBody1: "글쓰기, 개발, 리서치 등 AI의 병렬 지원이 필요한 작업에 이상적입니다.",
+    supportBody2: "서로 다른 모델의 답변을 빠르게 비교하고 최선의 결과를 얻을 수 있습니다.",
+    supportCtaTitle: "지금 시작하기",
+    supportCtaDesc: "설정 불필요: 확장 프로그램을 설치하고 원하는 AI 탭을 열기만 하면 됩니다.",
+    supportCtaBody1: "먼저 무료 커뮤니티 버전으로 원활한 워크플로우를 경험해 보세요.",
+    supportCtaBody2: "피드백이나 후원을 통해 지속적인 개발을 언제든 응원해 주세요.",
+  },
+  "es": {
+    heroBadge: "Extensión para Chrome / Edge",
+    title1: "Escribe una vez,",
+    title2: "Pregunta a cada AI al instante",
+    subtitle:
+      "Sendol reúne tus pestañas de IA favoritas en una ventana emergente. Escribe tu mensaje una vez y envíalo a todas partes, con envío automático y nuevos chats.",
+    ctaPricing: "Ver Precios",
+    ctaSupport: "Apoyar el proyecto",
+    ctaInstall: "Guía de instalación",
+    statPlatforms: "Plataformas",
+    statMode: "Modos de envío",
+    statDraft: "Protección de borrador",
+    statModeValue: "Manual/Auto/Nuevo",
+    statDraftValue: "Auto-restauración al cerrar",
+    popupScreenshotAlt: "Interfaz de la extensión Sendol",
+    featureTitle: "Características principales",
+    featureDesc: "Manteniéndolo maravillosamente simple: escribe, selecciona y envía.",
+    featureOneTitle: "Un Mensaje, Múltiples IA",
+    featureOneBody: "Deja de copiar y pegar entre pestañas. Envía tu mensaje a múltiples plataformas de IA al instante.",
+    featureTwoTitle: "Estado de envío claro",
+    featureTwoBody: "Detecta automáticamente las pestañas de IA abiertas y proporciona comentarios transparentes sobre el estado.",
+    featureThreeTitle: "Recuperación fiable de borradores",
+    featureThreeBody: "¿Cerraste la ventana accidentalmente? Tus borradores no enviados se guardan y restauran automáticamente.",
+    pricingTitle: "Núcleo gratuito, Opciones Pro",
+    pricingDesc: "La versión Community cubre todas tus necesidades. Actualiza a Pro para una productividad avanzada.",
+    communityTitle: "Community",
+    communityDesc: "Gratis / Código abierto",
+    communityBody1: "Incluye transmisión principal, envío automático y guardado fiable de borradores.",
+    communityBody2: "Perfecto para uso personal, ligero y de alta frecuencia.",
+    communityBtn: "Ver en GitHub",
+    proTitle: "Pro",
+    proDesc: "Precio esperado: $5/mes o $49/año",
+    proBody1: "Próximamente: Plantillas, notas, historial y reglas personalizadas. Todo guardado localmente.",
+    proBody2: "Actualizaciones prioritarias para adaptarse a los cambios de la interfaz de la IA.",
+    proBtn: "Unirse a la lista de espera Pro",
+    sponsorTitle: "Patrocinador",
+    sponsorDesc: "Apoya al desarrollador",
+    sponsorBody1: "¿Te encanta la herramienta? El patrocinio directo ayuda a mantener y mejorar el proyecto.",
+    sponsorBody2: "Tus contribuciones son la mayor fuerza impulsora para nuestro desarrollo continuo.",
+    sponsorBtn: "Patrocinar proyecto",
+    languageTitle: "Idiomas y Temas",
+    languageDesc: "Disfruta de una experiencia coherente con soporte multilingüe y modo claro/oscuro.",
+    languagePractice1: "Utiliza por defecto el idioma preferido de tu navegador.",
+    languagePractice2: "Cambia fácilmente de idioma en el encabezado, recordaremos tu elección.",
+    languagePractice3: "Vuelve al inglés sin problemas para idiomas no compatibles.",
+    languagePractice4: "Soporte completo para temas del sistema / claro / oscuro en toda la interfaz.",
+    roadmapTitle: "Próximos Idiomas",
+    roadmapDesc: "Continuaremos añadiendo soporte para más idiomas en el futuro.",
+    supportTitle: "Perfecto para...",
+    supportDesc: "Diseñado para usuarios avanzados que consultan múltiples modelos de IA simultáneamente.",
+    supportBody1: "Ideal para programación, redacción e investigación que requieren asistencia paralela de IA.",
+    supportBody2: "Compara fácilmente las respuestas de diferentes modelos para encontrar la mejor.",
+    supportCtaTitle: "Empezar",
+    supportCtaDesc: "Cero configuración: Instala la extensión y abre tus pestañas de IA favoritas.",
+    supportCtaBody1: "Prueba primero la versión Community para ver cómo transforma tu flujo de trabajo.",
+    supportCtaBody2: "Siéntete libre de apoyar nuestro desarrollo a través de comentarios o patrocinios.",
+  },
+  "de": {
+    heroBadge: "Chrome / Edge Erweiterung",
+    title1: "Einmal tippen,",
+    title2: "Alle KIs gleichzeitig fragen",
+    subtitle:
+      "Sendol vereint Ihre KI-Tabs in einem Popup. Schreiben Sie Ihren Prompt einmal und senden Sie ihn überallhin, mit automatischem Senden und neuen Chats.",
+    ctaPricing: "Preise ansehen",
+    ctaSupport: "Projekt unterstützen",
+    ctaInstall: "Installationsanleitung",
+    statPlatforms: "Plattformen",
+    statMode: "Sendemodi",
+    statDraft: "Entwurfschutz",
+    statModeValue: "Manuell/Auto/Neu",
+    statDraftValue: "Auto-Wiederherstellung",
+    popupScreenshotAlt: "Sendol Erweiterung Popup",
+    featureTitle: "Kernfunktionen",
+    featureDesc: "Einfach und effizient: schreiben, auswählen und senden.",
+    featureOneTitle: "Ein Prompt, mehrere KIs",
+    featureOneBody: "Kein lästiges Kopieren und Einfügen zwischen Tabs mehr. Senden Sie Ihre Nachricht sofort an mehrere KI-Plattformen.",
+    featureTwoTitle: "Klarer Sendestatus",
+    featureTwoBody: "Erkennt automatisch Ihre offenen KI-Tabs und liefert transparentes Status- und Fehler-Feedback.",
+    featureThreeTitle: "Zuverlässige Wiederherstellung",
+    featureThreeBody: "Popup versehentlich geschlossen? Ihre ungesendeten Entwürfe werden automatisch gespeichert und wiederhergestellt.",
+    pricingTitle: "Kostenlose Basis, Pro Optionen",
+    pricingDesc: "Die Community-Version deckt Ihren Grundbedarf. Upgrade auf Pro für fortgeschrittene Produktivität.",
+    communityTitle: "Community",
+    communityDesc: "Kostenlos / Open Source",
+    communityBody1: "Beinhaltet Kernfunktionen: Broadcasting, automatisches Senden und Entwurfschutz.",
+    communityBody2: "Perfekt für den persönlichen, leichten und hochfrequenten Gebrauch.",
+    communityBtn: "Auf GitHub ansehen",
+    proTitle: "Pro",
+    proDesc: "Erwartet: $5/Monat oder $49/Jahr",
+    proBody1: "Demnächst: Vorlagen, Notizen, Verlauf und eigene Regeln. Alles lokal gespeichert.",
+    proBody2: "Priorisierte Updates zur Anpassung an Änderungen der KI-Benutzeroberflächen.",
+    proBtn: "Pro-Warteliste beitreten",
+    sponsorTitle: "Sponsor",
+    sponsorDesc: "Entwickler unterstützen",
+    sponsorBody1: "Gefällt Ihnen das Tool? Direkte Unterstützung hilft, das Projekt zu pflegen.",
+    sponsorBody2: "Ihre Unterstützung ist der größte Antrieb für unsere kontinuierliche Entwicklung.",
+    sponsorBtn: "Projekt sponsern",
+    languageTitle: "Sprachen & Designs",
+    languageDesc: "Genießen Sie eine konsistente Erfahrung mit mehrsprachiger Unterstützung und Hell/Dunkel-Modus.",
+    languagePractice1: "Verwendet standardmäßig die bevorzugte Sprache Ihres Browsers.",
+    languagePractice2: "Einfacher Sprachwechsel im Header, Ihre Auswahl wird gespeichert.",
+    languagePractice3: "Nahtloser Fallback auf Englisch für nicht unterstützte Sprachen.",
+    languagePractice4: "Volle Unterstützung für System- / Hell- / Dunkel-Themes in der gesamten Benutzeroberfläche.",
+    roadmapTitle: "Geplante Sprachen",
+    roadmapDesc: "Wir werden in Zukunft weitere Sprachen hinzufügen und die Lokalisierung verbessern.",
+    supportTitle: "Perfekt für...",
+    supportDesc: "Entwickelt für Power-User, die mehrere KI-Modelle gleichzeitig konsultieren.",
+    supportBody1: "Ideal für Programmierung, Schreiben und Forschung mit paralleler KI-Unterstützung.",
+    supportBody2: "Vergleichen Sie Antworten verschiedener Modelle einfach, um die beste zu finden.",
+    supportCtaTitle: "Loslegen",
+    supportCtaDesc: "Keine Einrichtung erforderlich: Installieren Sie die Erweiterung und öffnen Sie Ihre KI-Tabs.",
+    supportCtaBody1: "Probieren Sie zuerst die Community-Version aus, um Ihren Workflow zu verbessern.",
+    supportCtaBody2: "Unterstützen Sie unsere Entwicklung gerne durch Feedback oder Sponsoring.",
+  },
+  "fr": {
+    heroBadge: "Extension Chrome / Edge",
+    title1: "Tapez une fois,",
+    title2: "Interrogez chaque IA instantanément",
+    subtitle:
+      "Sendol rassemble vos onglets d'IA dans un seul popup. Rédigez votre prompt une fois et diffusez-le partout, avec l'envoi automatique et de nouveaux chats.",
+    ctaPricing: "Voir les tarifs",
+    ctaSupport: "Soutenir le projet",
+    ctaInstall: "Guide d'installation",
+    statPlatforms: "Plateformes",
+    statMode: "Modes d'envoi",
+    statDraft: "Protection brouillon",
+    statModeValue: "Manuel/Auto/Nouveau",
+    statDraftValue: "Restauration auto",
+    popupScreenshotAlt: "Interface de l'extension Sendol",
+    featureTitle: "Fonctionnalités clés",
+    featureDesc: "La simplicité avant tout : écrivez, sélectionnez et envoyez.",
+    featureOneTitle: "Un seul Prompt, Plusieurs IA",
+    featureOneBody: "Finis les copier-coller entre les onglets. Diffusez votre message sur plusieurs plateformes d'IA instantanément.",
+    featureTwoTitle: "Statut d'envoi clair",
+    featureTwoBody: "Détecte automatiquement vos onglets d'IA ouverts et fournit des retours transparents sur l'état.",
+    featureThreeTitle: "Récupération fiable",
+    featureThreeBody: "Popup fermé accidentellement ? Vos brouillons non envoyés sont automatiquement sauvegardés et restaurés.",
+    pricingTitle: "Cœur gratuit, Options Pro",
+    pricingDesc: "La version Community couvre tous vos besoins essentiels. Passez à Pro pour plus de productivité.",
+    communityTitle: "Community",
+    communityDesc: "Gratuit / Open Source",
+    communityBody1: "Comprend la diffusion, l'envoi automatique et la sauvegarde des brouillons.",
+    communityBody2: "Parfait pour un usage personnel, léger et à haute fréquence.",
+    communityBtn: "Voir sur GitHub",
+    proTitle: "Pro",
+    proDesc: "Prix prévu : 5 $/mois ou 49 $/an",
+    proBody1: "Bientôt : Modèles, notes, historique et règles personnalisées. Tout sauvegardé localement.",
+    proBody2: "Mises à jour prioritaires pour s'adapter aux changements d'interface des IA.",
+    proBtn: "Rejoindre la liste d'attente Pro",
+    sponsorTitle: "Sponsor",
+    sponsorDesc: "Soutenir le développeur",
+    sponsorBody1: "Vous aimez l'outil ? Le parrainage direct aide à maintenir et améliorer le projet.",
+    sponsorBody2: "Votre soutien est le plus grand moteur de notre développement continu.",
+    sponsorBtn: "Sponsoriser le projet",
+    languageTitle: "Langues et Thèmes",
+    languageDesc: "Profitez d'une expérience cohérente avec un support multilingue et le mode clair/sombre.",
+    languagePractice1: "Utilise par défaut la langue préférée de votre navigateur.",
+    languagePractice2: "Changez facilement de langue dans l'en-tête, votre choix sera mémorisé.",
+    languagePractice3: "Retour transparent à l'anglais pour les langues non prises en charge.",
+    languagePractice4: "Support complet des thèmes Système / Clair / Sombre.",
+    roadmapTitle: "Langues à venir",
+    roadmapDesc: "Nous continuerons d'ajouter la prise en charge de plus de langues à l'avenir.",
+    supportTitle: "Idéal pour...",
+    supportDesc: "Conçu pour les utilisateurs avancés qui consultent plusieurs modèles d'IA simultanément.",
+    supportBody1: "Idéal pour le codage, la rédaction et la recherche nécessitant l'assistance de l'IA en parallèle.",
+    supportBody2: "Comparez facilement les réponses de différents modèles pour trouver la meilleure.",
+    supportCtaTitle: "Commencer",
+    supportCtaDesc: "Aucune configuration requise : Installez l'extension et ouvrez vos onglets d'IA.",
+    supportCtaBody1: "Essayez d'abord la version Community pour voir comment elle transforme votre flux de travail.",
+    supportCtaBody2: "N'hésitez pas à soutenir notre développement via des retours ou un parrainage.",
+  },
 };
 
 function PlatformLogos() {
-  const icons = [
-    // OpenAI (ChatGPT)
-    "M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z",
-    // Anthropic (Claude)
-    "M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z",
-    // Google Gemini
-    "M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"
+  // Single source of truth: matches `src/content/index.js` platformAdapters
+  const supported = [
+    { name: "ChatGPT", Icon: OpenAI },
+    { name: "Claude", Icon: Claude },
+    { name: "Gemini", Icon: Gemini },
+    { name: "DeepSeek", Icon: DeepSeek },
+    { name: "Mistral", Icon: Mistral },
+    { name: "Doubao", Icon: Doubao },
+    { name: "Yuanbao", Icon: Yuanbao },
+    { name: "Kimi", Icon: Kimi },
   ];
+
+  const maxShown = 7;
+  const shown = supported.slice(0, maxShown);
+  const remaining = Math.max(0, supported.length - shown.length);
 
   return (
     <div className="mt-1 flex flex-wrap gap-x-1 gap-y-2">
       <div className="flex flex-wrap items-center [&>*:nth-child(n+2)]:-ml-1.5">
-        {icons.map((path, i) => (
+        {shown.map((item, i) => (
           <div
-            key={i}
+            key={item.name}
+            title={item.name}
+            aria-label={item.name}
             className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-background bg-muted text-foreground ring-1 ring-border/20"
-            style={{ zIndex: icons.length + 1 - i }}
+            style={{ zIndex: shown.length + 1 - i }}
           >
-            <svg className="h-[14px] w-[14px]" viewBox="0 0 24 24" fill="currentColor">
-              <path d={path} />
-            </svg>
+            {item.Icon ? (
+              <item.Icon size={14} aria-hidden />
+            ) : (
+              <span className="text-[10px] font-bold tracking-tighter" aria-hidden>
+                {item.short || item.name.slice(0, 2).toUpperCase()}
+              </span>
+            )}
           </div>
         ))}
-        {/* "5+" counter */}
-        <div
-          className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-background bg-background text-foreground ring-1 ring-border/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_0_0_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_0_0_1px_rgba(255,255,255,0.05)]"
-          style={{ zIndex: 0 }}
-        >
-          <span className="text-[10px] font-bold tracking-tighter">5+</span>
-        </div>
+        {remaining > 0 ? (
+          <div
+            title={`+${remaining}`}
+            aria-label={`+${remaining}`}
+            className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-background bg-background text-foreground ring-1 ring-border/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_0_0_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_0_0_1px_rgba(255,255,255,0.05)]"
+            style={{ zIndex: 0 }}
+          >
+            <span className="text-[10px] font-bold tracking-tighter">{`+${remaining}`}</span>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -168,6 +528,7 @@ export function Hero() {
   return (
     <section className="relative w-full overflow-hidden">
       <div className="absolute inset-x-0 top-0 z-0 h-[520px]">
+        <HeroShapeGrid />
         <div className="absolute -left-36 top-4 h-72 w-72 rounded-full bg-foreground/8 blur-3xl" />
         <div className="absolute -right-32 top-20 h-72 w-72 rounded-full bg-foreground/6 blur-3xl" />
       </div>

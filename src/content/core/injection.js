@@ -326,13 +326,25 @@ export function createInjectionTools(deps) {
       } catch (_) {}
     }
 
-    return runStrategies(el, [
-      { name: 'qw-insertText', fallbackUsed: false, run: () => tryInsertText(el, text) },
-      { name: 'qw-beforeinput', fallbackUsed: true, run: () => trySlateBeforeInput(el, text) },
+    const tryQianwenInsertTextStrict = async () => {
+      el.focus();
+      await sleep(8);
+      document.execCommand('selectAll', false, null);
+      document.execCommand('delete', false, null);
+      document.execCommand('insertText', false, text);
+      return verifyContentStrict(el, text, 220, 20);
+    };
+
+    const result = await runStrategies(el, [
+      { name: 'qw-insertText-strict', fallbackUsed: false, run: tryQianwenInsertTextStrict },
+      { name: 'qw-insertText', fallbackUsed: true, run: () => tryInsertText(el, text) },
       { name: 'qw-datatransfer', fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
       { name: 'qw-clipboard', fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
       { name: 'qw-direct-dom', fallbackUsed: true, run: () => tryDirectDom(el, text) }
     ], logger, { skipClear: true });
+    const strictOk = await verifyContentStrict(el, text, 220, 20);
+    if (strictOk) return result;
+    return result;
   }
 
   const qianwenInject = async (el, text, options) => {

@@ -179,6 +179,7 @@ jobs:
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
+        id: create_pr
         if: steps.secrets.outputs.ready == 'true' && steps.update.outputs.has_changes == 'true'
         uses: actions/github-script@v7
         env:
@@ -193,8 +194,8 @@ jobs:
 
             const confidence = process.env.ALL_SUCCESS === 'true' ? '95%+' : '< 80%';
             const action = process.env.ALL_SUCCESS === 'true'
-              ? 'High confidence, ready for auto-merge.'
-              : 'Low confidence, manual review required.';
+              ? 'High confidence — auto-merge enabled.'
+              : 'Low confidence — manual review required.';
 
             const body = `## Auto-Fix: Selector Update
 
@@ -224,6 +225,46 @@ jobs:
               issue_number: pr.data.number,
               labels: ['auto-fix', process.env.ALL_SUCCESS === 'true' ? 'high-confidence' : 'needs-review'],
             });
+
+            core.setOutput('pr_number', pr.data.number.toString());
+            core.setOutput('high_confidence', process.env.ALL_SUCCESS);
+
+      - name: Enable Auto-Merge (high confidence only)
+        if: >
+          steps.secrets.outputs.ready == 'true' &&
+          steps.update.outputs.has_changes == 'true' &&
+          steps.create_pr.outputs.high_confidence == 'true'
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ steps.create_pr.outputs.pr_number }}
+        with:
+          github-token: ${{ secrets.SELECTORS_REPO_PAT }}
+          script: |
+            const prNumber = parseInt(process.env.PR_NUMBER);
+
+            // Enable auto-merge via GraphQL (REST API doesn't support it)
+            const { data: pr } = await github.rest.pulls.get({
+              owner: 'RainTreeQ',
+              repo: 'sendol-selectors',
+              pull_number: prNumber,
+            });
+
+            await github.graphql(`
+              mutation EnableAutoMerge($pullRequestId: ID!) {
+                enablePullRequestAutoMerge(input: {
+                  pullRequestId: $pullRequestId,
+                  mergeMethod: SQUASH
+                }) {
+                  pullRequest {
+                    autoMergeRequest {
+                      mergeMethod
+                    }
+                  }
+                }
+              }
+            `, { pullRequestId: pr.node_id });
+
+            console.log(`Auto-merge enabled on PR #${prNumber}`);
 
       - name: Report circuit breaker block
         if: steps.secrets.outputs.ready == 'true' && steps.breaker.outputs.blocked == 'true'

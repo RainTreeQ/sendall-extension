@@ -172,8 +172,12 @@
       ],
       findSendBtn: [
         'button[type="submit"]:not([disabled])',
+        'button[aria-label*="Send"]',
+        'button[aria-label*="send"]',
         'button[aria-label="Submit"]',
         'button[aria-label="\u63D0\u4EA4"]',
+        '[role="button"][aria-label*="Send"]',
+        '[role="button"][aria-label*="send"]',
         'button[type="submit"]'
       ]
     },
@@ -210,20 +214,25 @@
     },
     qianwen: {
       findInput: [
+        "textarea.message-input-textarea",
+        "textarea[placeholder]",
+        "textarea",
         'div[data-slate-editor="true"][contenteditable="true"]',
         'div[contenteditable="true"][role="textbox"]',
-        "textarea.message-input-textarea",
         'div[contenteditable="true"]',
-        "textarea[placeholder]",
-        "textarea"
+        'div[role="textbox"][contenteditable="true"]'
       ],
       findSendBtn: [
+        'button[class*="send"]:not([disabled])',
+        'button[class*="submit"]:not([disabled])',
         '[data-icon-type="qwpcicon-sendChat"]',
+        'div[class*="operatebtn"]:not([class*="disabled"]) button',
         'div[class*="operatebtn"]:not([class*="disabled"])',
         "div.message-input-right-button-send button",
         "div.message-input-right-button-send",
         'button[aria-label*="\u53D1\u9001"]',
-        'button[aria-label*="Send"]'
+        'button[aria-label*="Send"]',
+        'button[type="submit"]:not([disabled])'
       ]
     },
     yuanbao: {
@@ -252,9 +261,12 @@
         "textarea"
       ],
       findSendBtn: [
+        "div.send-button-container:not(.disabled) button",
         "div.send-button-container:not(.disabled)",
+        'div[class*="send-button-container"]:not(.disabled) button',
         'div[class*="send-button-container"]:not(.disabled)',
-        'button[type="submit"]',
+        'button[class*="send"]:not([disabled])',
+        'button[type="submit"]:not([disabled])',
         'button[aria-label*="\u53D1\u9001"]',
         'button[aria-label*="Send"]'
       ]
@@ -441,10 +453,11 @@
         return setContentEditable(el, text, options);
       },
       async send(el) {
+        const selectorCandidate = await findSendBtnForPlatform2("chatgpt");
         const isReady = (b) => b && !b.disabled && b.getAttribute("aria-disabled") !== "true";
         const btn = await waitFor(
           () => {
-            const b = findSendBtnForPlatform2("chatgpt") || findSendBtnHeuristically2(el);
+            const b = selectorCandidate || findSendBtnHeuristically2(el);
             return isReady(b) ? b : null;
           },
           5e3,
@@ -678,9 +691,11 @@
     return {
       name: "Grok",
       findInput: async () => {
+        const direct = document.querySelector("textarea");
+        if (direct) return direct;
         const bySelectors = await findInputForPlatform2("grok");
         if (bySelectors) return bySelectors;
-        return waitFor(() => findInputHeuristically2(), 7e3, 60);
+        return waitFor(() => findInputHeuristically2(), 5e3, 60);
       },
       async inject(el, text, options) {
         if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
@@ -700,17 +715,86 @@
           btn.click();
           return;
         }
+        const findNearbySendBtn = () => {
+          if (!el?.getBoundingClientRect) return null;
+          const rect = el.getBoundingClientRect();
+          const nodes = document.querySelectorAll('button,[role="button"]');
+          let best = null;
+          let bestScore = -Infinity;
+          for (const node of nodes) {
+            if (!node || node.disabled || node.getAttribute("aria-disabled") === "true") continue;
+            const hint = `${node.getAttribute("aria-label") || ""} ${node.getAttribute("title") || ""} ${(node.textContent || "").trim()}`.toLowerCase();
+            if (hint.includes("login") || hint.includes("log in") || hint.includes("search") || hint.includes("upload")) continue;
+            const nr = node.getBoundingClientRect();
+            const dx = nr.left + nr.width / 2 - (rect.left + rect.width);
+            const dy = nr.top + nr.height / 2 - (rect.top + rect.height / 2);
+            if (dx < -20 || dx > 320 || Math.abs(dy) > 140) continue;
+            const semanticScore = hint.includes("send") || hint.includes("submit") || hint.includes("\u63D0\u4EA4") ? 50 : 0;
+            const svgScore = node.querySelector("svg") ? 20 : 0;
+            const score = semanticScore + svgScore - Math.abs(dx) * 0.4 - Math.abs(dy) * 0.3;
+            if (score > bestScore) {
+              bestScore = score;
+              best = node;
+            }
+          }
+          return best;
+        };
+        const nearbyBtn = findNearbySendBtn();
+        if (nearbyBtn) {
+          nearbyBtn.click();
+          return;
+        }
         const target = el || document.activeElement;
         if (!target) {
           pressEnterOn(null);
           return;
         }
-        if (target.tagName === "TEXTAREA" && expected) {
-          setReactValue(target, expected);
+        let activeTarget = target;
+        if (!activeTarget.isConnected) {
+          const refreshed = document.querySelector("textarea") || document.activeElement;
+          if (refreshed) activeTarget = refreshed;
+        }
+        if (activeTarget.tagName === "TEXTAREA" && expected) {
+          setReactValue(activeTarget, expected);
           await sleep(60);
         }
-        target.focus();
-        pressEnterOn(target);
+        const form = activeTarget.closest?.("form");
+        if (form && typeof form.requestSubmit === "function") {
+          form.requestSubmit();
+          try {
+            await sleep(180);
+            const afterSubmitLen = normalizeText(getContent(activeTarget)).length;
+            if (!expected || afterSubmitLen < expected.length) return;
+          } catch (err) {
+          }
+        }
+        activeTarget.focus();
+        pressEnterOn(activeTarget);
+        try {
+          await sleep(180);
+          const afterEnterLen = normalizeText(getContent(activeTarget)).length;
+          if (!expected || afterEnterLen < expected.length) return;
+        } catch (err) {
+        }
+        const keyOpts = {
+          key: "Enter",
+          code: "Enter",
+          keyCode: 13,
+          which: 13,
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          ctrlKey: true
+        };
+        activeTarget.dispatchEvent(new KeyboardEvent("keydown", keyOpts));
+        activeTarget.dispatchEvent(new KeyboardEvent("keyup", keyOpts));
+        try {
+          await sleep(180);
+          const afterCtrlEnterLen = normalizeText(getContent(activeTarget)).length;
+          if (!expected || afterCtrlEnterLen < expected.length) return;
+        } catch (err) {
+        }
+        return false;
       }
     };
   }
@@ -772,7 +856,15 @@
     } = deps;
     return {
       name: "Qianwen",
-      findInput: async () => await findInputForPlatform2("qianwen") || waitFor(() => findInputHeuristically2()),
+      findInput: async () => {
+        const directTextarea = document.querySelector("textarea.message-input-textarea, textarea[placeholder], textarea");
+        if (directTextarea) {
+          return directTextarea;
+        }
+        const bySelectors = await findInputForPlatform2("qianwen");
+        if (bySelectors) return bySelectors;
+        return waitFor(() => findInputHeuristically2());
+      },
       inject: qianwenInject,
       send: qianwenSend
     };
@@ -1156,13 +1248,24 @@
         } catch (_) {
         }
       }
-      return runStrategies(el, [
-        { name: "qw-insertText", fallbackUsed: false, run: () => tryInsertText(el, text) },
-        { name: "qw-beforeinput", fallbackUsed: true, run: () => trySlateBeforeInput(el, text) },
+      const tryQianwenInsertTextStrict = async () => {
+        el.focus();
+        await sleep(8);
+        document.execCommand("selectAll", false, null);
+        document.execCommand("delete", false, null);
+        document.execCommand("insertText", false, text);
+        return verifyContentStrict(el, text, 220, 20);
+      };
+      const result = await runStrategies(el, [
+        { name: "qw-insertText-strict", fallbackUsed: false, run: tryQianwenInsertTextStrict },
+        { name: "qw-insertText", fallbackUsed: true, run: () => tryInsertText(el, text) },
         { name: "qw-datatransfer", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
         { name: "qw-clipboard", fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
         { name: "qw-direct-dom", fallbackUsed: true, run: () => tryDirectDom(el, text) }
       ], logger, { skipClear: true });
+      const strictOk = await verifyContentStrict(el, text, 220, 20);
+      if (strictOk) return result;
+      return result;
     }
     const qianwenInject = async (el, text, options) => {
       await closeQianwenTaskAssistant();
@@ -1662,9 +1765,28 @@
         const nodes = root.querySelectorAll('button, [role="button"]');
         for (const node of nodes) {
           if (isBtnDisabled(node)) continue;
-          const hint = `${node.getAttribute("aria-label") || ""} ${node.getAttribute("title") || ""} ${(node.textContent || "").trim()}`.toLowerCase();
+          const hint = `${node.getAttribute("aria-label") || ""} ${node.getAttribute("title") || ""} ${node.getAttribute("data-icon-type") || ""} ${(node.textContent || "").trim()}`.toLowerCase();
           if (hint.includes("\u767B\u5F55") || hint.includes("log in") || hint.includes("\u4E0A\u4F20") || hint.includes("attach") || hint.includes("\u641C\u7D22") || hint.includes("search")) continue;
-          if (hint.includes("\u53D1\u9001") || hint.includes("send") || hint.includes("\u63D0\u4EA4") || hint.includes("submit")) return node;
+          if (hint.includes("\u53D1\u9001") || hint.includes("send") || hint.includes("\u63D0\u4EA4") || hint.includes("submit") || hint.includes("sendchat")) return node;
+        }
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const allBtns = document.querySelectorAll('button:not([disabled]), [role="button"]');
+          let best = null, bestScore = -Infinity;
+          for (const b of allBtns) {
+            if (isBtnDisabled(b)) continue;
+            const br = b.getBoundingClientRect();
+            const dx = br.left + br.width / 2 - (rect.left + rect.width);
+            const dy = br.top + br.height / 2 - (rect.top + rect.height / 2);
+            if (dx < -20 || dx > 300 || Math.abs(dy) > 120) continue;
+            if (!b.querySelector("svg") && !(b.textContent || "").trim()) continue;
+            const score = -Math.abs(dx) * 0.5 - Math.abs(dy) * 0.3;
+            if (score > bestScore) {
+              bestScore = score;
+              best = b;
+            }
+          }
+          if (best) return best;
         }
         return null;
       };
@@ -1687,7 +1809,8 @@
     const kimiSend = async (el) => {
       const selectorBtn = await findSendBtnForPlatform("kimi");
       if (selectorBtn) {
-        selectorBtn.click();
+        const innerBtn = selectorBtn.tagName !== "BUTTON" ? selectorBtn.querySelector("button") : null;
+        (innerBtn || selectorBtn).click();
         return;
       }
       const container = el?.closest("form") || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
@@ -1793,15 +1916,16 @@
     });
     const grokAdapter = createGrokAdapter({
       findInputForPlatform,
+      findInputHeuristically,
       waitFor,
       setReactValue,
       setContentEditable,
       findSendBtnForPlatform,
+      findSendBtnHeuristically,
       normalizeText,
       getContent,
       sleep,
-      pressEnterOn,
-      isNodeDisabled
+      pressEnterOn
     });
     const mistralAdapter = createMistralAdapter({
       findInputForPlatform,

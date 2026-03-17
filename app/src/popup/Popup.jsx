@@ -48,6 +48,21 @@ const PLATFORM_STYLES = {
   Unknown: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
 }
 
+const HIDDEN_PLATFORMS = new Set(['Grok', 'Qianwen'])
+const PRIMARY_PLATFORMS = ['ChatGPT', 'Gemini', 'Claude']
+const PRIMARY_PLATFORM_SET = new Set(PRIMARY_PLATFORMS)
+const PRIMARY_PLATFORM_PRIORITY = new Map(PRIMARY_PLATFORMS.map((name, index) => [name, index]))
+
+function getPlatformPriority(name) {
+  return PRIMARY_PLATFORM_PRIORITY.has(name) ? PRIMARY_PLATFORM_PRIORITY.get(name) : 999
+}
+
+function sortTabsByPriority(a, b) {
+  const p = getPlatformPriority(a.platformName) - getPlatformPriority(b.platformName)
+  if (p !== 0) return p
+  return String(a.platformName || '').localeCompare(String(b.platformName || ''))
+}
+
 const SEND_LOADING_SOFT_TIMEOUT_MS = 25000
 const DRAFT_SAVE_DEBOUNCE_MS = 400
 const IMAGE_SUPPORTED_PLATFORMS = new Set(['ChatGPT', 'Claude'])
@@ -109,9 +124,6 @@ export default function Popup() {
   const selectedSet = new Set(selectedTabIds)
   const hasSelection = selectedTabIds.length > 0
   const hasText = messageText.trim().length > 0
-  const trimmedMessage = messageText.trim()
-  const messageCharCount = trimmedMessage.length
-  const messagePreview = trimmedMessage.replace(/\s+/g, ' ').slice(0, 40)
   const hasImage = Boolean(imageData)
   const imageCapableTabIds = selectedTabIds.filter((id) => {
     const tab = aiTabs.find((item) => item.id === id)
@@ -258,10 +270,17 @@ export default function Popup() {
     setTabsLoading(true)
     try {
       const response = await chrome.runtime.sendMessage({ type: 'GET_AI_TABS' })
-      const tabs = response.tabs || []
+      const tabs = (response.tabs || [])
+        .filter((tab) => !HIDDEN_PLATFORMS.has(tab.platformName))
+        .sort(sortTabsByPriority)
       setAiTabs(tabs)
       setSelectedTabIds((prev) => {
-        if (tabs.length > 0 && prev.length === 0) return tabs.map((t) => t.id)
+        if (tabs.length > 0 && prev.length === 0) {
+          const primaryIds = tabs
+            .filter((tab) => PRIMARY_PLATFORM_SET.has(tab.platformName))
+            .map((tab) => tab.id)
+          return primaryIds.length > 0 ? primaryIds : tabs.map((t) => t.id)
+        }
         const tabIdSet = new Set(tabs.map((t) => t.id))
         return prev.filter((id) => tabIdSet.has(id))
       })
@@ -429,11 +448,17 @@ export default function Popup() {
     if (!text && !hasImage) return
     if (selectedTabIds.length === 0) return
 
-    const supportedImageTabIds = selectedTabIds.filter((id) => {
+    const prioritizedTabIds = [...selectedTabIds].sort((a, b) => {
+      const tabA = aiTabs.find((item) => item.id === a)
+      const tabB = aiTabs.find((item) => item.id === b)
+      return sortTabsByPriority(tabA || { platformName: 'Unknown' }, tabB || { platformName: 'Unknown' })
+    })
+
+    const supportedImageTabIds = prioritizedTabIds.filter((id) => {
       const tab = aiTabs.find((item) => item.id === id)
       return tab && IMAGE_SUPPORTED_PLATFORMS.has(tab.platformName)
     })
-    const unsupportedImageTabIds = selectedTabIds.filter((id) => !supportedImageTabIds.includes(id))
+    const unsupportedImageTabIds = prioritizedTabIds.filter((id) => !supportedImageTabIds.includes(id))
 
     if (hasImage && unsupportedImageTabIds.length > 0 && !bypassImageConfirm) {
       setShowImageConfirm(true)
@@ -450,7 +475,7 @@ export default function Popup() {
 
     clearStatus()
     setSending(true)
-    const tabIds = [...selectedTabIds]
+    const tabIds = prioritizedTabIds
     const requestId = createRequestId()
     const clientTs = Date.now()
     let debug = false
@@ -699,6 +724,7 @@ export default function Popup() {
               {aiTabs.map((tab) => {
                 const selected = selectedSet.has(tab.id)
                 const platStyle = PLATFORM_STYLES[tab.platformName] || PLATFORM_STYLES.Unknown
+                const isPrimary = PRIMARY_PLATFORM_SET.has(tab.platformName)
 
                 return (
                   <li
@@ -709,8 +735,8 @@ export default function Popup() {
                     onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), toggleTab(tab.id))}
                     className={`group relative flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 transition-all duration-200 ${
                       selected
-                        ? 'bg-white shadow-sm ring-1 ring-gray-200/90 dark:bg-zinc-800 dark:ring-zinc-600/55'
-                        : 'border border-transparent hover:bg-gray-100 dark:hover:bg-zinc-800/50'
+                        ? `bg-white shadow-sm ring-1 ${isPrimary ? 'ring-blue-300/80 dark:ring-blue-500/60' : 'ring-gray-200/90 dark:ring-zinc-600/55'} dark:bg-zinc-800`
+                        : `border border-transparent ${isPrimary ? 'hover:bg-blue-50/70 dark:hover:bg-blue-500/10' : 'hover:bg-gray-100 dark:hover:bg-zinc-800/50'}`
                     }`}
                   >
                     <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
@@ -774,11 +800,6 @@ export default function Popup() {
               onChange={(e) => setMessageText(e.target.value)}
               onKeyDown={handleKeyDown}
             />
-            {hasText && (
-              <div className="px-3 pb-1 text-[10px] text-gray-500 dark:text-zinc-400">
-                发送字数: {messageCharCount} · 预览: {messagePreview}{messageCharCount > 40 ? '…' : ''}
-              </div>
-            )}
             <div className="flex items-center justify-between px-3 pb-3">
               <div className="flex items-center gap-1.5">
                 <button

@@ -6,12 +6,18 @@ const THEME_STORAGE_KEY = "siteThemeMode";
 const SUPPORTED_LOCALES = [
   { code: "en", label: "English" },
   { code: "zh-CN", label: "简体中文" },
+  { code: "zh-TW", label: "繁體中文" },
+  { code: "ja", label: "日本語" },
+  { code: "ko", label: "한국어" },
+  { code: "es", label: "Español" },
+  { code: "de", label: "Deutsch" },
+  { code: "fr", label: "Français" },
 ];
 
 const PLANNED_LOCALES = [
-  { code: "ja", label: "日本語" },
-  { code: "es", label: "Español" },
-  { code: "de", label: "Deutsch" },
+  { code: "ru", label: "Русский" },
+  { code: "pt", label: "Português" },
+  { code: "ar", label: "العربية" },
 ];
 
 const THEME_MODES = ["system", "light", "dark"];
@@ -20,7 +26,13 @@ const SiteSettingsContext = createContext(null);
 
 function normalizeLocale(raw) {
   const input = String(raw || "").toLowerCase();
+  if (input.startsWith("zh-tw") || input.startsWith("zh-hk")) return "zh-TW";
   if (input.startsWith("zh")) return "zh-CN";
+  if (input.startsWith("ja")) return "ja";
+  if (input.startsWith("ko")) return "ko";
+  if (input.startsWith("es")) return "es";
+  if (input.startsWith("de")) return "de";
+  if (input.startsWith("fr")) return "fr";
   return "en";
 }
 
@@ -33,9 +45,10 @@ function getInitialLocale() {
     // noop
   }
   if (Array.isArray(navigator.languages) && navigator.languages.length > 0) {
+    const supportedCodes = SUPPORTED_LOCALES.map(l => l.code);
     for (const locale of navigator.languages) {
       const normalized = normalizeLocale(locale);
-      if (normalized === "zh-CN") return normalized;
+      if (supportedCodes.includes(normalized) && normalized !== "en") return normalized;
     }
   }
   return normalizeLocale(navigator.language);

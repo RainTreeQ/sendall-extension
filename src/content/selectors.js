@@ -58,8 +58,12 @@ export const defaultSelectors = {
     ],
     findSendBtn: [
       'button[type="submit"]:not([disabled])',
+      'button[aria-label*="Send"]',
+      'button[aria-label*="send"]',
       'button[aria-label="Submit"]',
       'button[aria-label="提交"]',
+      '[role="button"][aria-label*="Send"]',
+      '[role="button"][aria-label*="send"]',
       'button[type="submit"]'
     ]
   },
@@ -96,20 +100,25 @@ export const defaultSelectors = {
   },
   qianwen: {
     findInput: [
+      'textarea.message-input-textarea',
+      'textarea[placeholder]',
+      'textarea',
       'div[data-slate-editor="true"][contenteditable="true"]',
       'div[contenteditable="true"][role="textbox"]',
-      'textarea.message-input-textarea',
       'div[contenteditable="true"]',
-      'textarea[placeholder]',
-      'textarea'
+      'div[role="textbox"][contenteditable="true"]'
     ],
     findSendBtn: [
+      'button[class*="send"]:not([disabled])',
+      'button[class*="submit"]:not([disabled])',
       '[data-icon-type="qwpcicon-sendChat"]',
+      'div[class*="operatebtn"]:not([class*="disabled"]) button',
       'div[class*="operatebtn"]:not([class*="disabled"])',
       'div.message-input-right-button-send button',
       'div.message-input-right-button-send',
       'button[aria-label*="发送"]',
-      'button[aria-label*="Send"]'
+      'button[aria-label*="Send"]',
+      'button[type="submit"]:not([disabled])'
     ]
   },
   yuanbao: {
@@ -138,9 +147,12 @@ export const defaultSelectors = {
       'textarea'
     ],
     findSendBtn: [
+      'div.send-button-container:not(.disabled) button',
       'div.send-button-container:not(.disabled)',
+      'div[class*="send-button-container"]:not(.disabled) button',
       'div[class*="send-button-container"]:not(.disabled)',
-      'button[type="submit"]',
+      'button[class*="send"]:not([disabled])',
+      'button[type="submit"]:not([disabled])',
       'button[aria-label*="发送"]',
       'button[aria-label*="Send"]'
     ]

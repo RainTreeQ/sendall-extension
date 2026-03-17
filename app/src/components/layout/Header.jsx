@@ -27,33 +27,41 @@ function LogoIcon({ className }) {
 export function Header() {
   const { locale, setLocale, supportedLocales, themeMode, setThemeMode } = useSiteSettings();
 
-  const copy = locale === "zh-CN"
-    ? {
-      landing: "落地页",
-      pro: "专业版",
-      github: "GitHub",
-      pricing: "定价",
-      support: "支持",
-      mainNav: "主导航",
-      language: "语言",
-      theme: "主题",
-      systemMode: "系统",
-      lightMode: "浅色",
-      darkMode: "深色",
+  const TRANSLATIONS = {
+    "zh-CN": {
+      landing: "落地页", pro: "专业版", github: "GitHub", pricing: "定价", support: "支持",
+      mainNav: "主导航", language: "语言", theme: "主题", systemMode: "系统", lightMode: "浅色", darkMode: "深色",
+    },
+    "zh-TW": {
+      landing: "登陸頁", pro: "專業版", github: "GitHub", pricing: "定價", support: "支援",
+      mainNav: "主導航", language: "語言", theme: "主題", systemMode: "系統", lightMode: "淺色", darkMode: "深色",
+    },
+    ja: {
+      landing: "ランディング", pro: "Pro", github: "GitHub", pricing: "料金", support: "サポート",
+      mainNav: "メインナビゲーション", language: "言語", theme: "テーマ", systemMode: "システム", lightMode: "ライト", darkMode: "ダーク",
+    },
+    ko: {
+      landing: "랜딩 페이지", pro: "Pro", github: "GitHub", pricing: "가격", support: "지원",
+      mainNav: "메인 내비게이션", language: "언어", theme: "테마", systemMode: "시스템", lightMode: "라이트", darkMode: "다크",
+    },
+    es: {
+      landing: "Inicio", pro: "Pro", github: "GitHub", pricing: "Precios", support: "Soporte",
+      mainNav: "Navegación principal", language: "Idioma", theme: "Tema", systemMode: "Sistema", lightMode: "Claro", darkMode: "Oscuro",
+    },
+    de: {
+      landing: "Startseite", pro: "Pro", github: "GitHub", pricing: "Preise", support: "Support",
+      mainNav: "Hauptnavigation", language: "Sprache", theme: "Theme", systemMode: "System", lightMode: "Hell", darkMode: "Dunkel",
+    },
+    fr: {
+      landing: "Accueil", pro: "Pro", github: "GitHub", pricing: "Tarifs", support: "Support",
+      mainNav: "Navigation principale", language: "Langue", theme: "Thème", systemMode: "Système", lightMode: "Clair", darkMode: "Sombre",
+    },
+    en: {
+      landing: "Landing", pro: "Pro", github: "GitHub", pricing: "Pricing", support: "Support",
+      mainNav: "Main Navigation", language: "Language", theme: "Theme", systemMode: "System", lightMode: "Light", darkMode: "Dark",
     }
-    : {
-      landing: "Landing",
-      pro: "Pro",
-      github: "GitHub",
-      pricing: "Pricing",
-      support: "Support",
-      mainNav: "Main Navigation",
-      language: "Language",
-      theme: "Theme",
-      systemMode: "System",
-      lightMode: "Light",
-      darkMode: "Dark",
-    };
+  };
+  const copy = TRANSLATIONS[locale] || TRANSLATIONS.en;
 
   const cycleThemeMode = () => {
     const order = ["system", "light", "dark"];

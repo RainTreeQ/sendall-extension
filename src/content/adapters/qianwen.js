@@ -9,7 +9,15 @@ export function createQianwenAdapter(deps) {
 
   return {
     name: 'Qianwen',
-    findInput: async () => await findInputForPlatform('qianwen') || waitFor(() => findInputHeuristically()),
+    findInput: async () => {
+      const directTextarea = document.querySelector('textarea.message-input-textarea, textarea[placeholder], textarea');
+      if (directTextarea) {
+        return directTextarea;
+      }
+      const bySelectors = await findInputForPlatform('qianwen');
+      if (bySelectors) return bySelectors;
+      return waitFor(() => findInputHeuristically());
+    },
     inject: qianwenInject,
     send: qianwenSend
   };

@@ -8,23 +8,13 @@ import { cva } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const cardVariants = cva(
-  "rounded-3xl border transition-all duration-300",
+  "transition-all duration-300",
   {
     variants: {
       variant: {
-        default: [
-          "bg-card border-border/90",
-          "shadow-[0_1px_0_rgba(255,255,255,0.64)_inset,0_14px_24px_-22px_rgba(0,0,0,0.55)]",
-        ].join(" "),
-        raised: [
-          "bg-card border-border/90",
-          "shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_20px_34px_-24px_rgba(0,0,0,0.72)]",
-          "hover:-translate-y-0.5 hover:shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_24px_38px_-24px_rgba(0,0,0,0.78)]",
-        ].join(" "),
-        inset: [
-          "bg-muted/65 border-border/70",
-          "shadow-[inset_0_1px_1px_rgba(255,255,255,0.55),inset_0_0_0_1px_rgba(0,0,0,0.03)]",
-        ].join(" "),
+        default: "neo-surface",
+        raised: "neo-surface-raised hover:neo-surface-raised-hover",
+        inset: "neo-surface-inset",
       },
     },
     defaultVariants: {
@@ -36,7 +26,7 @@ const cardVariants = cva(
 const Card = React.forwardRef(({ className, variant, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn(cardVariants({ variant, className }))}
+    className={cn("rounded-3xl", cardVariants({ variant }), className)}
     {...props}
   />
 ))
