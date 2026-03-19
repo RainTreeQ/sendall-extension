@@ -63,6 +63,8 @@ const COPY = {
     supportCtaDesc: "零配置上手：安装扩展后，只需打开所需的 AI 页面即可使用。",
     supportCtaBody1: "建议先用社区版体验流畅工作流，如有进阶需求再考虑升级。",
     supportCtaBody2: "随时欢迎通过反馈或赞助来支持我们的持续迭代。",
+    proTipTitle: "如何获得最佳体验？",
+    proTipDesc: "建议结合系统的分屏功能（如 Mac 的左侧分屏 / 右侧分屏或 Windows 的网格对齐），在桌面展开多个不同 AI 模型的独立窗口。在使用 Sendol 分发问题后，可以直接在这个 2x2 或 1x3 的并排视图里对比回答质量，挑选最匹配的答案。",
   },
   en: {
     heroBadge: "Chrome / Edge Extension",
@@ -120,6 +122,8 @@ const COPY = {
     supportCtaDesc: "Zero setup required: Just install the extension and open your favorite AI tabs.",
     supportCtaBody1: "Try the free Community version first to see how it transforms your workflow.",
     supportCtaBody2: "Feel free to support our ongoing development via feedback or sponsorship.",
+    proTipTitle: "How to get the best experience?",
+    proTipDesc: "We recommend using your system's split-screen features (like Mac's Split View or Windows' Snap Assist) to arrange multiple AI tabs side-by-side in a 2x2 or 1x3 grid. After broadcasting with Sendol, you can instantly compare responses in real-time.",
   },
   "zh-TW": {
     heroBadge: "Chrome / Edge 瀏覽器擴展",
@@ -177,6 +181,8 @@ const COPY = {
     supportCtaDesc: "零配置上手：安裝擴展後，只需打開所需的 AI 頁面即可使用。",
     supportCtaBody1: "建議先用社區版體驗流暢工作流，如有進階需求再考慮升級。",
     supportCtaBody2: "隨時歡迎通過反饋或贊助來支持我們的持續迭代。",
+    proTipTitle: "如何獲得最佳體驗？",
+    proTipDesc: "建議結合系統的分屏功能（如 Mac 的左側分屏 / 右側分屏或 Windows 的網格對齊），在桌面展開多個不同 AI 模型的獨立窗口。在使用 Sendol 分發問題後，可以直接在這個 2x2 或 1x3 的並排視圖裡對比回答質量，挑選最匹配的答案。",
   },
   "ja": {
     heroBadge: "Chrome / Edge 拡張機能",
@@ -234,6 +240,8 @@ const COPY = {
     supportCtaDesc: "設定は不要：拡張機能をインストールし、必要な AI タブを開くだけです。",
     supportCtaBody1: "まずは無料のコミュニティ版でスムーズなワークフローを体験してください。",
     supportCtaBody2: "フィードバックやスポンサー支援での応援をお待ちしております。",
+    proTipTitle: "最高の体験を得るために",
+    proTipDesc: "OSの画面分割機能（MacのSplit ViewやWindowsのスナップ機能など）を利用して、2x2や1x3のグリッドで異なるAIモデルを並べることをお勧めします。Sendolで質問を一斉送信した直後に、回答をリアルタイムで比較できます。",
   },
   "ko": {
     heroBadge: "Chrome / Edge 확장 프로그램",
@@ -291,6 +299,8 @@ const COPY = {
     supportCtaDesc: "설정 불필요: 확장 프로그램을 설치하고 원하는 AI 탭을 열기만 하면 됩니다.",
     supportCtaBody1: "먼저 무료 커뮤니티 버전으로 원활한 워크플로우를 경험해 보세요.",
     supportCtaBody2: "피드백이나 후원을 통해 지속적인 개발을 언제든 응원해 주세요.",
+    proTipTitle: "최상의 경험을 얻는 방법",
+    proTipDesc: "Mac의 화면 분할이나 Windows의 스냅 기능 등을 사용하여 2x2 또는 1x3 그리드에 여러 AI 모델 창을 나란히 배치하는 것을 권장합니다. Sendol로 한 번에 전송한 후, 각 답변을 실시간으로 비교해 보세요.",
   },
   "es": {
     heroBadge: "Extensión para Chrome / Edge",
@@ -348,6 +358,8 @@ const COPY = {
     supportCtaDesc: "Cero configuración: Instala la extensión y abre tus pestañas de IA favoritas.",
     supportCtaBody1: "Prueba primero la versión Community para ver cómo transforma tu flujo de trabajo.",
     supportCtaBody2: "Siéntete libre de apoyar nuestro desarrollo a través de comentarios o patrocinios.",
+    proTipTitle: "¿Cómo obtener la mejor experiencia?",
+    proTipDesc: "Recomendamos utilizar las funciones de pantalla dividida de tu sistema (como Split View de Mac o Snap Assist de Windows) para organizar múltiples pestañas de IA una al lado de la otra en una cuadrícula de 2x2 o 1x3. Después de enviar con Sendol, puedes comparar las respuestas al instante.",
   },
   "de": {
     heroBadge: "Chrome / Edge Erweiterung",
@@ -405,6 +417,8 @@ const COPY = {
     supportCtaDesc: "Keine Einrichtung erforderlich: Installieren Sie die Erweiterung und öffnen Sie Ihre KI-Tabs.",
     supportCtaBody1: "Probieren Sie zuerst die Community-Version aus, um Ihren Workflow zu verbessern.",
     supportCtaBody2: "Unterstützen Sie unsere Entwicklung gerne durch Feedback oder Sponsoring.",
+    proTipTitle: "Wie erhalten Sie das beste Erlebnis?",
+    proTipDesc: "Wir empfehlen, die Split-Screen-Funktionen Ihres Betriebssystems (wie Mac Split View oder Windows Snap Assist) zu nutzen, um mehrere KI-Tabs nebeneinander in einem 2x2- oder 1x3-Raster anzuordnen. Nach dem Senden mit Sendol können Sie die Antworten in Echtzeit vergleichen.",
   },
   "fr": {
     heroBadge: "Extension Chrome / Edge",
@@ -462,6 +476,8 @@ const COPY = {
     supportCtaDesc: "Aucune configuration requise : Installez l'extension et ouvrez vos onglets d'IA.",
     supportCtaBody1: "Essayez d'abord la version Community pour voir comment elle transforme votre flux de travail.",
     supportCtaBody2: "N'hésitez pas à soutenir notre développement via des retours ou un parrainage.",
+    proTipTitle: "Comment obtenir la meilleure expérience ?",
+    proTipDesc: "Nous vous recommandons d'utiliser les fonctions d'écran partagé de votre système (comme Split View sur Mac ou Snap Assist sur Windows) pour disposer plusieurs onglets d'IA côte à côte dans une grille 2x2 ou 1x3. Après avoir envoyé avec Sendol, vous pouvez comparer les réponses en temps réel.",
   },
 };
 
@@ -591,6 +607,84 @@ export function Hero() {
                   <CardTitle className="text-xl">{copy.statDraftValue}</CardTitle>
                 </CardHeader>
               </Card>
+            </div>
+            <div className="flex flex-col gap-6 w-full max-w-lg mt-12 bg-card rounded-[24px] p-6 shadow-sm border border-border/60 dark:border-border/30">
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  {copy.proTipTitle || "如何获得最佳体验？"}
+                </h3>
+                <p className="text-muted-foreground text-[15px] leading-relaxed">
+                  {copy.proTipDesc || "建议结合系统的分屏功能（如 Mac 的左右分屏或 2x2 网格），一边打开多个 AI 标签页，一边使用 Sendol 直观对比不同模型的答案。"}
+                </p>
+              </div>
+              <div className="relative aspect-video rounded-xl bg-muted overflow-hidden border border-border/40">
+                {/* Simulated split screen mockup */}
+                <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-[1px] bg-border/40 p-[1px]">
+                  <div className="bg-background flex flex-col relative overflow-hidden">
+                    <div className="h-6 bg-muted/50 border-b border-border/40 flex items-center px-2">
+                      <div className="flex gap-1.5"><div className="w-2 h-2 rounded-full bg-foreground/10"/><div className="w-2 h-2 rounded-full bg-foreground/10"/><div className="w-2 h-2 rounded-full bg-foreground/10"/></div>
+                      <span className="text-[9px] font-medium text-muted-foreground mx-auto">ChatGPT</span>
+                    </div>
+                    <div className="flex-1 p-3 flex flex-col gap-2">
+                      <div className="h-2 w-12 rounded-full bg-primary/20 self-end" />
+                      <div className="h-2 w-full rounded-full bg-muted" />
+                      <div className="h-2 w-3/4 rounded-full bg-muted" />
+                    </div>
+                  </div>
+                  <div className="bg-background flex flex-col relative overflow-hidden">
+                    <div className="h-6 bg-muted/50 border-b border-border/40 flex items-center px-2">
+                      <div className="flex gap-1.5"><div className="w-2 h-2 rounded-full bg-foreground/10"/><div className="w-2 h-2 rounded-full bg-foreground/10"/><div className="w-2 h-2 rounded-full bg-foreground/10"/></div>
+                      <span className="text-[9px] font-medium text-muted-foreground mx-auto">Claude</span>
+                    </div>
+                    <div className="flex-1 p-3 flex flex-col gap-2">
+                      <div className="h-2 w-12 rounded-full bg-primary/20 self-end" />
+                      <div className="h-2 w-5/6 rounded-full bg-muted" />
+                      <div className="h-2 w-1/2 rounded-full bg-muted" />
+                    </div>
+                  </div>
+                  <div className="bg-background flex flex-col relative overflow-hidden">
+                    <div className="h-6 bg-muted/50 border-b border-border/40 flex items-center px-2">
+                      <div className="flex gap-1.5"><div className="w-2 h-2 rounded-full bg-foreground/10"/><div className="w-2 h-2 rounded-full bg-foreground/10"/><div className="w-2 h-2 rounded-full bg-foreground/10"/></div>
+                      <span className="text-[9px] font-medium text-muted-foreground mx-auto">Gemini</span>
+                    </div>
+                    <div className="flex-1 p-3 flex flex-col gap-2">
+                      <div className="h-2 w-12 rounded-full bg-primary/20 self-end" />
+                      <div className="h-2 w-[90%] rounded-full bg-muted" />
+                      <div className="h-2 w-2/3 rounded-full bg-muted" />
+                    </div>
+                  </div>
+                  <div className="bg-background flex flex-col relative overflow-hidden">
+                    <div className="h-6 bg-muted/50 border-b border-border/40 flex items-center px-2">
+                      <div className="flex gap-1.5"><div className="w-2 h-2 rounded-full bg-foreground/10"/><div className="w-2 h-2 rounded-full bg-foreground/10"/><div className="w-2 h-2 rounded-full bg-foreground/10"/></div>
+                      <span className="text-[9px] font-medium text-muted-foreground mx-auto">DeepSeek</span>
+                    </div>
+                    <div className="flex-1 p-3 flex flex-col gap-2">
+                      <div className="h-2 w-12 rounded-full bg-primary/20 self-end" />
+                      <div className="h-2 w-full rounded-full bg-muted" />
+                      <div className="h-2 w-4/5 rounded-full bg-muted" />
+                    </div>
+                  </div>
+                  {/* Central Sendol Popup overlay */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-40 bg-card/95 backdrop-blur-md rounded-lg border border-border/80 shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex flex-col overflow-hidden">
+                    <div className="h-5 border-b border-border/50 flex items-center justify-between px-2">
+                      <span className="text-[8px] font-semibold tracking-tight">Sendol</span>
+                    </div>
+                    <div className="flex-1 p-2 flex flex-col gap-2">
+                      <div className="h-[40%] bg-muted/50 rounded border border-border/30 p-1">
+                        <div className="h-1 w-8 bg-foreground/20 rounded-full mb-1" />
+                        <div className="h-1 w-12 bg-foreground/20 rounded-full" />
+                      </div>
+                      <div className="flex gap-1 mt-auto">
+                        <div className="flex-1 h-4 bg-muted rounded border border-border/30" />
+                        <div className="w-8 h-4 bg-primary rounded border border-primary/30 flex items-center justify-center">
+                          <div className="w-2 h-2 border-t border-r border-primary-foreground/80 translate-x-[-1px] rotate-45" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
