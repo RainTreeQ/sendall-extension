@@ -29,35 +29,35 @@ export function Header() {
 
   const TRANSLATIONS = {
     "zh-CN": {
-      landing: "落地页", pro: "专业版", github: "GitHub", pricing: "定价", support: "支持",
+      landing: "落地页", pro: "专业版", github: "GitHub", pricing: "定价", support: "支持", faq: "常见问题",
       mainNav: "主导航", language: "语言", theme: "主题", systemMode: "系统", lightMode: "浅色", darkMode: "深色",
     },
     "zh-TW": {
-      landing: "登陸頁", pro: "專業版", github: "GitHub", pricing: "定價", support: "支援",
+      landing: "登陸頁", pro: "專業版", github: "GitHub", pricing: "定價", support: "支援", faq: "常見問題",
       mainNav: "主導航", language: "語言", theme: "主題", systemMode: "系統", lightMode: "淺色", darkMode: "深色",
     },
     ja: {
-      landing: "ランディング", pro: "Pro", github: "GitHub", pricing: "料金", support: "サポート",
+      landing: "ランディング", pro: "Pro", github: "GitHub", pricing: "料金", support: "サポート", faq: "FAQ",
       mainNav: "メインナビゲーション", language: "言語", theme: "テーマ", systemMode: "システム", lightMode: "ライト", darkMode: "ダーク",
     },
     ko: {
-      landing: "랜딩 페이지", pro: "Pro", github: "GitHub", pricing: "가격", support: "지원",
+      landing: "랜딩 페이지", pro: "Pro", github: "GitHub", pricing: "가격", support: "지원", faq: "FAQ",
       mainNav: "메인 내비게이션", language: "언어", theme: "테마", systemMode: "시스템", lightMode: "라이트", darkMode: "다크",
     },
     es: {
-      landing: "Inicio", pro: "Pro", github: "GitHub", pricing: "Precios", support: "Soporte",
+      landing: "Inicio", pro: "Pro", github: "GitHub", pricing: "Precios", support: "Soporte", faq: "FAQ",
       mainNav: "Navegación principal", language: "Idioma", theme: "Tema", systemMode: "Sistema", lightMode: "Claro", darkMode: "Oscuro",
     },
     de: {
-      landing: "Startseite", pro: "Pro", github: "GitHub", pricing: "Preise", support: "Support",
+      landing: "Startseite", pro: "Pro", github: "GitHub", pricing: "Preise", support: "Support", faq: "FAQ",
       mainNav: "Hauptnavigation", language: "Sprache", theme: "Theme", systemMode: "System", lightMode: "Hell", darkMode: "Dunkel",
     },
     fr: {
-      landing: "Accueil", pro: "Pro", github: "GitHub", pricing: "Tarifs", support: "Support",
+      landing: "Accueil", pro: "Pro", github: "GitHub", pricing: "Tarifs", support: "Support", faq: "FAQ",
       mainNav: "Navigation principale", language: "Langue", theme: "Thème", systemMode: "Système", lightMode: "Clair", darkMode: "Sombre",
     },
     en: {
-      landing: "Landing", pro: "Pro", github: "GitHub", pricing: "Pricing", support: "Support",
+      landing: "Landing", pro: "Pro", github: "GitHub", pricing: "Pricing", support: "Support", faq: "FAQ",
       mainNav: "Main Navigation", language: "Language", theme: "Theme", systemMode: "System", lightMode: "Light", darkMode: "Dark",
     }
   };
@@ -138,10 +138,13 @@ export function Header() {
           </label>
 
           <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
-            <a href="/#pricing">{copy.pricing}</a>
+            <Link to="/#pricing">{copy.pricing}</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
-            <a href="/#support">{copy.support}</a>
+            <Link to="/faq">{copy.faq}</Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
+            <Link to="/#support">{copy.support}</Link>
           </Button>
           <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex">
             <a href="https://github.com/RainTreeQ/sendol-extension" target="_blank" rel="noreferrer">
