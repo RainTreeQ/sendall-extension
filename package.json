@@ -1,6 +1,6 @@
 {
   "name": "ai-broadcast-extension",
-  "version": "2.31.0",
+  "version": "2.31.1",
   "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
@@ -20,6 +20,7 @@
     "release:stage": "npm run build:extension && npm run package:extension && git add -A app/dist-extension && git status --short -- app/dist-extension",
     "test:input": "node scripts/test-input-support.mjs",
     "test:popup": "node scripts/test-popup-ui.mjs",
+    "test:site": "playwright test --config tests/site/playwright.config.js",
     "auth:export": "node scripts/export-auth-state.mjs",
     "validate:selectors": "node scripts/validate-selectors.mjs",
     "guard:popup-style-isolation": "node scripts/check-popup-style-isolation.mjs",
