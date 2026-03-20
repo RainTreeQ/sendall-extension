@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, Coins, Crown, Globe, HandHeart, Languages, MoonStar, ShieldCheck, Sparkles, SunMoon, Wallet } from "lucide-react";
+import { ArrowUp, ArrowUpRight, Coins, Crown, Globe, HandHeart, Languages, MoonStar, Send, ShieldCheck, Sparkles, SunMoon, Wallet } from "lucide-react";
 import { Claude, DeepSeek, Doubao, Gemini, Kimi, Mistral, OpenAI, Yuanbao } from "@lobehub/icons";
 import { useSiteSettings } from "@/lib/site-settings";
 import { HeroShapeGrid } from "@/components/landing/HeroShapeGrid";
@@ -634,7 +634,7 @@ export function Hero() {
             </p>
           </div>
 
-          <div className="max-w-6xl mx-auto w-full relative aspect-[21/9] rounded-[32px] bg-muted/30 overflow-hidden border border-border/40 shadow-[0_30px_60px_-35px_rgba(0,0,0,0.4)] dark:shadow-[0_20px_60px_-25px_rgba(255,255,255,0.06)] ring-1 ring-white/10 dark:ring-white/5 transition-transform duration-700 hover:scale-[1.01]">
+          <div className="max-w-6xl mx-auto w-full relative min-h-[450px] lg:aspect-[21/9] rounded-[32px] bg-muted/30 overflow-hidden border border-border/40 shadow-[0_30px_60px_-35px_rgba(0,0,0,0.4)] dark:shadow-[0_20px_60px_-25px_rgba(255,255,255,0.06)] ring-1 ring-white/10 dark:ring-white/5 transition-transform duration-700 hover:scale-[1.01]">
             <div className="absolute inset-0 bg-linear-to-b from-primary/5 to-transparent mix-blend-overlay pointer-events-none" />
             {/* Simulated split screen mockup */}
             <div className="absolute inset-x-2 inset-y-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
@@ -662,25 +662,46 @@ export function Hero() {
                 </div>
               ))}
               {/* Central Sendol Popup overlay */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-80 bg-background/90 backdrop-blur-xl rounded-2xl border border-border/60 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_-10px_rgba(255,255,255,0.15)] flex flex-col overflow-hidden ring-1 ring-white/10 dark:ring-white/5 z-10 transition-transform duration-500 hover:scale-105">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] bg-background/95 backdrop-blur-xl rounded-2xl border border-border/60 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_-10px_rgba(255,255,255,0.15)] flex flex-col overflow-hidden ring-1 ring-white/10 dark:ring-white/5 z-10 transition-transform duration-500 hover:scale-105">
                 <div className="absolute inset-0 bg-linear-to-b from-primary/5 to-transparent mix-blend-overlay pointer-events-none" />
-                <div className="h-10 border-b border-border/40 flex items-center justify-between px-5 relative z-10">
-                  <span className="text-sm font-semibold tracking-tight">Sendol</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary/40 animate-pulse" />
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Ready</span>
+                
+                {/* Header */}
+                <div className="h-12 border-b border-border/40 flex items-center justify-between px-4 relative z-10">
+                  <div className="flex items-center gap-2 text-foreground/80">
+                    <Send className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold tracking-tight">Sendol</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <div className="w-4 h-4 rounded-md bg-muted/60" />
+                    <div className="w-4 h-4 rounded-md bg-muted/60" />
                   </div>
                 </div>
-                <div className="flex-1 p-4 flex flex-col gap-4 relative z-10">
-                  <div className="h-[50%] bg-muted/30 rounded-xl border border-border/30 p-3 shadow-inner">
-                    <div className="h-2 w-16 bg-foreground/20 rounded-full mb-3" />
-                    <div className="h-2 w-24 bg-foreground/20 rounded-full" />
+                
+                {/* Text Area */}
+                <div className="p-4 pb-2 relative z-10">
+                  <div className="h-24 bg-muted/30 rounded-xl border border-border/40 p-3 shadow-inner flex flex-col gap-2.5">
+                    <div className="h-2 w-3/4 bg-foreground/20 rounded-full" />
+                    <div className="h-2 w-full bg-foreground/20 rounded-full" />
+                    <div className="h-2 w-1/2 bg-foreground/20 rounded-full" />
                   </div>
-                  <div className="flex gap-3 mt-auto">
-                    <div className="flex-1 h-10 bg-muted/50 rounded-xl border border-border/30" />
-                    <div className="w-14 h-10 bg-primary rounded-xl shadow-md flex items-center justify-center">
-                      <div className="w-3.5 h-3.5 border-t-2 border-r-2 border-primary-foreground/90 translate-x-[-2px] rotate-45" />
+                </div>
+
+                {/* Platforms Row */}
+                <div className="px-4 py-2 flex gap-2 relative z-10">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="w-7 h-7 rounded-full bg-muted/50 border border-border/50 flex items-center justify-center">
+                      <div className="w-4 h-4 rounded-full bg-foreground/10" />
                     </div>
+                  ))}
+                </div>
+
+                {/* Footer */}
+                <div className="h-14 px-4 flex items-center justify-between relative z-10 border-t border-border/30 mt-2 bg-muted/10">
+                  <div className="w-8 h-4 bg-muted-foreground/30 rounded-full flex items-center p-[2px]">
+                    <div className="w-3 h-3 bg-background rounded-full shadow-sm" />
+                  </div>
+                  <div className="w-9 h-9 bg-primary rounded-full shadow-md flex items-center justify-center text-primary-foreground hover:scale-105 transition-transform">
+                    <ArrowUp className="w-4 h-4" strokeWidth={3} />
                   </div>
                 </div>
               </div>
