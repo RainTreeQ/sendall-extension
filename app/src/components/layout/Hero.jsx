@@ -554,142 +554,131 @@ export function Hero() {
       </div>
 
       <div className="container relative z-10 mx-auto px-4 pb-20 pt-12 md:px-6 md:pt-16">
-        <div className="grid items-center gap-10 lg:grid-cols-[1.2fr_1fr] lg:gap-12">
-          <div className="space-y-7">
-            <Badge variant="outline" className="px-3 py-1 text-[10px] uppercase tracking-[0.16em]">
-              {copy.heroBadge}
+        <div className="flex flex-col items-center justify-center pt-24 pb-16 md:pt-40 md:pb-32 text-center max-w-4xl mx-auto z-10 space-y-8 relative">
+          {/* Logo Title - fully centered */}
+          <div className="flex items-center gap-3">
+            <span className="font-bold text-3xl tracking-tight text-foreground/90">
+              Sendol
+            </span>
+            <Badge variant="outline" className="px-2 py-0.5 text-[10px] uppercase font-semibold text-muted-foreground border-border/40">
+              {copy.betaLabel}
             </Badge>
-            <div className="space-y-4">
-              <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-tight text-foreground md:text-5xl md:leading-[1.15]">
-                {copy.title1}
-                <span className="mt-1 block bg-linear-to-br from-foreground to-foreground/50 bg-clip-text text-transparent md:mt-2">
-                  {copy.title2}
-                </span>
-              </h1>
-              <p className="max-w-xl text-[15px] leading-7 text-muted-foreground md:text-base">
-                {copy.subtitle}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Button size="lg" onClick={(e) => handleScrollTo(e, "pricing")}>
-                {copy.ctaPricing}
-              </Button>
-              <Button variant="outline" size="lg" onClick={(e) => handleScrollTo(e, "support")}>
-                {copy.ctaSupport}
-                <HandHeart className="h-4 w-4" />
-              </Button>
-              <Button asChild variant="ghost" size="lg">
-                <a href="https://github.com/RainTreeQ/sendol-extension#-installation--安装" target="_blank" rel="noreferrer">
-                  {copy.ctaInstall}
-                  <ArrowUpRight className="h-4 w-4" />
-                </a>
-              </Button>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-3 sm:grid-cols-3 pt-6 border-t border-border/40">
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{copy.statPlatforms}</div>
-                <PlatformLogos />
-              </div>
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{copy.statMode}</div>
-                <div className="text-[15px] font-medium text-foreground">{copy.statModeValue}</div>
-              </div>
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{copy.statDraft}</div>
-                <div className="text-[15px] font-medium text-foreground">{copy.statDraftValue}</div>
-              </div>
-            </div>
           </div>
 
-          <div className="flex justify-center lg:justify-end">
-            <div className="group relative max-w-[380px] overflow-hidden rounded-[24px] shadow-[0_30px_60px_-35px_rgba(0,0,0,0.65)] dark:shadow-[0_20px_60px_-25px_rgba(255,255,255,0.08)] ring-1 ring-border/50 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_45px_75px_-30px_rgba(0,0,0,0.8)] dark:hover:shadow-[0_30px_70px_-20px_rgba(255,255,255,0.12)] hover:ring-border/80">
-              {/* 微拟物：顶部光泽遮罩，悬浮时稍微加强 */}
-              <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-b from-white/10 to-transparent opacity-40 mix-blend-overlay transition-opacity duration-700 group-hover:opacity-70 dark:from-white/5" />
-              <img
-                src={screenshotSrc}
-                alt={copy.popupScreenshotAlt}
-                className="block h-auto w-full transition-transform duration-700 group-hover:scale-[1.015]"
-                loading="eager"
-              />
-            </div>
+          <div className="space-y-4">
+            <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-6xl md:text-7xl leading-[1.15]">
+              {copy.title1}
+              <span className="block mt-2 bg-linear-to-br from-foreground to-foreground/50 bg-clip-text text-transparent">
+                {copy.title2}
+              </span>
+            </h1>
+            <p className="max-w-[700px] mx-auto text-lg text-muted-foreground md:text-xl font-medium leading-relaxed mt-6">
+              {copy.subtitle}
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 pt-6 items-center justify-center w-full">
+            <Button size="lg" className="h-14 px-8 text-base font-medium rounded-full shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5" onClick={() => window.open('https://github.com/RainTreeQ/sendol-extension#-installation--安装', '_blank')}>
+              {copy.ctaInstall}
+              <ArrowUpRight className="ml-2 h-5 w-5" />
+            </Button>
+            <Button variant="outline" size="lg" className="h-14 px-8 text-base font-medium rounded-full bg-background/50 backdrop-blur-sm hover:bg-muted" onClick={(e) => handleScrollTo(e, "pricing")}>
+              {copy.ctaPricing}
+            </Button>
           </div>
         </div>
 
-        <section id="pro-tip" aria-labelledby="pro-tip-heading" className="mt-24 space-y-6 md:mt-32 md:space-y-8">
-          <div className="flex flex-col items-center text-center gap-3">
+        {/* Plugin UI showcase - completely unboxed, floating feeling */}
+        <div className="relative mx-auto max-w-5xl z-10 -mt-8 md:-mt-16 mb-24 perspective-1000">
+          <div className="relative rounded-2xl overflow-hidden border border-foreground/10 bg-background/40 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(255,255,255,0.05)] ring-1 ring-white/10 dark:ring-white/5 transition-transform duration-700 ease-out hover:scale-[1.02] hover:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_30px_70px_-20px_rgba(255,255,255,0.08)]">
+            <div className="absolute inset-0 bg-linear-to-tr from-primary/5 via-transparent to-transparent pointer-events-none" />
+            <img 
+              src={screenshotSrc} 
+              alt={copy.popupScreenshotAlt} 
+              className="w-full h-auto object-cover opacity-90 transition-opacity duration-300 relative z-10" 
+            />
+            
+            {/* Glass reflection effect */}
+            <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-white/20 to-transparent" />
+            <div className="absolute inset-y-0 left-0 w-px bg-linear-to-b from-white/20 via-transparent to-transparent" />
+          </div>
+
+          {/* Decorative glow behind the image */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-primary/20 blur-[100px] rounded-full -z-10" />
+        </div>
+
+        {/* Updated Stats / Inline text below main visual */}
+        <div className="grid gap-6 md:grid-cols-3 sm:grid-cols-3 pt-6 border-t border-border/40 max-w-5xl mx-auto">
+          <div className="space-y-1.5 flex flex-col items-center text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{copy.statPlatforms}</div>
+            <PlatformLogos />
+          </div>
+          <div className="space-y-1.5 flex flex-col items-center text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{copy.statMode}</div>
+            <div className="text-[15px] font-medium text-foreground">{copy.statModeValue}</div>
+          </div>
+          <div className="space-y-1.5 flex flex-col items-center text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{copy.statDraft}</div>
+            <div className="text-[15px] font-medium text-foreground">{copy.statDraftValue}</div>
+          </div>
+        </div>
+
+        <section id="pro-tip" aria-labelledby="pro-tip-heading" className="mt-32 md:mt-48 space-y-12">
+          <div className="flex flex-col items-center text-center gap-4">
             <h2 id="pro-tip-heading" className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl flex items-center justify-center gap-3">
               {copy.proTipTitle || "如何获得最佳体验？"}
             </h2>
-            <p className="text-sm text-muted-foreground md:text-base max-w-2xl">
+            <p className="text-lg text-muted-foreground md:text-xl font-medium max-w-3xl leading-relaxed">
               {copy.proTipDesc || "建议结合系统的分屏功能（如 Mac 的左右分屏或 2x2 网格），一边打开多个 AI 标签页，一边使用 Sendol 直观对比不同模型的答案。"}
             </p>
           </div>
 
-          <div className="max-w-5xl mx-auto w-full relative aspect-video rounded-2xl bg-muted overflow-hidden border border-border/40 shadow-[0_30px_60px_-35px_rgba(0,0,0,0.4)] dark:shadow-[0_20px_60px_-25px_rgba(255,255,255,0.06)] ring-1 ring-border/50">
+          <div className="max-w-6xl mx-auto w-full relative aspect-[21/9] rounded-[32px] bg-muted/30 overflow-hidden border border-border/40 shadow-[0_30px_60px_-35px_rgba(0,0,0,0.4)] dark:shadow-[0_20px_60px_-25px_rgba(255,255,255,0.06)] ring-1 ring-white/10 dark:ring-white/5 transition-transform duration-700 hover:scale-[1.01]">
+            <div className="absolute inset-0 bg-linear-to-b from-primary/5 to-transparent mix-blend-overlay pointer-events-none" />
             {/* Simulated split screen mockup */}
-            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-[2px] bg-border/40 p-[2px]">
-              <div className="bg-background flex flex-col relative overflow-hidden">
-                <div className="h-8 bg-muted/50 border-b border-border/40 flex items-center px-4">
-                  <div className="flex gap-2"><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/></div>
-                  <span className="text-[11px] font-medium text-muted-foreground mx-auto">ChatGPT</span>
-                </div>
-                <div className="flex-1 p-5 flex flex-col gap-3">
-                  <div className="h-3 w-16 rounded-full bg-primary/20 self-end" />
-                  <div className="h-3 w-full rounded-full bg-muted" />
-                  <div className="h-3 w-3/4 rounded-full bg-muted" />
-                  <div className="h-3 w-5/6 rounded-full bg-muted mt-2" />
-                </div>
-              </div>
-              <div className="bg-background flex flex-col relative overflow-hidden">
-                <div className="h-8 bg-muted/50 border-b border-border/40 flex items-center px-4">
-                  <div className="flex gap-2"><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/></div>
-                  <span className="text-[11px] font-medium text-muted-foreground mx-auto">Claude</span>
-                </div>
-                <div className="flex-1 p-5 flex flex-col gap-3">
-                  <div className="h-3 w-16 rounded-full bg-primary/20 self-end" />
-                  <div className="h-3 w-5/6 rounded-full bg-muted" />
-                  <div className="h-3 w-1/2 rounded-full bg-muted" />
-                </div>
-              </div>
-              <div className="bg-background flex flex-col relative overflow-hidden">
-                <div className="h-8 bg-muted/50 border-b border-border/40 flex items-center px-4">
-                  <div className="flex gap-2"><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/></div>
-                  <span className="text-[11px] font-medium text-muted-foreground mx-auto">Gemini</span>
-                </div>
-                <div className="flex-1 p-5 flex flex-col gap-3">
-                  <div className="h-3 w-16 rounded-full bg-primary/20 self-end" />
-                  <div className="h-3 w-[90%] rounded-full bg-muted" />
-                  <div className="h-3 w-2/3 rounded-full bg-muted" />
-                  <div className="h-3 w-1/3 rounded-full bg-muted mt-2" />
-                </div>
-              </div>
-              <div className="bg-background flex flex-col relative overflow-hidden">
-                <div className="h-8 bg-muted/50 border-b border-border/40 flex items-center px-4">
-                  <div className="flex gap-2"><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/><div className="w-2.5 h-2.5 rounded-full bg-foreground/10"/></div>
-                  <span className="text-[11px] font-medium text-muted-foreground mx-auto">DeepSeek</span>
-                </div>
-                <div className="flex-1 p-5 flex flex-col gap-3">
-                  <div className="h-3 w-16 rounded-full bg-primary/20 self-end" />
-                  <div className="h-3 w-full rounded-full bg-muted" />
-                  <div className="h-3 w-4/5 rounded-full bg-muted" />
-                </div>
-              </div>
-              {/* Central Sendol Popup overlay */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-60 bg-card/95 backdrop-blur-md rounded-xl border border-border/80 shadow-[0_12px_40px_rgb(0,0,0,0.3)] dark:shadow-[0_12px_40px_rgba(255,255,255,0.1)] flex flex-col overflow-hidden">
-                <div className="h-8 border-b border-border/50 flex items-center justify-between px-4">
-                  <span className="text-[11px] font-semibold tracking-tight">Sendol</span>
-                </div>
-                <div className="flex-1 p-3 flex flex-col gap-3">
-                  <div className="h-[45%] bg-muted/50 rounded-md border border-border/30 p-2">
-                    <div className="h-1.5 w-12 bg-foreground/20 rounded-full mb-2" />
-                    <div className="h-1.5 w-20 bg-foreground/20 rounded-full" />
+            <div className="absolute inset-x-2 inset-y-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
+              {[
+                { name: "ChatGPT", width1: "16", width2: "full", width3: "3/4", width4: "5/6" },
+                { name: "Claude", width1: "16", width2: "5/6", width3: "1/2", width4: "" },
+                { name: "Gemini", width1: "16", width2: "[90%]", width3: "2/3", width4: "1/3" },
+                { name: "DeepSeek", width1: "16", width2: "full", width3: "4/5", width4: "" }
+              ].map((ai, index) => (
+                <div key={index} className="bg-background/80 backdrop-blur-md flex flex-col relative overflow-hidden rounded-2xl border border-border/50 shadow-sm">
+                  <div className="h-10 bg-muted/40 border-b border-border/40 flex items-center px-4">
+                    <div className="flex gap-1.5 opacity-60">
+                      <div className="w-2.5 h-2.5 rounded-full bg-foreground/20" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-foreground/20" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-foreground/20" />
+                    </div>
+                    <span className="text-xs font-medium text-foreground/60 mx-auto tracking-wide">{ai.name}</span>
                   </div>
-                  <div className="flex gap-2 mt-auto">
-                    <div className="flex-1 h-6 bg-muted rounded-md border border-border/30" />
-                    <div className="w-12 h-6 bg-primary rounded-md border border-primary/30 flex items-center justify-center">
-                      <div className="w-2.5 h-2.5 border-t-2 border-r-2 border-primary-foreground/80 translate-x-[-1px] rotate-45" />
+                  <div className="flex-1 p-6 flex flex-col gap-4">
+                    <div className={`h-3.5 w-${ai.width1} rounded-full bg-primary/20 self-end shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)]`} />
+                    <div className={`h-3.5 w-${ai.width2} rounded-full bg-muted/80 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)]`} />
+                    <div className={`h-3.5 w-${ai.width3} rounded-full bg-muted/80 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)]`} />
+                    {ai.width4 && <div className={`h-3.5 w-${ai.width4} rounded-full bg-muted/80 mt-2 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)]`} />}
+                  </div>
+                </div>
+              ))}
+              {/* Central Sendol Popup overlay */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-80 bg-background/90 backdrop-blur-xl rounded-2xl border border-border/60 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_-10px_rgba(255,255,255,0.15)] flex flex-col overflow-hidden ring-1 ring-white/10 dark:ring-white/5 z-10 transition-transform duration-500 hover:scale-105">
+                <div className="absolute inset-0 bg-linear-to-b from-primary/5 to-transparent mix-blend-overlay pointer-events-none" />
+                <div className="h-10 border-b border-border/40 flex items-center justify-between px-5 relative z-10">
+                  <span className="text-sm font-semibold tracking-tight">Sendol</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-primary/40 animate-pulse" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Ready</span>
+                  </div>
+                </div>
+                <div className="flex-1 p-4 flex flex-col gap-4 relative z-10">
+                  <div className="h-[50%] bg-muted/30 rounded-xl border border-border/30 p-3 shadow-inner">
+                    <div className="h-2 w-16 bg-foreground/20 rounded-full mb-3" />
+                    <div className="h-2 w-24 bg-foreground/20 rounded-full" />
+                  </div>
+                  <div className="flex gap-3 mt-auto">
+                    <div className="flex-1 h-10 bg-muted/50 rounded-xl border border-border/30" />
+                    <div className="w-14 h-10 bg-primary rounded-xl shadow-md flex items-center justify-center">
+                      <div className="w-3.5 h-3.5 border-t-2 border-r-2 border-primary-foreground/90 translate-x-[-2px] rotate-45" />
                     </div>
                   </div>
                 </div>

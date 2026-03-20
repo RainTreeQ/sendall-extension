@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-20 13:05 | v1.2.4 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:7f881fe2c24f -->
 - 2026-03-20 13:03 | v1.2.3 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:bb8003d3c494 -->
 - 2026-03-19 17:03 | v1.2.2 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:fb79a20858cb -->
 - 2026-03-19 16:57 | v1.2.1 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:fd2dd3ab6243 -->
@@ -37,7 +38,6 @@
 - 2026-03-19 16:27 | v2.32.0 (MINOR) | Core / UI Components | `app/src/components/layout/Hero.jsx`, `app/src/components/ui/accordion.jsx`, `app/src/pages/FAQ.jsx` <!-- auto:3ca83ea1d76b -->
 - 2026-03-19 16:18 | v2.31.5 (PATCH) | Core | `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx` <!-- auto:36364b73a2ac -->
 - 2026-03-19 16:02 | v2.31.4 (PATCH) | Core | `package-lock.json`, `tests/site/code-quality.spec.js`, `tests/site/i18n.spec.js`, `tests/site/navigation.spec.js`, `tests/site/theme.spec.js` <!-- auto:c357cdd4b41b -->
-- 2026-03-19 16:02 | v2.31.3 (PATCH) | Core | `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx` <!-- auto:2c584f6752f9 -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---
