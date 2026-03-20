@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-20 13:09 | v1.2.6 (PATCH) | Core | `app/src/pages/FAQ.jsx` <!-- auto:95ad3bad6ee9 -->
 - 2026-03-20 13:05 | v1.2.5 (PATCH) | Core | `app/src/components/landing/HeroShapeGrid.jsx` <!-- auto:5598ddf96fe1 -->
 - 2026-03-20 13:05 | v1.2.4 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:7f881fe2c24f -->
 - 2026-03-20 13:03 | v1.2.3 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:bb8003d3c494 -->
@@ -37,7 +38,6 @@
 - 2026-03-19 16:41 | v2.33.0 (MINOR) | Core / Popup UI | `app/src/lib/i18n.js`, `app/src/popup/Popup.jsx` <!-- auto:9458254312f3 -->
 - 2026-03-19 16:36 | v2.32.1 (PATCH) | Core | `app/src/pages/FAQ.jsx` <!-- auto:eb1a2af22172 -->
 - 2026-03-19 16:27 | v2.32.0 (MINOR) | Core / UI Components | `app/src/components/layout/Hero.jsx`, `app/src/components/ui/accordion.jsx`, `app/src/pages/FAQ.jsx` <!-- auto:3ca83ea1d76b -->
-- 2026-03-19 16:18 | v2.31.5 (PATCH) | Core | `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx` <!-- auto:36364b73a2ac -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---
