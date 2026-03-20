@@ -674,32 +674,48 @@ export function Hero() {
                   </div>
                 </div>
                 
-                {/* Text Area */}
-                <div className="p-4 pb-2 relative z-10">
-                  <div className="h-[72px] bg-muted/30 rounded-xl border border-border/40 p-3 shadow-inner flex flex-col gap-2.5">
-                    <div className="h-2 w-3/4 bg-foreground/20 rounded-full" />
-                    <div className="h-2 w-1/2 bg-foreground/20 rounded-full" />
+                {/* Content Area */}
+                <div className="p-4 flex flex-col gap-3 relative z-10 flex-1">
+                  {/* Three rectangular blocks */}
+                  <div className="h-8 bg-muted/40 rounded-lg border border-border/40 flex items-center px-3 shadow-inner">
+                    <div className="h-2 w-3/4 bg-foreground/15 rounded-full" />
                   </div>
-                </div>
-
-                {/* Platforms Row */}
-                <div className="px-4 py-2 flex gap-2 relative z-10">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="w-7 h-7 rounded-full bg-muted/50 border border-border/50 flex items-center justify-center">
-                      <div className="w-4 h-4 rounded-full bg-foreground/10" />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Footer */}
-                <div className="h-[60px] px-4 flex items-center justify-between relative z-10 mt-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-4 bg-muted-foreground/30 rounded-full flex items-center p-[2px]">
-                      <div className="w-3 h-3 bg-background rounded-full shadow-sm" />
-                    </div>
+                  <div className="h-8 bg-muted/40 rounded-lg border border-border/40 flex items-center px-3 shadow-inner">
+                    <div className="h-2 w-1/2 bg-foreground/15 rounded-full" />
                   </div>
-                  <div className="w-9 h-9 bg-primary rounded-full shadow-md flex items-center justify-center text-primary-foreground hover:scale-105 transition-transform">
-                    <ArrowUp className="w-4 h-4" strokeWidth={3} />
+                  <div className="h-8 bg-muted/40 rounded-lg border border-border/40 flex items-center px-3 shadow-inner">
+                    <div className="h-2 w-full bg-foreground/15 rounded-full" />
+                  </div>
+
+                  {/* Spacer to push everything else down */}
+                  <div className="flex-1 min-h-[12px]" />
+
+                  {/* Platforms Row */}
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="w-7 h-7 rounded-full bg-muted/50 border border-border/50 flex items-center justify-center">
+                        <div className="w-4 h-4 rounded-full bg-foreground/10" />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Input Area with Switch and Send Button */}
+                  <div className="mt-1 bg-background rounded-xl border border-border/60 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05),0_1px_3px_-1px_rgba(0,0,0,0.03)] dark:shadow-[0_2px_8px_-2px_rgba(255,255,255,0.02),0_1px_3px_-1px_rgba(255,255,255,0.01)] flex flex-col pt-3 pb-2 px-3 relative overflow-hidden transition-all duration-300 ring-1 ring-border/20">
+                    {/* Simulated Text */}
+                    <div className="h-2 w-24 bg-foreground/20 rounded-full mb-6" />
+                    
+                    {/* Input Controls */}
+                    <div className="flex items-center justify-between mt-auto">
+                      {/* Toggle Switch */}
+                      <div className="w-8 h-4 bg-muted-foreground/30 rounded-full flex items-center p-[2px]">
+                        <div className="w-3 h-3 bg-background rounded-full shadow-sm" />
+                      </div>
+                      
+                      {/* Send Button */}
+                      <div className="w-8 h-8 bg-primary/90 rounded-full shadow-md flex items-center justify-center text-primary-foreground hover:scale-105 transition-transform border border-primary/20">
+                        <ArrowUp className="w-4 h-4" strokeWidth={3} />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

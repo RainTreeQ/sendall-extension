@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-20 13:49 | v1.2.12 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:a8ff17cd963d -->
 - 2026-03-20 13:46 | v1.2.11 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:47c9fe3130a6 -->
 - 2026-03-20 13:45 | v1.2.10 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:c4faeef286c6 -->
 - 2026-03-20 13:37 | v1.2.9 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:db1d9337733a -->
@@ -37,7 +38,6 @@
 - 2026-03-20 13:03 | v1.2.3 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:bb8003d3c494 -->
 - 2026-03-19 17:03 | v1.2.2 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:fb79a20858cb -->
 - 2026-03-19 16:57 | v1.2.1 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:fd2dd3ab6243 -->
-- 2026-03-19 16:56 | v1.2.0 (MINOR) | Popup UI / Background / Manifest/Permissions / Tooling | `app/src/popup/Popup.jsx`, `background.js`, `manifest.json`, `scripts/build-content.mjs`, `scripts/discover-selectors.mjs`, `scripts/validate-selectors.mjs` <!-- auto:f102f013fcf6 -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---
