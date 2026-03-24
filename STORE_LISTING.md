@@ -96,9 +96,9 @@ AI, ChatGPT, Claude, Gemini, broadcast, sync, multi-platform, productivity, effi
 ## 👤 开发者信息
 
 **Developer Name:** Sendol Team
-**Website:** (GitHub 或落地页 URL)
-**Email:** (支持邮箱)
-**Privacy Policy:** (privacy.md 的在线链接)
+**Website:** https://sendol.chat
+**Email:** qqxxll5566@gmail.com
+**Privacy Policy:** https://sendol.chat/privacy
 
 ---
 

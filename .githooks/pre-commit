@@ -1,6 +1,33 @@
 #!/bin/sh
 set -e
 
+echo "[pre-commit] 🔒 Running security checks..."
+
+# Security: Prevent accidental commit of sensitive files
+SENSITIVE_FILES=".auth/storage-state.json .env .env.local"
+for file in $SENSITIVE_FILES; do
+    if git diff --cached --name-only | grep -q "$file"; then
+        echo "❌ [pre-commit] ERROR: Attempting to commit sensitive file: $file"
+        echo "   This file contains authentication tokens and should NEVER be committed."
+        echo "   To bypass (NOT recommended): git commit --no-verify"
+        exit 1
+    fi
+done
+
+# Security: Check for hardcoded secrets in staged JS/JSON files
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|jsx|json)$' || true)
+if [ -n "$STAGED_JS" ]; then
+    # Check for common API key patterns
+    if echo "$STAGED_JS" | xargs grep -E "(sk-[a-zA-Z0-9]{20,}|gh[pousr]_[A-Za-z0-9_]{36})" 2>/dev/null; then
+        echo "⚠️  [pre-commit] WARNING: Potential hardcoded API key detected in staged files."
+        echo "   Please use environment variables or GitHub Secrets instead."
+        exit 1
+    fi
+fi
+
+echo "✅ [pre-commit] Security checks passed."
+echo ""
+
 echo "[pre-commit] Building extension bundle..."
 npm run build
 

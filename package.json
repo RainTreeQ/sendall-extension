@@ -1,5 +1,5 @@
 {
-  "name": "ai-broadcast-extension",
+  "name": "sendol",
   "version": "0.1.0",
   "license": "AGPL-3.0-or-later",
   "private": true,
@@ -21,6 +21,7 @@
     "test:input": "node scripts/test-input-support.mjs",
     "test:popup": "node scripts/test-popup-ui.mjs",
     "test:site": "playwright test --config tests/site/playwright.config.js",
+    "deploy:site": "wrangler pages deploy app/dist-site --project-name=sendol",
     "auth:export": "node scripts/export-auth-state.mjs",
     "validate:selectors": "node scripts/validate-selectors.mjs",
     "guard:popup-style-isolation": "node scripts/check-popup-style-isolation.mjs",
@@ -31,5 +32,8 @@
     "@playwright/test": "^1.58.2",
     "playwright": "^1.49.0",
     "sharp": "^0.33.5"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.99.3"
   }
 }

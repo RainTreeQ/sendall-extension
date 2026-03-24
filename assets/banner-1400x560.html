@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1400px;
+  height: 560px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+.bg-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.15;
+  background-image: 
+    radial-gradient(circle at 20% 80%, #4a90d2 0%, transparent 40%),
+    radial-gradient(circle at 80% 20%, #5a7c4a 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, #e74c3c 0%, transparent 30%);
+}
+.grid {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+.content {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+}
+.logo {
+  width: 100px;
+  height: 100px;
+  background: #fff;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 32px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
+.logo-icon {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #333 0%, #666 100%);
+  border-radius: 12px;
+  position: relative;
+}
+.logo-icon::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 10px;
+  width: 8px;
+  height: 30px;
+  background: #fff;
+  border-radius: 4px;
+}
+.logo-icon::after {
+  content: '';
+  position: absolute;
+  right: 15px;
+  top: 10px;
+  width: 8px;
+  height: 30px;
+  background: #fff;
+  border-radius: 4px;
+}
+h1 {
+  font-size: 64px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+}
+h1 span {
+  color: #4a90d2;
+}
+.tagline {
+  font-size: 28px;
+  color: #aaa;
+  margin-bottom: 48px;
+  font-weight: 400;
+}
+.platforms {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 48px;
+}
+.platform {
+  width: 56px;
+  height: 56px;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  backdrop-filter: blur(10px);
+}
+.platform:nth-child(1) { background: rgba(16, 163, 127, 0.3); border-color: rgba(16, 163, 127, 0.5); }
+.platform:nth-child(2) { background: rgba(212, 100, 50, 0.3); border-color: rgba(212, 100, 50, 0.5); }
+.platform:nth-child(3) { background: rgba(66, 133, 244, 0.3); border-color: rgba(66, 133, 244, 0.5); }
+.platform:nth-child(4) { background: rgba(74, 144, 210, 0.3); border-color: rgba(74, 144, 210, 0.5); }
+.platform:nth-child(5) { background: rgba(155, 89, 182, 0.3); border-color: rgba(155, 89, 182, 0.5); }
+</style>
+</head>
+<body>
+<div class="bg-pattern"></div>
+<div class="grid"></div>
+<div class="content">
+  <div class="logo">
+    <div class="logo-icon"></div>
+  </div>
+  <h1>Sendol <span>AI Broadcast</span></h1>
+  <p class="tagline">Type Once, Broadcast to All AI Platforms</p>
+  <div class="platforms">
+    <div class="platform">C</div>
+    <div class="platform">G</div>
+    <div class="platform">D</div>
+    <div class="platform">K</div>
+    <div class="platform">+</div>
+  </div>
+</div>
+</body>
+</html>

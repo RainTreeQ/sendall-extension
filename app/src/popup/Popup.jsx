@@ -1,6 +1,6 @@
 /* global chrome */
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { RefreshCw, ArrowUp, Check, Zap, MessageSquarePlus, RotateCcw, ExternalLink } from 'lucide-react'
+import { RefreshCw, ArrowUp, Check, Zap, MessageSquarePlus, RotateCcw, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { t } from '@/lib/i18n'
 import { Onboarding } from '@/components/Onboarding'
 import {
@@ -114,7 +114,41 @@ export default function Popup() {
   const [newChat, setNewChat] = useState(false)
   const [popupSettingsReady, setPopupSettingsReady] = useState(false)
   const [statuses, setStatuses] = useState([])
+  const [expandedDebug, setExpandedDebug] = useState(null)
   const [failedSends, setFailedSends] = useState([]) // [{ tabId, platformName, text, imageData, timestamp }]
+
+  // 持久化 failedSends 和 statuses
+  useEffect(() => {
+    // 从 storage 恢复数据
+    chrome.storage.local.get(['aib_failed_sends', 'aib_statuses', 'aib_statuses_timestamp']).then((result) => {
+      if (result.aib_failed_sends) {
+        // 过滤掉超过 1 小时的记录
+        const oneHourAgo = Date.now() - 60 * 60 * 1000
+        const validFailedSends = result.aib_failed_sends.filter(f => f.timestamp > oneHourAgo)
+        setFailedSends(validFailedSends)
+      }
+      if (result.aib_statuses && result.aib_statuses_timestamp) {
+        // 只保留最近 5 分钟的状态
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
+        if (result.aib_statuses_timestamp > fiveMinutesAgo) {
+          setStatuses(result.aib_statuses.slice(-10)) // 最多保留 10 条
+        }
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    // 保存 failedSends
+    chrome.storage.local.set({ aib_failed_sends: failedSends })
+  }, [failedSends])
+
+  useEffect(() => {
+    // 保存 statuses（带时间戳）
+    chrome.storage.local.set({
+      aib_statuses: statuses.slice(-10), // 最多保留 10 条
+      aib_statuses_timestamp: Date.now()
+    })
+  }, [statuses])
   const [tabsLoading, setTabsLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [locatingUpload, setLocatingUpload] = useState(false)
@@ -370,8 +404,8 @@ export default function Popup() {
     }
   }, [aiTabs, selectedTabIds.length])
 
-  const addStatus = useCallback((message, type = 'pending') => {
-    setStatuses((s) => [...s, { message, type }])
+  const addStatus = useCallback((message, type = 'pending', debugInfo = null) => {
+    setStatuses((s) => [...s, { message, type, debugInfo }])
   }, [])
 
   const clearStatus = useCallback(() => setStatuses([]), [])
@@ -552,26 +586,28 @@ export default function Popup() {
       results.forEach((result) => {
         const tabInfo = aiTabs.find((t) => t.id === result.tabId)
         const name = tabInfo ? tabInfo.platformName : t('tab_n', [String(result.tabId)])
+        const debugLine = String(result.debugLog || '')
+        
         if (result.success) {
           successCount++
           const msg = result.sent === true ? t('status_sent', [name]) : t('status_drafted', [name])
-          addStatus(msg, 'success')
+          addStatus(msg, 'success', debugLine || null)
           // Remove from failed sends if it was there
           setFailedSends(prev => prev.filter(f => f.tabId !== result.tabId))
         } else {
           // 检测是否为风控错误
-          const isRiskControl = result.error?.includes('验证') || 
+          const isRiskControl = result.error?.includes('验证') ||
                                result.error?.includes('captcha') ||
                                result.error?.includes('verification') ||
                                result.error?.includes('risk') ||
                                result.stage === 'risk'
-          
+
           if (isRiskControl) {
-            addStatus(t('status_verification_required', [name]), 'warning')
+            addStatus(t('status_verification_required', [name]), 'warning', debugLine || null)
           } else {
-            addStatus(t('status_failed', [name, String(result.error || t('unknown'))]), 'error')
+            addStatus(t('status_failed', [name, String(result.error || t('unknown'))]), 'error', debugLine || null)
           }
-          
+
           // Store failed send for retry
           newFailedSends.push({
             tabId: result.tabId,
@@ -581,10 +617,6 @@ export default function Popup() {
             timestamp: Date.now(),
             isRiskControl  // 标记风控错误
           })
-        }
-        const debugLine = String(result.debugLog || '')
-        if (debugLine) {
-          addStatus(`${name} 调试：${debugLine}`, 'pending')
         }
       })
 
@@ -955,19 +987,44 @@ export default function Popup() {
 
           {statuses.length > 0 && (
             <div className="space-y-1.5 px-1 pb-1">
-              {statuses.map((s, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 text-[11px] font-medium tracking-wide text-gray-400 dark:text-zinc-500 animate-in fade-in slide-in-from-bottom-1 duration-300"
-                >
-                  <span
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                      s.type === 'success' ? 'bg-emerald-500' : s.type === 'error' ? 'bg-red-500' : 'bg-gray-400 dark:bg-zinc-500'
-                    } ${s.type === 'pending' || s.type === 'success' ? 'animate-pulse' : ''}`}
-                  />
-                  <span>{s.message}</span>
-                </div>
-              ))}
+              {statuses.map((s, i) => {
+                // 普通状态信息（与调试信息同行显示）
+                return (
+                  <div key={i} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
+                    <div className="flex items-center justify-between gap-2 text-[11px] font-medium tracking-wide text-gray-400 dark:text-zinc-500">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span
+                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                            s.type === 'success' ? 'bg-emerald-500' : s.type === 'error' ? 'bg-red-500' : 'bg-gray-400 dark:bg-zinc-500'
+                          } ${s.type === 'pending' || s.type === 'success' ? 'animate-pulse' : ''}`}
+                        />
+                        <span className="truncate">{s.message}</span>
+                      </div>
+                      {/* 调试信息折叠按钮 - 与标题同行 */}
+                      {s.debugInfo && (
+                        <button
+                          onClick={() => setExpandedDebug(expandedDebug === i ? null : i)}
+                          className="flex shrink-0 items-center gap-0.5 text-[10px] text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors ml-2"
+                          title="查看调试信息"
+                        >
+                          {expandedDebug === i ? (
+                            <ChevronUp className="h-3 w-3" />
+                          ) : (
+                            <ChevronDown className="h-3 w-3" />
+                          )}
+                          <span className="bg-gray-100 dark:bg-zinc-700 px-1 py-0.5 rounded text-[9px]">调试</span>
+                        </button>
+                      )}
+                    </div>
+                    {/* 展开的调试信息 - 正常流布局 */}
+                    {expandedDebug === i && s.debugInfo && (
+                      <div className="mt-1.5 ml-3.5 text-[9px] font-mono text-gray-500 dark:text-zinc-400 break-all leading-relaxed bg-gray-50 dark:bg-zinc-800 p-2 rounded border border-gray-200 dark:border-zinc-700">
+                        {s.debugInfo}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

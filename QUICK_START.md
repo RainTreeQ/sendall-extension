@@ -30,7 +30,7 @@ const CLOUD_SELECTORS_URL = "https://raw.githubusercontent.com/YOUR_USERNAME/sen
 
 ### Step 2: Configure Monitoring (3 min)
 
-Go to: `https://github.com/YOUR_USERNAME/ai-broadcast-extension/settings/secrets/actions`
+Go to: `https://github.com/YOUR_USERNAME/sendol-extension/settings/secrets/actions`
 
 Add these secrets:
 - `MAIL_USERNAME`: your-email@gmail.com

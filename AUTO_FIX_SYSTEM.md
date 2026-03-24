@@ -197,7 +197,7 @@ git checkout selectors/
 
 ## 🔐 Required Secrets
 
-### Main Repo (`ai-broadcast-extension`)
+### Main Repo (`sendol-extension`)
 Optional (for email notifications):
 - `MAIL_USERNAME`: your-email@gmail.com
 - `MAIL_PASSWORD`: Gmail app password

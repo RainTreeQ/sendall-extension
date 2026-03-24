@@ -107,7 +107,7 @@ async function setupPage(page) {
 async function captureVariant(browser, baseUrl, colorScheme) {
   const context = await browser.newContext({
     viewport: { width: 380, height: 520 },
-    deviceScaleFactor: 2,
+    deviceScaleFactor: 3,
     colorScheme,
     locale: "zh-CN",
   });

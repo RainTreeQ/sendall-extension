@@ -1,0 +1,20 @@
+# Cloudflare Pages 配置
+# 文档: https://developers.cloudflare.com/pages/configuration/wrangler-configuration/
+
+name = "sendol"
+compatibility_date = "2024-01-01"
+
+# 构建配置
+[build]
+command = "npm run build:site --prefix app"
+cwd = "."
+
+# 部署目录
+[site]
+bucket = "./app/dist-site"
+
+# 路由规则（SPA 支持）
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200

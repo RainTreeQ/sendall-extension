@@ -70,7 +70,7 @@ export function Contact() {
               {copy.emailDesc}
             </p>
             <Button asChild variant="outline" className="w-full">
-              <a href="mailto:support@sendol.com">
+              <a href="mailto:qqxxll5566@gmail.com">
                 Send Email
               </a>
             </Button>

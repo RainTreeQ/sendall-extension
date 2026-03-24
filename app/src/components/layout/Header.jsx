@@ -43,35 +43,35 @@ export function Header() {
 
   const TRANSLATIONS = {
     "zh-CN": {
-      landing: "落地页", pro: "专业版", github: "GitHub", pricing: "定价", support: "支持", faq: "常见问题",
+      landing: "落地页", pro: "专业版", github: "GitHub", pricing: "定价", support: "使用说明", faq: "常见问题",
       mainNav: "主导航", language: "语言", theme: "主题", systemMode: "系统", lightMode: "浅色", darkMode: "深色",
     },
     "zh-TW": {
-      landing: "登陸頁", pro: "專業版", github: "GitHub", pricing: "定價", support: "支援", faq: "常見問題",
+      landing: "登陸頁", pro: "專業版", github: "GitHub", pricing: "定價", support: "使用說明", faq: "常見問題",
       mainNav: "主導航", language: "語言", theme: "主題", systemMode: "系統", lightMode: "淺色", darkMode: "深色",
     },
     ja: {
-      landing: "ランディング", pro: "Pro", github: "GitHub", pricing: "料金", support: "サポート", faq: "FAQ",
+      landing: "ランディング", pro: "Pro", github: "GitHub", pricing: "料金", support: "使い方", faq: "FAQ",
       mainNav: "メインナビゲーション", language: "言語", theme: "テーマ", systemMode: "システム", lightMode: "ライト", darkMode: "ダーク",
     },
     ko: {
-      landing: "랜딩 페이지", pro: "Pro", github: "GitHub", pricing: "가격", support: "지원", faq: "FAQ",
+      landing: "랜딩 페이지", pro: "Pro", github: "GitHub", pricing: "가격", support: "사용 설명서", faq: "FAQ",
       mainNav: "메인 내비게이션", language: "언어", theme: "테마", systemMode: "시스템", lightMode: "라이트", darkMode: "다크",
     },
     es: {
-      landing: "Inicio", pro: "Pro", github: "GitHub", pricing: "Precios", support: "Soporte", faq: "FAQ",
+      landing: "Inicio", pro: "Pro", github: "GitHub", pricing: "Precios", support: "Guía", faq: "FAQ",
       mainNav: "Navegación principal", language: "Idioma", theme: "Tema", systemMode: "Sistema", lightMode: "Claro", darkMode: "Oscuro",
     },
     de: {
-      landing: "Startseite", pro: "Pro", github: "GitHub", pricing: "Preise", support: "Support", faq: "FAQ",
+      landing: "Startseite", pro: "Pro", github: "GitHub", pricing: "Preise", support: "Anleitung", faq: "FAQ",
       mainNav: "Hauptnavigation", language: "Sprache", theme: "Theme", systemMode: "System", lightMode: "Hell", darkMode: "Dunkel",
     },
     fr: {
-      landing: "Accueil", pro: "Pro", github: "GitHub", pricing: "Tarifs", support: "Support", faq: "FAQ",
+      landing: "Accueil", pro: "Pro", github: "GitHub", pricing: "Tarifs", support: "Guide", faq: "FAQ",
       mainNav: "Navigation principale", language: "Langue", theme: "Thème", systemMode: "Système", lightMode: "Clair", darkMode: "Sombre",
     },
     en: {
-      landing: "Landing", pro: "Pro", github: "GitHub", pricing: "Pricing", support: "Support", faq: "FAQ",
+      landing: "Landing", pro: "Pro", github: "GitHub", pricing: "Pricing", support: "User Guide", faq: "FAQ",
       mainNav: "Main Navigation", language: "Language", theme: "Theme", systemMode: "System", lightMode: "Light", darkMode: "Dark",
     }
   };
@@ -99,7 +99,7 @@ export function Header() {
             title={copy.theme}
             aria-label={copy.theme}
             onClick={cycleThemeMode}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition hover:bg-muted hover:text-foreground lg:hidden"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition hover:bg-muted hover:text-foreground lg:hidden cursor-pointer"
           >
             {themeMode === "dark" ? <Moon className="h-3.5 w-3.5" /> : themeMode === "light" ? <Sun className="h-3.5 w-3.5" /> : <Monitor className="h-3.5 w-3.5" />}
           </button>
@@ -110,7 +110,7 @@ export function Header() {
               title={copy.systemMode}
               aria-label={copy.systemMode}
               onClick={() => setThemeMode("system")}
-              className={`inline-flex h-6 w-6 items-center justify-center rounded-md transition ${themeMode === "system" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              className={`inline-flex h-6 w-6 items-center justify-center rounded-md transition cursor-pointer ${themeMode === "system" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-muted"}`}
             >
               <Monitor className="h-3.5 w-3.5" />
             </button>
@@ -119,7 +119,7 @@ export function Header() {
               title={copy.lightMode}
               aria-label={copy.lightMode}
               onClick={() => setThemeMode("light")}
-              className={`inline-flex h-6 w-6 items-center justify-center rounded-md transition ${themeMode === "light" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              className={`inline-flex h-6 w-6 items-center justify-center rounded-md transition cursor-pointer ${themeMode === "light" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-muted"}`}
             >
               <Sun className="h-3.5 w-3.5" />
             </button>
@@ -128,7 +128,7 @@ export function Header() {
               title={copy.darkMode}
               aria-label={copy.darkMode}
               onClick={() => setThemeMode("dark")}
-              className={`inline-flex h-6 w-6 items-center justify-center rounded-md transition ${themeMode === "dark" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              className={`inline-flex h-6 w-6 items-center justify-center rounded-md transition cursor-pointer ${themeMode === "dark" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-muted"}`}
             >
               <Moon className="h-3.5 w-3.5" />
             </button>
@@ -151,22 +151,22 @@ export function Header() {
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 hidden h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground sm:block" />
           </label>
 
-          <Button variant="ghost" size="sm" className="hidden md:inline-flex" onClick={(e) => handleScrollTo(e, "pricing")}>
+          <Button variant="ghost" size="sm" className="hidden md:inline-flex cursor-pointer" onClick={(e) => handleScrollTo(e, "pricing")}>
             {copy.pricing}
           </Button>
-          <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
-            <Link to="/faq">{copy.faq}</Link>
+          <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex cursor-pointer">
+            <Link to="/faq" onClick={() => window.scrollTo(0, 0)}>{copy.faq}</Link>
           </Button>
-          <Button variant="ghost" size="sm" className="hidden md:inline-flex" onClick={(e) => handleScrollTo(e, "support")}>
+          <Button variant="ghost" size="sm" className="hidden md:inline-flex cursor-pointer" onClick={(e) => handleScrollTo(e, "support")}>
             {copy.support}
           </Button>
-          <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex">
+          <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex cursor-pointer">
             <a href="https://github.com/RainTreeQ/sendol-extension" target="_blank" rel="noreferrer">
               {copy.github}
               <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
           </Button>
-          <Button variant="default" size="sm" className="hidden md:inline-flex" onClick={(e) => handleScrollTo(e, "pricing")}>
+          <Button variant="default" size="sm" className="hidden md:inline-flex cursor-pointer" onClick={(e) => handleScrollTo(e, "pricing")}>
             {copy.pro}
           </Button>
         </nav>

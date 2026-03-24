@@ -42,7 +42,7 @@
           await sleep(100);
           const actual = normalizeText(getContent(el));
           const expected = normalizeText(text);
-          if (actual && (actual.includes(expected.slice(0, 24)) || expected.includes(actual.slice(0, 24)))) {
+          if (actual && (actual === expected || actual.includes(expected) || expected.includes(actual) || actual.length >= expected.length * 0.9 && actual.length <= expected.length * 1.1)) {
             return { strategy: "chatgpt-lexical-paste", fallbackUsed: false };
           }
           document.execCommand("selectAll", false, null);
@@ -51,14 +51,18 @@
           document.execCommand("insertText", false, text);
           await sleep(100);
           const actual2 = normalizeText(getContent(el));
-          if (actual2 && (actual2.includes(expected.slice(0, 24)) || expected.includes(actual2.slice(0, 24)))) {
+          if (actual2 && (actual2 === expected || actual2.includes(expected) || expected.includes(actual2) || actual2.length >= expected.length * 0.9 && actual2.length <= expected.length * 1.1)) {
             return { strategy: "chatgpt-lexical-insertText", fallbackUsed: true };
           }
           return { strategy: "chatgpt-lexical-best-effort", fallbackUsed: true };
         }
         return setContentEditable(el, text, options);
       },
-      async send(el) {
+      async send(el, options) {
+        const logger = options?.logger;
+        const expected = normalizeText(options?.text || "");
+        const before = normalizeText(getContent(el));
+        logger?.debug?.("chatgpt-send-start", { hasContent: before.length > 0, contentLen: before.length, expectedLen: expected.length });
         const selectorCandidate = await findSendBtnForPlatform("chatgpt");
         const isReady = (b) => b && !b.disabled && b.getAttribute("aria-disabled") !== "true";
         const btn = await waitFor(
@@ -71,15 +75,37 @@
         );
         if (btn) {
           btn.click();
-          return;
+          await sleep(300);
+          const after = normalizeText(getContent(el));
+          if (before.length > 0 && after.length < before.length) {
+            logger?.debug?.("chatgpt-send-click-success", { beforeLen: before.length, afterLen: after.length });
+            return true;
+          }
+          if (before.length === 0 && after.length === 0) {
+            logger?.debug?.("chatgpt-send-click-assumed");
+            return true;
+          }
+          logger?.debug?.("chatgpt-send-click-no-change", { beforeLen: before.length, afterLen: after.length });
+        } else {
+          logger?.debug?.("chatgpt-send-btn-not-found");
         }
         const target = el || document.activeElement;
         if (target) {
           target.focus();
+          const beforeKey = normalizeText(getContent(target)).length;
           pressEnterOn(target);
+          await sleep(300);
+          const afterKey = normalizeText(getContent(target)).length;
+          if (beforeKey > 0 && afterKey < beforeKey) {
+            logger?.debug?.("chatgpt-send-keyboard-success", { beforeLen: beforeKey, afterLen: afterKey });
+            return true;
+          }
         } else {
           pressEnterOn(null);
+          await sleep(300);
         }
+        logger?.debug?.("chatgpt-send-failed");
+        return false;
       }
     };
   }

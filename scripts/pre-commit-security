@@ -1,0 +1,66 @@
+#!/bin/bash
+# Pre-commit hook to prevent accidental commit of sensitive files
+# Install: cp scripts/pre-commit-security .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+echo "🔍 Running security checks..."
+
+# Check for sensitive files in staging area
+SENSITIVE_PATTERNS=(
+    ".auth/"
+    ".env"
+    ".env.local"
+    "*.key"
+    "*.pem"
+    "*.p12"
+    "*.pfx"
+    "*secret*"
+    "*password*"
+    "*credential*"
+    "*.log"
+)
+
+VIOLATIONS=0
+
+for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+    MATCHES=$(git diff --cached --name-only --diff-filter=ACM | grep -E "$pattern" || true)
+    if [ -n "$MATCHES" ]; then
+        echo "❌ ERROR: Attempting to commit sensitive file matching pattern '$pattern':"
+        echo "$MATCHES" | sed 's/^/   /'
+        VIOLATIONS=$((VIOLATIONS + 1))
+    fi
+done
+
+# Check for potential API keys/tokens in code
+API_KEY_PATTERNS=(
+    "api[_-]?key.*['\"][a-zA-Z0-9]{20,}['\"]"
+    "apikey.*['\"][a-zA-Z0-9]{20,}['\"]"
+    "token.*['\"][a-zA-Z0-9]{20,}['\"]"
+    "password.*['\"][^'\"]{8,}['\"]"
+    "secret.*['\"][a-zA-Z0-9]{16,}['\"]"
+    "sk-[a-zA-Z0-9]{20,}"  # OpenAI key pattern
+    "gh[pousr]_[A-Za-z0-9_]{36}"  # GitHub token pattern
+)
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|jsx|ts|tsx|json|md|yml|yaml)$' || true)
+
+if [ -n "$STAGED_FILES" ]; then
+    for pattern in "${API_KEY_PATTERNS[@]}"; do
+        MATCHES=$(echo "$STAGED_FILES" | xargs grep -E "$pattern" 2>/dev/null || true)
+        if [ -n "$MATCHES" ]; then
+            echo "⚠️  WARNING: Potential hardcoded secret detected:"
+            echo "$MATCHES" | head -5 | sed 's/^/   /'
+            echo "   (Use GitHub Secrets or environment variables instead)"
+            VIOLATIONS=$((VIOLATIONS + 1))
+        fi
+    done
+fi
+
+if [ $VIOLATIONS -gt 0 ]; then
+    echo ""
+    echo "🚫 Commit blocked due to security violations."
+    echo "   To bypass (not recommended): git commit --no-verify"
+    exit 1
+fi
+
+echo "✅ Security checks passed!"
+exit 0

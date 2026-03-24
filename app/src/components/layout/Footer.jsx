@@ -26,24 +26,22 @@ export function Footer() {
     ? {
       subtitle: "Sendol · 开源核心 + Pro 功能",
       pricing: "定价",
-      support: "支持",
+      support: "使用说明",
       github: "GitHub",
       footerNav: "页脚导航",
       privacy: "隐私政策",
       terms: "使用条款",
-      install: "安装指南",
       changelog: "更新日志",
       contact: "联系我们"
     }
     : {
       subtitle: "Sendol · Open Source Core + Pro Features",
       pricing: "Pricing",
-      support: "Support",
+      support: "User Guide",
       github: "GitHub",
       footerNav: "Footer Navigation",
       privacy: "Privacy Policy",
       terms: "Terms of Service",
-      install: "Install Guide",
       changelog: "Changelog",
       contact: "Contact"
     };
@@ -62,23 +60,19 @@ export function Footer() {
           <button onClick={(e) => handleScrollTo(e, "pricing")} className="text-sm text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
             {copy.pricing}
           </button>
-          <button onClick={(e) => handleScrollTo(e, "support")} className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
+          <Link to="/install" onClick={() => window.scrollTo(0, 0)} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             {copy.support}
-            <Heart className="h-3.5 w-3.5" />
-          </button>
-          <Link to="/install" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-            {copy.install}
           </Link>
-          <Link to="/changelog" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <Link to="/changelog" onClick={() => window.scrollTo(0, 0)} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             {copy.changelog}
           </Link>
-          <Link to="/privacy" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <Link to="/privacy" onClick={() => window.scrollTo(0, 0)} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             {copy.privacy}
           </Link>
-          <Link to="/terms" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <Link to="/terms" onClick={() => window.scrollTo(0, 0)} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             {copy.terms}
           </Link>
-          <Link to="/contact" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <Link to="/contact" onClick={() => window.scrollTo(0, 0)} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             {copy.contact}
           </Link>
           <a

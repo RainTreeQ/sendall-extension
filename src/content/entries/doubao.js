@@ -39,7 +39,8 @@ if (!window.__aiBroadcastLoaded) {
     findSendBtnForPlatform,
     findSendBtnHeuristically,
     pressEnterOn,
-    isDoubaoVerificationPage
+    isDoubaoVerificationPage,
+    sleep
   });
 
   const listener = (message, sender, sendResponse) => {

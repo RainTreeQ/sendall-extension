@@ -14,7 +14,7 @@
       sleep
     } = deps;
     async function antiDetectionDelay() {
-      const delay = 3e3 + Math.floor(Math.random() * 5e3);
+      const delay = 1e3 + Math.floor(Math.random() * 2e3);
       await sleep(delay);
     }
     return {
@@ -103,7 +103,8 @@
       findSendBtnForPlatform,
       findSendBtnHeuristically,
       pressEnterOn,
-      isDoubaoVerificationPage
+      isDoubaoVerificationPage,
+      sleep
     });
     const listener = (message, sender, sendResponse) => {
       if (message.type === MESSAGE_TYPES.PING) {

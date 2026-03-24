@@ -1,8 +1,12 @@
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUp, ArrowUpRight, Coins, Crown, Globe, HandHeart, Languages, MoonStar, Send, ShieldCheck, Sparkles, SunMoon, Wallet } from "lucide-react";
+import { ArrowUp, ArrowUpRight, Check, Coins, Crown, Globe, HandHeart, Languages, MoonStar, Send, ShieldCheck, Sparkles, SunMoon, Wallet, Zap, Eye, Save } from "lucide-react";
+import { joinWaitlist, sendVerificationCode, resendVerificationCode } from "@/lib/waitlist";
 import { Claude, DeepSeek, Doubao, Gemini, Kimi, Mistral, OpenAI, Yuanbao } from "@lobehub/icons";
+import { Link } from "react-router-dom";
 import { useSiteSettings } from "@/lib/site-settings";
 import { HeroShapeGrid } from "@/components/landing/HeroShapeGrid";
 
@@ -14,7 +18,7 @@ const COPY = {
     subtitle:
       "Sendol 帮你把多个 AI 输入聚合在一个弹窗中。只需输入一次，即可一键多发，同时支持自动发送与开启新对话。",
     ctaPricing: "查看收费方案",
-    ctaSupport: "支持项目",
+    ctaSupport: "使用说明",
     ctaInstall: "安装与使用指南",
     statPlatforms: "支持平台",
     statMode: "发送模式",
@@ -38,10 +42,15 @@ const COPY = {
     communityBody2: "满足个人轻量化、高频次的提问需求。",
     communityBtn: "查看开源代码",
     proTitle: "专业版",
-    proDesc: "预计定价: ¥19/月 或 ¥149/年",
-    proBody1: "即将推出：提示词模板、内容整理笔记、历史记录、自定义规则、以上支持本地保存。",
+    proDesc: "定价规划中，欢迎交流",
+    proBody1: "即将推出：连续追问、方案对比、快捷结果导出等尽可能节省您效率的功能",
     proBody2: "享受平台改版的优先适配服务，确保工作流不中断。",
     proBtn: "加入 Pro 候补名单",
+    proEmailPlaceholder: "输入邮箱地址",
+    proSubmitBtn: "预约体验",
+    proSuccessMsg: "已成功加入候补名单！",
+    proAlreadyJoined: "您已在候补名单中",
+    proInvalidEmail: "请输入有效的邮箱地址",
     sponsorTitle: "赞助支持",
     sponsorDesc: "用爱发电 / 支持独立开发者",
     sponsorBody1: "如果您觉得这个工具对您有帮助，欢迎以赞助的方式支持项目维护。",
@@ -73,7 +82,7 @@ const COPY = {
     subtitle:
       "Sendol brings your favorite AI tabs into one unified popup. Write your prompt once and broadcast it everywhere, with optional auto-send and new chat features.",
     ctaPricing: "View Pricing",
-    ctaSupport: "Support the Creator",
+    ctaSupport: "User Guide",
     ctaInstall: "Install Guide",
     statPlatforms: "Supported Platforms",
     statMode: "Send Modes",
@@ -97,10 +106,15 @@ const COPY = {
     communityBody2: "Perfect for personal, lightweight, and high-frequency usage.",
     communityBtn: "View on GitHub",
     proTitle: "Pro",
-    proDesc: "Expected: $5/mo or $49/yr",
-    proBody1: "Coming soon: Template library, notes, history panel, and custom rules. All saved locally.",
+    proDesc: "Pricing TBD: Open to feedback",
+    proBody1: "Coming soon: Continuous follow-up, solution comparison, and quick export to maximize your efficiency.",
     proBody2: "Priority updates to adapt to AI platform UI changes, minimizing disruptions.",
     proBtn: "Join Pro Waitlist",
+    proEmailPlaceholder: "Enter your email",
+    proSubmitBtn: "Join Waitlist",
+    proSuccessMsg: "Successfully joined the waitlist!",
+    proAlreadyJoined: "You're already on the waitlist",
+    proInvalidEmail: "Please enter a valid email address",
     sponsorTitle: "Sponsor",
     sponsorDesc: "Back the Developer",
     sponsorBody1: "Love the tool? Direct sponsorship helps maintain and improve the project.",
@@ -132,7 +146,7 @@ const COPY = {
     subtitle:
       "Sendol 幫你把多個 AI 平台聚合在一個彈窗中。只需輸入一次，即可一鍵多發，同時支援自動發送與開啟新對話。",
     ctaPricing: "查看收費方案",
-    ctaSupport: "支持項目",
+    ctaSupport: "使用說明",
     ctaInstall: "安裝與使用指南",
     statPlatforms: "支援平台",
     statMode: "發送模式",
@@ -156,10 +170,15 @@ const COPY = {
     communityBody2: "滿足個人輕量化、高頻次的提問需求。",
     communityBtn: "查看開源代碼",
     proTitle: "專業版",
-    proDesc: "預計定價: ¥19/月 或 ¥149/年",
-    proBody1: "即將推出：提示詞模板、內容整理筆記、歷史記錄、自定義規則、以上支持本地保存。",
+    proDesc: "定價規劃中，歡迎交流",
+    proBody1: "即將推出：連續追問、方案對比、快捷結果導出等盡可能節省您效率的功能",
     proBody2: "享受平台改版的優先適配服務，確保工作流不中斷。",
     proBtn: "加入 Pro 候補名單",
+    proEmailPlaceholder: "輸入郵箱地址",
+    proSubmitBtn: "預約體驗",
+    proSuccessMsg: "已成功加入候補名單！",
+    proAlreadyJoined: "您已在候補名單中",
+    proInvalidEmail: "請輸入有效的郵箱地址",
     sponsorTitle: "贊助支持",
     sponsorDesc: "用愛發電 / 支持獨立開發者",
     sponsorBody1: "如果您覺得這個工具對您有幫助，歡迎以贊助的方式支持項目維護。",
@@ -191,7 +210,7 @@ const COPY = {
     subtitle:
       "Sendol は複数の AI タブを1つのポップアップに統合します。一度の入力で一斉送信でき、自動送信や新しいチャットもサポートします。",
     ctaPricing: "料金プラン",
-    ctaSupport: "プロジェクトを支援",
+    ctaSupport: "使い方",
     ctaInstall: "インストールと使い方",
     statPlatforms: "対応プラットフォーム",
     statMode: "送信モード",
@@ -215,10 +234,15 @@ const COPY = {
     communityBody2: "個人の軽量かつ高頻度な利用に最適です。",
     communityBtn: "GitHub で見る",
     proTitle: "Pro 版",
-    proDesc: "予定価格: $5/月 または $49/年",
-    proBody1: "近日公開: テンプレート、ノート、履歴、カスタムルール。すべてローカル保存。",
+    proDesc: "価格設定中: フィードバック歓迎",
+    proBody1: "近日公開: 連続した追加質問、回答の比較、クイックエクスポートなど、作業効率を最大限に高める機能。",
     proBody2: "AI プラットフォームの UI 変更に優先的に対応し、作業の中断を防ぎます。",
     proBtn: "Pro 版のウェイティングリストに参加",
+    proEmailPlaceholder: "メールアドレスを入力",
+    proSubmitBtn: "予約する",
+    proSuccessMsg: "ウェイティングリストに追加されました！",
+    proAlreadyJoined: "すでにリストに登録されています",
+    proInvalidEmail: "有効なメールアドレスを入力してください",
     sponsorTitle: "スポンサー",
     sponsorDesc: "開発者を支援",
     sponsorBody1: "このツールが役立つと感じたら、プロジェクトの維持のために支援をお願いします。",
@@ -250,7 +274,7 @@ const COPY = {
     subtitle:
       "Sendol은 여러 AI 탭을 하나의 팝업으로 통합합니다. 한 번만 입력하여 모든 AI에 전송할 수 있으며, 자동 전송 및 새 채팅 시작도 지원합니다.",
     ctaPricing: "가격 확인",
-    ctaSupport: "프로젝트 후원",
+    ctaSupport: "사용 설명서",
     ctaInstall: "설치 및 사용 가이드",
     statPlatforms: "지원 플랫폼",
     statMode: "전송 모드",
@@ -274,10 +298,15 @@ const COPY = {
     communityBody2: "개인적이고 가벼운 고빈도 사용에 적합합니다.",
     communityBtn: "GitHub에서 보기",
     proTitle: "Pro 버전",
-    proDesc: "예상 가격: $5/월 또는 $49/년",
-    proBody1: "출시 예정: 프롬프트 템플릿, 노트, 기록, 사용자 지정 규칙 (모두 로컬에 저장).",
+    proDesc: "가격 계획 중: 피드백 환영",
+    proBody1: "출시 예정: 연속 후속 질문, 답변 비교, 빠른 내보내기 등 작업 효율성을 극대화하는 기능.",
     proBody2: "AI 플랫폼의 UI 변경에 대한 우선 업데이트를 제공하여 작업 중단을 방지합니다.",
     proBtn: "Pro 대기자 명단 참여",
+    proEmailPlaceholder: "이메일 주소 입력",
+    proSubmitBtn: "사전 예약",
+    proSuccessMsg: "대기자 명단에 성공적으로 추가되었습니다!",
+    proAlreadyJoined: "이미 대기자 명단에 있습니다",
+    proInvalidEmail: "유효한 이메일 주소를 입력해 주세요",
     sponsorTitle: "스폰서",
     sponsorDesc: "개발자 후원",
     sponsorBody1: "이 도구가 유용하다면 프로젝트 유지를 위해 후원해 주세요.",
@@ -309,7 +338,7 @@ const COPY = {
     subtitle:
       "Sendol reúne tus pestañas de IA favoritas en una ventana emergente. Escribe tu mensaje una vez y envíalo a todas partes, con envío automático y nuevos chats.",
     ctaPricing: "Ver Precios",
-    ctaSupport: "Apoyar el proyecto",
+    ctaSupport: "Guía",
     ctaInstall: "Guía de instalación",
     statPlatforms: "Plataformas",
     statMode: "Modos de envío",
@@ -333,10 +362,15 @@ const COPY = {
     communityBody2: "Perfecto para uso personal, ligero y de alta frecuencia.",
     communityBtn: "Ver en GitHub",
     proTitle: "Pro",
-    proDesc: "Precio esperado: $5/mes o $49/año",
-    proBody1: "Próximamente: Plantillas, notas, historial y reglas personalizadas. Todo guardado localmente.",
+    proDesc: "Precios por determinar: Abierto a comentarios",
+    proBody1: "Próximamente: Preguntas de seguimiento continuo, comparación de soluciones y exportación rápida para maximizar su eficiencia.",
     proBody2: "Actualizaciones prioritarias para adaptarse a los cambios de la interfaz de la IA.",
     proBtn: "Unirse a la lista de espera Pro",
+    proEmailPlaceholder: "Introduce tu email",
+    proSubmitBtn: "Unirse",
+    proSuccessMsg: "¡Te has unido a la lista de espera!",
+    proAlreadyJoined: "Ya estás en la lista de espera",
+    proInvalidEmail: "Por favor introduce un email válido",
     sponsorTitle: "Patrocinador",
     sponsorDesc: "Apoya al desarrollador",
     sponsorBody1: "¿Te encanta la herramienta? El patrocinio directo ayuda a mantener y mejorar el proyecto.",
@@ -368,7 +402,7 @@ const COPY = {
     subtitle:
       "Sendol vereint Ihre KI-Tabs in einem Popup. Schreiben Sie Ihren Prompt einmal und senden Sie ihn überallhin, mit automatischem Senden und neuen Chats.",
     ctaPricing: "Preise ansehen",
-    ctaSupport: "Projekt unterstützen",
+    ctaSupport: "Anleitung",
     ctaInstall: "Installationsanleitung",
     statPlatforms: "Plattformen",
     statMode: "Sendemodi",
@@ -392,10 +426,15 @@ const COPY = {
     communityBody2: "Perfekt für den persönlichen, leichten und hochfrequenten Gebrauch.",
     communityBtn: "Auf GitHub ansehen",
     proTitle: "Pro",
-    proDesc: "Erwartet: $5/Monat oder $49/Jahr",
-    proBody1: "Demnächst: Vorlagen, Notizen, Verlauf und eigene Regeln. Alles lokal gespeichert.",
+    proDesc: "Preise in Planung: Feedback willkommen",
+    proBody1: "Demnächst: Kontinuierliche Nachfragen, Lösungsvergleich und schneller Export zur Maximierung Ihrer Effizienz.",
     proBody2: "Priorisierte Updates zur Anpassung an Änderungen der KI-Benutzeroberflächen.",
     proBtn: "Pro-Warteliste beitreten",
+    proEmailPlaceholder: "E-Mail eingeben",
+    proSubmitBtn: "Beitreten",
+    proSuccessMsg: "Erfolgreich zur Warteliste hinzugefügt!",
+    proAlreadyJoined: "Sie sind bereits auf der Warteliste",
+    proInvalidEmail: "Bitte geben Sie eine gültige E-Mail-Adresse ein",
     sponsorTitle: "Sponsor",
     sponsorDesc: "Entwickler unterstützen",
     sponsorBody1: "Gefällt Ihnen das Tool? Direkte Unterstützung hilft, das Projekt zu pflegen.",
@@ -427,7 +466,7 @@ const COPY = {
     subtitle:
       "Sendol rassemble vos onglets d'IA dans un seul popup. Rédigez votre prompt une fois et diffusez-le partout, avec l'envoi automatique et de nouveaux chats.",
     ctaPricing: "Voir les tarifs",
-    ctaSupport: "Soutenir le projet",
+    ctaSupport: "Guide",
     ctaInstall: "Guide d'installation",
     statPlatforms: "Plateformes",
     statMode: "Modes d'envoi",
@@ -451,10 +490,15 @@ const COPY = {
     communityBody2: "Parfait pour un usage personnel, léger et à haute fréquence.",
     communityBtn: "Voir sur GitHub",
     proTitle: "Pro",
-    proDesc: "Prix prévu : 5 $/mois ou 49 $/an",
-    proBody1: "Bientôt : Modèles, notes, historique et règles personnalisées. Tout sauvegardé localement.",
+    proDesc: "Tarification en cours : Ouvert aux commentaires",
+    proBody1: "Bientôt : Questions de suivi continues, comparaison de solutions et exportation rapide pour maximiser votre efficacité.",
     proBody2: "Mises à jour prioritaires pour s'adapter aux changements d'interface des IA.",
     proBtn: "Rejoindre la liste d'attente Pro",
+    proEmailPlaceholder: "Entrez votre email",
+    proSubmitBtn: "Rejoindre",
+    proSuccessMsg: "Ajouté à la liste d'attente avec succès !",
+    proAlreadyJoined: "Vous êtes déjà sur la liste d'attente",
+    proInvalidEmail: "Veuillez entrer une adresse email valide",
     sponsorTitle: "Sponsor",
     sponsorDesc: "Soutenir le développeur",
     sponsorBody1: "Vous aimez l'outil ? Le parrainage direct aide à maintenir et améliorer le projet.",
@@ -480,6 +524,96 @@ const COPY = {
     proTipDesc: "Nous vous recommandons d'utiliser les fonctions d'écran partagé de votre système ou de votre navigateur pour organiser plusieurs modèles d'IA dans des fenêtres indépendantes. Après avoir envoyé avec Sendol, vous pouvez comparer instantanément la qualité des réponses côte à côte pour choisir la meilleure.",
   },
 };
+
+function InteractiveScreenshot({ src, alt }) {
+  const containerRef = useRef(null);
+  const [rotation, setRotation] = useState({ x: 0, y: 0 });
+  const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 });
+  const [isHovering, setIsHovering] = useState(false);
+
+  const handleMouseMove = (e) => {
+    if (!containerRef.current) return;
+    // Use requestAnimationFrame to throttle state updates for smoother animation
+    requestAnimationFrame(() => {
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      
+      // Max rotation 12 degrees
+      const rotateX = ((y - centerY) / centerY) * -12;
+      const rotateY = ((x - centerX) / centerX) * 12;
+      
+      // Glare position (percentage)
+      const glareX = (x / rect.width) * 100;
+      const glareY = (y / rect.height) * 100;
+      
+      setRotation({ x: rotateX, y: rotateY });
+      setGlare({ x: glareX, y: glareY, opacity: 1 });
+    });
+  };
+
+  const handleMouseEnter = () => {
+    setIsHovering(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovering(false);
+    setRotation({ x: 0, y: 0 });
+    setGlare({ ...glare, opacity: 0 });
+  };
+
+  return (
+    <div 
+      ref={containerRef}
+      className="relative mx-auto max-w-[420px] z-10 -mt-4 md:-mt-8 mb-24 cursor-default"
+      style={{ perspective: "1200px" }}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div 
+        className={`relative rounded-2xl md:rounded-[2rem] overflow-hidden border border-foreground/10 bg-background/40 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(255,255,255,0.05)] ring-1 ring-black/5 dark:ring-white/5 transition-transform duration-200 ease-out`}
+        style={{
+          transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) ${isHovering ? 'scale(1.03)' : 'scale(1)'}`,
+          transformStyle: "preserve-3d",
+        }}
+      >
+        <div className="absolute inset-0 bg-linear-to-tr from-primary/5 via-transparent to-transparent pointer-events-none z-20" />
+        
+        {/* Interactive Glare */}
+        <div 
+          className="absolute inset-0 pointer-events-none z-30 mix-blend-overlay transition-opacity duration-300"
+          style={{
+            opacity: glare.opacity,
+            background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,0.6) 0%, transparent 60%)`
+          }}
+        />
+
+        <img 
+          src={src} 
+          alt={alt} 
+          className="w-full h-auto object-cover opacity-[0.95] relative z-10" 
+          style={{ transform: "translateZ(10px)" }}
+        />
+        
+        {/* Glass reflection effect */}
+        <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-black/10 dark:via-white/30 to-transparent z-20" />
+        <div className="absolute inset-y-0 left-0 w-px bg-linear-to-b from-black/5 dark:from-white/20 via-transparent to-transparent z-20" />
+      </div>
+
+      {/* Decorative glow behind the image - weakened */}
+      <div 
+        className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[80%] bg-foreground/5 blur-[100px] rounded-full -z-10 transition-transform duration-200 ease-out`}
+        style={{
+          transform: `translate(-50%, -50%) rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) ${isHovering ? 'scale(1.05)' : 'scale(1)'}`,
+        }}
+      />
+    </div>
+  );
+}
 
 function PlatformLogos() {
   // Single source of truth: matches `src/content/index.js` platformAdapters
@@ -533,6 +667,140 @@ function PlatformLogos() {
 }
 
 /**
+ * Pro 候补名单表单组件
+ */
+function WaitlistForm({ copy }) {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | submitting | success | error
+  const [message, setMessage] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+
+    setStatus("submitting");
+    const result = await joinWaitlist(email, "pro_card");
+
+    if (result.success) {
+      setStatus("success");
+      setMessage(copy.proSuccessMsg);
+      setEmail("");
+    } else {
+      setStatus("error");
+      if (result.message === "already_joined") {
+        setMessage(copy.proAlreadyJoined);
+      } else if (result.message === "invalid_email") {
+        setMessage(copy.proInvalidEmail);
+      } else {
+        setMessage("Error, please try again later");
+      }
+    }
+
+    // 3秒后重置状态
+    setTimeout(() => {
+      setStatus("idle");
+      setMessage("");
+    }, 3000);
+  };
+
+  if (status === "success") {
+    return (
+      <div className="w-full mt-auto rounded-xl bg-green-500/10 border border-green-500/30 flex items-center justify-center gap-2 h-11 text-sm font-medium text-green-600 dark:text-green-400">
+        <Check className="h-4 w-4" />
+        {message}
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="w-full mt-auto space-y-2 relative z-10">
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <Input
+            type="email"
+            placeholder={copy.proEmailPlaceholder}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="flex-1 h-11 rounded-xl bg-background/50"
+            disabled={status === "submitting"}
+          />
+          <Button
+            type="submit"
+            disabled={status === "submitting" || !email.trim()}
+            className="h-11 px-4 rounded-xl bg-foreground text-background hover:bg-foreground/90 whitespace-nowrap cursor-pointer disabled:cursor-not-allowed"
+          >
+            {status === "submitting" ? "..." : copy.proSubmitBtn}
+          </Button>
+        </form>
+        <p className="text-xs text-red-500 text-center">{message}</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full mt-auto flex gap-2 relative z-10">
+      <Input
+        type="email"
+        placeholder={copy.proEmailPlaceholder}
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="flex-1 h-11 rounded-xl bg-background/50"
+        disabled={status === "submitting"}
+      />
+      <Button
+        type="submit"
+        disabled={status === "submitting" || !email.trim()}
+        className="h-11 px-4 rounded-xl bg-foreground text-background hover:bg-foreground/90 whitespace-nowrap cursor-pointer disabled:cursor-not-allowed"
+      >
+        {status === "submitting" ? "..." : copy.proSubmitBtn}
+      </Button>
+    </form>
+  );
+}
+
+function StarryBackground() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[24px]">
+      <div className="absolute inset-0 opacity-[0.1] dark:opacity-[0.2]">
+        <svg className="absolute w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            {/* 十字星光组件 */}
+            <g id="cross-star">
+              <path d="M 0,-5 L 0,5 M -5,0 L 5,0" stroke="var(--primary)" strokeWidth="0.8" className="opacity-70" />
+              <circle cx="0" cy="0" r="1.5" fill="var(--primary)" />
+            </g>
+            {/* 更大的十字星光 */}
+            <g id="large-cross-star">
+              <path d="M 0,-7 L 0,7 M -7,0 L 7,0" stroke="var(--primary)" strokeWidth="0.8" className="opacity-60" />
+              <circle cx="0" cy="0" r="2" fill="var(--primary)" />
+            </g>
+
+            <pattern id="stars-1" width="120" height="120" patternUnits="userSpaceOnUse">
+              <circle cx="20" cy="20" r="1.2" fill="var(--primary)" className="animate-[pulse_3s_infinite]" />
+              <use href="#cross-star" x="80" y="50" className="animate-[pulse_4s_infinite_1s]" />
+              <circle cx="40" cy="90" r="1.5" fill="var(--primary)" className="animate-[pulse_5s_infinite_2s]" />
+              <circle cx="100" cy="100" r="1.2" fill="var(--primary)" className="animate-[pulse_3.5s_infinite_0.5s]" />
+              <circle cx="60" cy="10" r="1.8" fill="var(--primary)" className="animate-[pulse_4.5s_infinite_1.5s] opacity-50" />
+            </pattern>
+            <pattern id="stars-2" width="180" height="180" patternUnits="userSpaceOnUse">
+              <circle cx="50" cy="30" r="1.5" fill="var(--primary)" className="animate-[pulse_4s_infinite_0.5s]" />
+              <circle cx="140" cy="70" r="1.2" fill="var(--primary)" className="animate-[pulse_5s_infinite_1.5s]" />
+              <use href="#large-cross-star" x="90" y="150" className="animate-[pulse_3s_infinite_2.5s]" />
+              <circle cx="160" cy="120" r="1.5" fill="var(--primary)" className="animate-[pulse_4.5s_infinite_1s]" />
+              <circle cx="20" cy="160" r="1.2" fill="var(--primary)" className="animate-[pulse_3.5s_infinite_2s] opacity-60" />
+              <use href="#cross-star" x="170" y="40" className="animate-[pulse_5.5s_infinite_0.5s]" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#stars-1)" />
+          <rect width="100%" height="100%" fill="url(#stars-2)" />
+        </svg>
+      </div>
+      <div className="absolute inset-0 bg-linear-to-b from-transparent via-background/10 to-background/95" />
+    </div>
+  );
+}
+
+/**
  * 首页：面向转化的落地页，视觉与 popup 一致。
  */
 export function Hero() {
@@ -549,21 +817,20 @@ export function Hero() {
     <section className="relative w-full overflow-hidden">
       <div className="absolute inset-x-0 top-0 z-0 h-[800px]">
         <HeroShapeGrid />
-        <div className="absolute -left-36 top-4 h-72 w-72 rounded-full bg-foreground/8 blur-3xl" />
-        <div className="absolute -right-32 top-20 h-72 w-72 rounded-full bg-foreground/6 blur-3xl" />
-        <div className="absolute left-1/2 top-[400px] -translate-x-1/2 h-[400px] w-[800px] rounded-full bg-primary/5 blur-[100px]" />
       </div>
 
       <div className="container relative z-10 mx-auto px-4 pb-20 pt-12 md:px-6 md:pt-16">
-        <div className="flex flex-col items-center justify-center pt-24 pb-16 md:pt-32 md:pb-24 text-center max-w-4xl mx-auto z-10 space-y-8 relative">
+        <div className="flex flex-col items-center justify-center pt-24 pb-16 md:pt-32 md:pb-24 text-center max-w-4xl mx-auto z-20 space-y-8 relative">
           {/* Logo Title - fully centered */}
           <div className="flex items-center gap-3">
             <span className="font-bold text-3xl tracking-tight text-foreground/90">
               Sendol
             </span>
-            <Badge variant="outline" className="px-2 py-0.5 text-[10px] uppercase font-semibold text-muted-foreground border-border/40">
-              {copy.betaLabel}
-            </Badge>
+            {copy.betaLabel && (
+              <Badge variant="outline" className="px-2 py-0.5 text-[10px] uppercase font-semibold text-muted-foreground border-border/40">
+                {copy.betaLabel}
+              </Badge>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -579,11 +846,9 @@ export function Hero() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 pt-6 items-center justify-center w-full">
-            <Button asChild size="lg" className="h-14 px-8 text-base font-medium rounded-full shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 cursor-pointer">
-              <a href="https://github.com/RainTreeQ/sendol-extension#-installation--安装" target="_blank" rel="noreferrer">
-                {copy.ctaInstall}
-                <ArrowUpRight className="ml-2 h-5 w-5" />
-              </a>
+            <Button size="lg" className="h-14 px-8 text-base font-medium rounded-full shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 cursor-pointer" onClick={(e) => handleScrollTo(e, "support")}>
+              {copy.ctaInstall}
+              <ArrowUpRight className="ml-2 h-5 w-5" />
             </Button>
             <Button variant="outline" size="lg" className="h-14 px-8 text-base font-medium rounded-full bg-background/50 backdrop-blur-sm hover:bg-muted cursor-pointer" onClick={(e) => handleScrollTo(e, "pricing")}>
               {copy.ctaPricing}
@@ -591,24 +856,8 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Plugin UI showcase - completely unboxed, floating feeling */}
-        <div className="relative mx-auto max-w-[420px] z-10 -mt-4 md:-mt-8 mb-24 perspective-1000">
-          <div className="relative rounded-2xl md:rounded-[2rem] overflow-hidden border border-foreground/10 bg-background/40 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(255,255,255,0.05)] ring-1 ring-black/5 dark:ring-white/5 transition-transform duration-700 ease-out hover:scale-[1.03] hover:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.2)] dark:hover:shadow-[0_30px_70px_-20px_rgba(255,255,255,0.1)]">
-            <div className="absolute inset-0 bg-linear-to-tr from-primary/5 via-transparent to-transparent pointer-events-none z-20" />
-            <img 
-              src={screenshotSrc} 
-              alt={copy.popupScreenshotAlt} 
-              className="w-full h-auto object-cover opacity-[0.95] transition-opacity duration-300 relative z-10" 
-            />
-            
-            {/* Glass reflection effect */}
-            <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-black/10 dark:via-white/30 to-transparent z-20" />
-            <div className="absolute inset-y-0 left-0 w-px bg-linear-to-b from-black/5 dark:from-white/20 via-transparent to-transparent z-20" />
-          </div>
-
-          {/* Decorative glow behind the image - made more concentrated for smaller image */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[80%] bg-primary/20 blur-[120px] rounded-full -z-10" />
-        </div>
+        {/* Plugin UI showcase - interactive 3D tilt */}
+        <InteractiveScreenshot src={screenshotSrc} alt={copy.popupScreenshotAlt} />
 
         {/* Updated Stats / Inline text below main visual */}
         <div className="grid gap-6 md:grid-cols-3 sm:grid-cols-3 pt-6 border-t border-border/40 max-w-5xl mx-auto">
@@ -649,11 +898,11 @@ export function Hero() {
                 <div key={index} className="bg-background/80 backdrop-blur-md flex flex-col relative overflow-hidden rounded-2xl border border-border/50 shadow-sm">
                   <div className="h-10 bg-muted/40 border-b border-border/40 flex items-center px-4 relative">
                     <div className="flex gap-1.5 opacity-60 absolute left-4">
-                      <div className="w-2.5 h-2.5 rounded-full bg-foreground/20" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-foreground/20" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-foreground/20" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-foreground/15" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-foreground/15" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-foreground/15" />
                     </div>
-                    <span className="text-xs font-medium text-foreground/60 mx-auto tracking-wide">{ai.name}</span>
+                    <span className="text-[11px] font-medium text-foreground/50 mx-auto tracking-wider">{ai.name}</span>
                   </div>
                   <div className="flex-1 p-6 flex flex-col gap-4">
                     <div className={`h-3.5 w-${ai.width1} rounded-full bg-primary/20 self-end shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]`} />
@@ -669,7 +918,12 @@ export function Hero() {
                 
                 {/* Header */}
                 <div className="h-12 border-b border-border/40 flex items-center justify-between px-4 relative z-10">
-                  <span className="text-sm font-semibold tracking-tight text-foreground/90">Sendol</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-md bg-foreground text-background flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full border border-background" />
+                    </div>
+                    <span className="text-sm font-semibold tracking-tight text-foreground/90">Sendol</span>
+                  </div>
                   <div className="flex gap-1.5">
                     <div className="w-4 h-4 rounded-md bg-muted/60" />
                     <div className="w-4 h-4 rounded-md bg-muted/60" />
@@ -679,14 +933,20 @@ export function Hero() {
                 {/* Content Area */}
                 <div className="p-4 flex flex-col gap-3 relative z-10 flex-1">
                   {/* Three rectangular blocks */}
-                  <div className="h-8 bg-card rounded-lg border border-border/40 flex items-center px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-                    <div className="h-2 w-3/4 bg-foreground/15 rounded-full" />
+                  <div className="h-8 bg-card rounded-md border border-border/40 flex items-center gap-2 px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+                    <div className="w-2.5 h-2.5 rounded-full bg-foreground/80" />
+                    <div className="h-3 w-16 bg-muted rounded flex items-center px-1" />
+                    <div className="h-1 w-12 bg-foreground/20 rounded-full ml-auto" />
                   </div>
-                  <div className="h-8 bg-card rounded-lg border border-border/40 flex items-center px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-                    <div className="h-2 w-1/2 bg-foreground/15 rounded-full" />
+                  <div className="h-8 bg-card rounded-md border border-border/40 flex items-center gap-2 px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+                    <div className="w-2.5 h-2.5 rounded-full bg-foreground/80" />
+                    <div className="h-3 w-16 bg-muted rounded flex items-center px-1" />
+                    <div className="h-1 w-16 bg-foreground/20 rounded-full ml-auto" />
                   </div>
-                  <div className="h-8 bg-card rounded-lg border border-border/40 flex items-center px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-                    <div className="h-2 w-full bg-foreground/15 rounded-full" />
+                  <div className="h-8 bg-card rounded-md border border-border/40 flex items-center gap-2 px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+                    <div className="w-2.5 h-2.5 rounded-full bg-foreground/80" />
+                    <div className="h-3 w-16 bg-muted rounded flex items-center px-1" />
+                    <div className="h-1 w-10 bg-foreground/20 rounded-full ml-auto" />
                   </div>
 
                   {/* Spacer to push everything else down */}
@@ -700,13 +960,13 @@ export function Hero() {
                     {/* Input Controls */}
                     <div className="flex items-center justify-between mt-auto">
                       {/* Toggle Switch */}
-                      <div className="w-8 h-4 bg-muted-foreground/30 rounded-full flex items-center p-[2px]">
+                      <div className="w-7 h-4 bg-muted-foreground/30 rounded-full flex items-center p-[2px]">
                         <div className="w-3 h-3 bg-background rounded-full shadow-sm" />
                       </div>
                       
                       {/* Send Button */}
-                      <div className="w-8 h-8 bg-primary/90 rounded-full shadow-md flex items-center justify-center text-primary-foreground hover:scale-105 transition-transform border border-primary/20">
-                        <ArrowUp className="w-4 h-4" strokeWidth={3} />
+                      <div className="w-7 h-7 bg-primary/90 rounded-full shadow-md flex items-center justify-center text-primary-foreground hover:scale-105 transition-transform border border-primary/20">
+                        <ArrowUp className="w-3.5 h-3.5" strokeWidth={3} />
                       </div>
                     </div>
                   </div>
@@ -724,24 +984,24 @@ export function Hero() {
 
           <div className="grid gap-12 md:grid-cols-3 max-w-6xl mx-auto px-4">
             <div className="flex flex-col gap-5">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] ring-1 ring-primary/20">
-                <Wallet className="h-7 w-7" />
+              <div className="h-14 w-14 rounded-2xl bg-muted/50 flex items-center justify-center text-foreground border border-border/30 shadow-sm dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <Zap className="h-6 w-6 opacity-70" />
               </div>
               <h3 className="text-xl font-semibold text-foreground tracking-tight">{copy.featureOneTitle}</h3>
               <p className="text-base leading-relaxed text-muted-foreground">{copy.featureOneBody}</p>
             </div>
             
             <div className="flex flex-col gap-5">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] ring-1 ring-primary/20">
-                <ShieldCheck className="h-7 w-7" />
+              <div className="h-14 w-14 rounded-2xl bg-muted/50 flex items-center justify-center text-foreground border border-border/30 shadow-sm dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <Eye className="h-6 w-6 opacity-70" />
               </div>
               <h3 className="text-xl font-semibold text-foreground tracking-tight">{copy.featureTwoTitle}</h3>
               <p className="text-base leading-relaxed text-muted-foreground">{copy.featureTwoBody}</p>
             </div>
             
             <div className="flex flex-col gap-5">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] ring-1 ring-primary/20">
-                <Sparkles className="h-7 w-7" />
+              <div className="h-14 w-14 rounded-2xl bg-muted/50 flex items-center justify-center text-foreground border border-border/30 shadow-sm dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <Save className="h-6 w-6 opacity-70" />
               </div>
               <h3 className="text-xl font-semibold text-foreground tracking-tight">{copy.featureThreeTitle}</h3>
               <p className="text-base leading-relaxed text-muted-foreground">{copy.featureThreeBody}</p>
@@ -757,64 +1017,49 @@ export function Hero() {
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3 max-w-5xl mx-auto px-4">
-            <div className="flex flex-col h-full bg-card rounded-[24px] border border-border/40 shadow-sm p-8 transition-transform hover:-translate-y-1 hover:shadow-md">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-foreground shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
-                  <Coins className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold">{copy.communityTitle}</h3>
-                  <p className="text-sm text-muted-foreground mt-0.5">{copy.communityDesc}</p>
-                </div>
+          <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto px-4">
+            <div className="flex flex-col h-full bg-background rounded-[24px] border border-border/40 shadow-sm p-8 transition-all hover:shadow-md">
+              <div className="mb-4">
+                <h3 className="text-2xl font-medium tracking-tight text-foreground">{copy.communityTitle}</h3>
+                <p className="text-[15px] text-muted-foreground mt-2">{copy.communityDesc}</p>
               </div>
-              <div className="flex-1 space-y-3 my-6">
+              <div className="flex-1 space-y-4 my-4">
                 <p className="text-[15px] leading-relaxed text-foreground/80">{copy.communityBody1}</p>
                 <p className="text-[15px] leading-relaxed text-foreground/80">{copy.communityBody2}</p>
               </div>
-              <Button asChild variant="outline" className="w-full mt-auto rounded-xl cursor-pointer">
+              <Button asChild variant="outline" className="w-full mt-auto rounded-xl bg-background hover:bg-muted cursor-pointer shadow-sm border-border/30 transition-all hover:shadow-md h-11 font-medium text-[15px]">
                 <a href="https://github.com/RainTreeQ/sendol-extension" target="_blank" rel="noreferrer">{copy.communityBtn}</a>
               </Button>
             </div>
 
-            <div className="flex flex-col h-full bg-card rounded-[24px] border border-primary/20 shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(255,255,255,0.03)] p-8 relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-[0_12px_40px_rgb(0,0,0,0.1)] dark:hover:shadow-[0_12px_40px_rgba(255,255,255,0.05)] ring-1 ring-primary/10">
-              <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-primary/5 to-transparent mix-blend-overlay" />
-              <div className="absolute top-0 right-8 px-3 py-1 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider rounded-b-lg shadow-sm">
-                Coming Soon
-              </div>
-              <div className="flex items-center gap-3 mb-4 relative z-10">
-                <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
-                  <Crown className="h-5 w-5" />
+            <div className="flex flex-col h-full bg-background rounded-[24px] border border-border/40 shadow-sm p-8 relative overflow-hidden transition-all hover:shadow-md">
+              <StarryBackground />
+              <div className="mb-4 relative z-10">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-2xl font-medium tracking-tight text-foreground">{copy.proTitle}</h3>
+                  <Badge variant="secondary" className="px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest bg-foreground/10 text-foreground hover:bg-foreground/15 border-none rounded-full">
+                    {locale === 'zh-CN' || locale === 'zh-TW' ? '即将推出' : 'COMING SOON'}
+                  </Badge>
                 </div>
-                <div>
-                  <h3 className="text-xl font-semibold">{copy.proTitle}</h3>
-                  <p className="text-sm text-primary/80 mt-0.5">{copy.proDesc}</p>
-                </div>
+                <p className="text-[15px] text-muted-foreground mt-2">{copy.proDesc}</p>
               </div>
-              <div className="flex-1 space-y-3 my-6 relative z-10">
-                <p className="text-[15px] leading-relaxed text-foreground/90 font-medium">{copy.proBody1}</p>
+              <div className="flex-1 space-y-4 my-4 relative z-10">
+                <p className="text-[15px] leading-relaxed text-foreground/80">{copy.proBody1}</p>
                 <p className="text-[15px] leading-relaxed text-foreground/80">{copy.proBody2}</p>
               </div>
-              <Button asChild className="w-full mt-auto rounded-xl shadow-md hover:shadow-lg relative z-10 cursor-pointer">
-                <a href="https://github.com/RainTreeQ/sendol-extension/issues" target="_blank" rel="noreferrer">{copy.proBtn}</a>
-              </Button>
+              <WaitlistForm copy={copy} />
             </div>
 
-            <div className="flex flex-col h-full bg-card rounded-[24px] border border-border/40 shadow-sm p-8 transition-transform hover:-translate-y-1 hover:shadow-md">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-foreground shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
-                  <HandHeart className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold">{copy.sponsorTitle}</h3>
-                  <p className="text-sm text-muted-foreground mt-0.5">{copy.sponsorDesc}</p>
-                </div>
+            <div className="hidden md:hidden flex-col h-full bg-background rounded-[24px] border border-border/40 shadow-sm p-8 transition-all hover:shadow-md">
+              <div className="mb-4">
+                <h3 className="text-2xl font-medium tracking-tight text-foreground">{copy.sponsorTitle}</h3>
+                <p className="text-[15px] text-muted-foreground mt-2">{copy.sponsorDesc}</p>
               </div>
-              <div className="flex-1 space-y-3 my-6">
+              <div className="flex-1 space-y-4 my-4">
                 <p className="text-[15px] leading-relaxed text-foreground/80">{copy.sponsorBody1}</p>
                 <p className="text-[15px] leading-relaxed text-foreground/80">{copy.sponsorBody2}</p>
               </div>
-              <Button asChild variant="secondary" className="w-full mt-auto rounded-xl bg-secondary/80 hover:bg-secondary cursor-pointer">
+              <Button asChild variant="outline" className="w-full mt-auto rounded-xl bg-background hover:bg-muted cursor-pointer shadow-sm border-border/30 transition-all hover:shadow-md h-11 font-medium text-[15px]">
                 <a href="https://github.com/sponsors" target="_blank" rel="noreferrer">{copy.sponsorBtn}</a>
               </Button>
             </div>
@@ -844,10 +1089,10 @@ export function Hero() {
               </div>
               <div className="flex flex-wrap gap-3 pt-4">
                 <Button asChild size="default">
-                  <a href="https://github.com/RainTreeQ/sendol-extension#-installation--安装" target="_blank" rel="noreferrer">
+                  <Link to="/install" onClick={() => window.scrollTo(0, 0)}>
                     {copy.ctaInstall}
                     <ArrowUpRight className="h-4 w-4 ml-1" />
-                  </a>
+                  </Link>
                 </Button>
                 <Button variant="outline" size="default" onClick={(e) => handleScrollTo(e, "pricing")}>
                   {copy.ctaPricing}
@@ -857,15 +1102,15 @@ export function Hero() {
           </div>
         </section>
 
-        <section id="language" aria-labelledby="language-heading" className="mt-32 md:mt-48 space-y-12 mb-10">
+        <section id="language" aria-labelledby="language-heading" className="hidden mt-32 md:mt-48 space-y-12 mb-10">
           <div className="flex flex-col items-center text-center gap-4">
             <h2 id="language-heading" className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">{copy.languageTitle}</h2>
           </div>
           <div className="grid gap-12 md:grid-cols-2 max-w-5xl mx-auto px-4">
             <div className="flex flex-col gap-5">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
-                  <Languages className="h-5 w-5" />
+                <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center text-foreground border border-border/30 shadow-sm dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                  <Languages className="h-5 w-5 opacity-70" />
                 </div>
                 <h3 className="text-xl font-semibold tracking-tight">{copy.languageTitle}</h3>
               </div>
@@ -885,15 +1130,15 @@ export function Hero() {
 
             <div className="flex flex-col gap-5">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
-                  <Globe className="h-5 w-5" />
+                <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center text-foreground border border-border/30 shadow-sm dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                  <Globe className="h-5 w-5 opacity-70" />
                 </div>
                 <h3 className="text-xl font-semibold tracking-tight">{copy.roadmapTitle}</h3>
               </div>
               <p className="text-muted-foreground text-base leading-relaxed">{copy.roadmapDesc}</p>
               <div className="flex flex-wrap gap-2 mt-2">
                 {plannedLocales.map((item) => (
-                  <Badge key={item.code} variant="secondary" className="px-3 py-1.5 text-xs bg-muted hover:bg-muted/80">
+                  <Badge key={item.code} variant="secondary" className="px-3 py-1.5 text-xs bg-muted/50 hover:bg-muted border border-border/30 shadow-sm transition-colors">
                     {item.label}
                   </Badge>
                 ))}

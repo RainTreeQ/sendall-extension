@@ -14,7 +14,7 @@
 - **Workflow Run #1**: E2E Monitor triggered successfully
 
 ### Repositories
-- **Main**: https://github.com/RainTreeQ/sendall-extension
+- **Main**: https://github.com/RainTreeQ/sendol-extension
 - **Selectors**: https://github.com/RainTreeQ/sendol-selectors
 
 ---
@@ -44,7 +44,7 @@ Users auto-update in 12h
 ## 🧪 How to Test
 
 ### 1. View Workflow Status
-Visit: https://github.com/RainTreeQ/sendall-extension/actions
+Visit: https://github.com/RainTreeQ/sendol-extension/actions
 
 You should see:
 - ✅ E2E Monitor (Daily)
@@ -94,7 +94,7 @@ git push
 
 If you want email alerts, add these secrets:
 
-**Go to**: https://github.com/RainTreeQ/sendall-extension/settings/secrets/actions
+**Go to**: https://github.com/RainTreeQ/sendol-extension/settings/secrets/actions
 
 **Add**:
 1. `MAIL_USERNAME` = your-email@gmail.com
@@ -108,7 +108,7 @@ If you want email alerts, add these secrets:
 ## 🔍 Monitoring
 
 ### Check System Health
-1. **GitHub Actions**: https://github.com/RainTreeQ/sendall-extension/actions
+1. **GitHub Actions**: https://github.com/RainTreeQ/sendol-extension/actions
    - Green checkmarks = all platforms working
    - Red X = auto-fix triggered
 
@@ -226,7 +226,7 @@ The system is now:
 
 ## 📞 Quick Links
 
-- **Actions**: https://github.com/RainTreeQ/sendall-extension/actions
+- **Actions**: https://github.com/RainTreeQ/sendol-extension/actions
 - **Selectors PRs**: https://github.com/RainTreeQ/sendol-selectors/pulls
 - **Documentation**: See AUTO_FIX_SYSTEM.md
 - **Maintenance Guide**: See MAINTENANCE.md

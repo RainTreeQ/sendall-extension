@@ -224,23 +224,35 @@
       findInput: [
         '.ql-editor[contenteditable="true"]',
         "rich-textarea .ql-editor",
+        'rich-textarea div[contenteditable="true"]',
         'div[contenteditable="true"][role="textbox"]',
+        'div[contenteditable="true"][data-placeholder]',
         "p[data-placeholder]"
       ],
       findSendBtn: [
         'button[aria-label="Send message"]',
         'button[aria-label="Send"]',
+        'button[aria-label*="Send" i]',
         'button[aria-label*="\u53D1\u9001"]',
         'button[aria-label*="\u63D0\u4EA4"]',
         'button[aria-label="Submit"]',
-        'button[aria-label*="Submit"]',
+        'button[aria-label*="Submit" i]',
         "button.send-button",
+        "button.submit-button",
+        'button[type="submit"]',
         'button[data-test-id="send-button"]',
-        'button[data-testid*="send"]',
+        'button[data-testid*="send" i]',
         'button[mattooltip="Send message"]',
         'button[mattooltip="Send"]',
+        'button[mattooltip*="Send" i]',
+        'button[mattooltip*="\u53D1\u9001"]',
         'button[mattooltip*="Submit"]',
-        'button[jsname="Qx7uuf"]'
+        'button[jsname="Qx7uuf"]',
+        'button[jsname*="send" i]',
+        '[role="button"][aria-label*="Send" i]',
+        '[role="button"][aria-label*="\u53D1\u9001"]',
+        'button[class*="send" i]',
+        'button[class*="submit" i]'
       ]
     },
     grok: {

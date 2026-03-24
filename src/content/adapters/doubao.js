@@ -14,8 +14,8 @@ export function createDoubaoAdapter(deps) {
 
   // 随机延迟，降低触发风控的概率
   async function antiDetectionDelay() {
-    // 3-8秒随机延迟
-    const delay = 3000 + Math.floor(Math.random() * 5000);
+    // 1-3秒随机延迟（平衡用户体验和防刷）
+    const delay = 1000 + Math.floor(Math.random() * 2000);
     await sleep(delay);
   }
 

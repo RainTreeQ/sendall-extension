@@ -47,7 +47,7 @@
 
 #### 2.1 进入 Secrets 设置页面
 
-1. 访问你的仓库：https://github.com/RainTreeQ/sendall-extension
+1. 访问你的仓库：https://github.com/RainTreeQ/sendol-extension
 2. 点击顶部的 **Settings** 标签
 3. 在左侧菜单找到 **Secrets and variables**
 4. 点击 **Actions**
@@ -103,7 +103,7 @@ NOTIFY_EMAIL      Updated now by you
 
 ### 方法 2: 手动触发测试
 
-1. 访问：https://github.com/RainTreeQ/sendall-extension/actions
+1. 访问：https://github.com/RainTreeQ/sendol-extension/actions
 2. 点击 "E2E Monitor (Daily)"
 3. 点击 "Run workflow"
 4. 选择 branch: master
@@ -261,8 +261,8 @@ GitHub 原生通知：
 ## 🎯 快速配置链接
 
 1. **生成应用专用密码**: https://myaccount.google.com/apppasswords
-2. **添加 GitHub Secrets**: https://github.com/RainTreeQ/sendall-extension/settings/secrets/actions
-3. **测试 workflow**: https://github.com/RainTreeQ/sendall-extension/actions
+2. **添加 GitHub Secrets**: https://github.com/RainTreeQ/sendol-extension/settings/secrets/actions
+3. **测试 workflow**: https://github.com/RainTreeQ/sendol-extension/actions
 
 ---
 
