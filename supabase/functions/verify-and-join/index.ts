@@ -28,8 +28,8 @@ serve(async (req) => {
     const normalizedEmail = email.toLowerCase().trim()
 
     // 创建 Supabase 客户端
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const supabaseUrl = Deno.env.get('SB_URL')
+    const supabaseServiceKey = Deno.env.get('SB_SERVICE_ROLE_KEY')
     
     if (!supabaseUrl || !supabaseServiceKey) {
       return new Response(

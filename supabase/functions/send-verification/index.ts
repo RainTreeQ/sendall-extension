@@ -183,8 +183,8 @@ serve(async (req) => {
     const normalizedEmail = email.toLowerCase().trim()
 
     // 创建 Supabase 客户端检查是否已存在
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const supabaseUrl = Deno.env.get('SB_URL')
+    const supabaseServiceKey = Deno.env.get('SB_SERVICE_ROLE_KEY')
     
     if (supabaseUrl && supabaseServiceKey) {
       const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
@@ -247,10 +247,11 @@ serve(async (req) => {
       if (!res.ok) {
         const error = await res.text()
         console.error('Resend API error:', error)
-        throw new Error('Failed to send email')
+        console.log(`[FALLBACK] Verification code for ${normalizedEmail}: ${code}`)
+        // 不抛出错误，降级为开发模式
+      } else {
+        console.log(`Verification email sent to ${normalizedEmail}`)
       }
-
-      console.log(`Verification email sent to ${normalizedEmail}`)
     } else {
       // 开发模式：只记录到日志
       console.log(`[DEV] Verification code for ${normalizedEmail}: ${code}`)

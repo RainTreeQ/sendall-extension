@@ -1,36 +1,41 @@
 {
-  "name": "sendol",
-  "version": "0.1.0",
-  "license": "AGPL-3.0-or-later",
+  "name": "sendol-landing",
   "private": true,
+  "version": "0.1.0",
+  "license": "PROPRIETARY",
+  "type": "module",
   "scripts": {
-    "prepare": "npm run hooks:install",
-    "build": "npm run build:extension",
-    "build:extension": "npm run build:extension --prefix app && npm run build:content",
-    "build:content": "node scripts/build-content.mjs",
-    "build:design-system": "npm run build:design-system --prefix app",
-    "build:all": "npm run build:extension && npm run build:design-system",
-    "package:extension": "node scripts/package-extension.mjs",
-    "package:extension:min": "node scripts/package-extension.mjs --minify-runtime",
-    "dev": "npm run dev --prefix app",
-    "capture:screenshot": "node scripts/capture-popup-screenshot.mjs",
-    "build:icons": "node scripts/build-icons.mjs",
-    "hooks:install": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git config --local core.hooksPath .githooks || true",
-    "release:stage": "npm run build:extension && npm run package:extension && git add -A app/dist-extension && git status --short -- app/dist-extension",
-    "test:input": "node scripts/test-input-support.mjs",
-    "test:popup": "node scripts/test-popup-ui.mjs",
-    "auth:export": "node scripts/export-auth-state.mjs",
-    "validate:selectors": "node scripts/validate-selectors.mjs",
-    "guard:popup-style-isolation": "node scripts/check-popup-style-isolation.mjs",
-    "diagnose": "node scripts/diagnose.mjs",
-    "init:selectors-repo": "bash scripts/init-selectors-repo.sh"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.58.2",
-    "playwright": "^1.49.0",
-    "sharp": "^0.33.5"
+    "dev": "vite",
+    "dev:design-system": "vite --config vite.design-system.config.js",
+    "build": "vite build",
+    "build:design-system": "vite build --config vite.design-system.config.js",
+    "lint": "eslint .",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.99.3"
+    "@lobehub/icons": "^5.0.1",
+    "@tailwindcss/vite": "^4.2.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.34.3",
+    "lucide-react": "^0.575.0",
+    "radix-ui": "^1.4.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.13.1",
+    "tailwind-merge": "^3.5.0",
+    "tailwind-variants": "^3.2.2",
+    "tailwindcss": "^4.2.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "vite": "^7.3.1"
   }
 }
