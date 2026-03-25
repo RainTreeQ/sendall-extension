@@ -1,0 +1,76 @@
+# 让 GitHub 生成的 ZIP 下载更简洁（用户下载时自动排除开发文档）
+# 参考: https://git-scm.com/docs/gitattributes
+
+# ========== 开发文档目录 ==========
+docs/ export-ignore
+app/docs/ export-ignore
+app/src/ export-ignore
+
+# ========== 开发配置文件 ==========
+.gitignore export-ignore
+.gitattributes export-ignore
+.eslintrc.js export-ignore
+.eslintrc.cjs export-ignore
+.eslintignore export-ignore
+prettier.config.js export-ignore
+vite.config.js export-ignore
+vite.*.config.js export-ignore
+
+# ========== 构建工具和依赖 ==========
+scripts/ export-ignore
+node_modules/ export-ignore
+package.json export-ignore
+package-lock.json export-ignore
+app/package.json export-ignore
+app/jsconfig.json export-ignore
+app/components.json export-ignore
+app/vite*.config.js export-ignore
+
+# ========== 测试文件 ==========
+tests/ export-ignore
+test-results/ export-ignore
+playwright-report/ export-ignore
+qa-*.png export-ignore
+
+# ========== CI/CD 和编辑器配置 ==========
+.github/ export-ignore
+.githooks/ export-ignore
+.check-workflows.sh export-ignore
+.vscode/ export-ignore
+.cursor/ export-ignore
+.trae/ export-ignore
+.claude/ export-ignore
+.superdesign/ export-ignore
+
+# ========== 其他开发文件 ==========
+.wrangler/ export-ignore
+supabase/ export-ignore
+.env* export-ignore
+.version export-ignore
+.imgbotconfig export-ignore
+
+# ========== 开发文档（保留 README.md privacy.md LICENSE） ==========
+CLAUDE.md export-ignore
+COGNITIVE-ARCHITECTURE-AND-GEB-PROTOCOL.md export-ignore
+INJECT-ADAPTER-LESSONS.md export-ignore
+SELECTORS_README.md export-ignore
+SELECTORS-REMOTE-MAINTENANCE.md export-ignore
+SELECTOR-PLATFORM-RUNBOOK.md export-ignore
+SELECTOR-CHANGELOG-TEMPLATE.md export-ignore
+CONTRIBUTING.md export-ignore
+CHANGELOG.md export-ignore
+DEPLOY.md export-ignore
+MAINTENANCE.md export-ignore
+QUICK_START.md export-ignore
+UPGRADE_SUMMARY.md export-ignore
+SYSTEM_STATUS.md export-ignore
+AUTO_FIX_SYSTEM.md export-ignore
+IMPLEMENTATION_COMPLETE.md export-ignore
+GITHUB_SETUP_GUIDE.md export-ignore
+EMAIL_SETUP_GUIDE.md export-ignore
+STORE_LISTING.md export-ignore
+STORE_SCREENSHOTS_GUIDE.md export-ignore
+SECURITY.md export-ignore
+TRADEMARK_POLICY.md export-ignore
+COMMERCIAL_LICENSE.md export-ignore
+README_CN.md export-ignore
