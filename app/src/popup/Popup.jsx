@@ -1,5 +1,6 @@
 /* global chrome */
 import { useState, useEffect, useRef, useCallback, useLayoutEffect, cloneElement, isValidElement } from 'react'
+import { createPortal } from 'react-dom'
 import { RefreshCw, ArrowUp, Check, Zap, MessageSquarePlus, RotateCcw, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { t } from '@/lib/i18n'
 import {
@@ -97,7 +98,7 @@ function isRuntimeContextError(error) {
 const POPUP_EDGE_PX = 4
 const TOOLTIP_GAP_PX = 6
 /** Max bubble width so lines stay short; still capped by popup inner width */
-const TOOLTIP_MAX_CONTENT_WIDTH_PX = 220
+const TOOLTIP_MAX_CONTENT_WIDTH_PX = 176
 
 function clampTooltipMaxWidthPx(rootInnerWidth) {
   return Math.min(
@@ -211,33 +212,46 @@ function PopupHoverBubble({ label, children }) {
 
   const revealed = Boolean(pos) && !leaving
 
+  /** Portal to body avoids clipping/stacking issues (backdrop-blur, overflow) so all anchors show the bubble */
+  const bubble =
+    show &&
+    typeof document !== 'undefined' &&
+    createPortal(
+      <span
+        ref={tooltipRef}
+        role="tooltip"
+        className={cn(
+          'pointer-events-none fixed z-[9999] box-border rounded-md border border-border/50 bg-foreground px-1.5 py-0.5 text-left text-[9px] font-medium leading-tight text-background shadow-sm whitespace-normal wrap-anywhere',
+          'transition-[opacity,transform] duration-200 ease-out',
+          revealed ? 'translate-y-0 opacity-100' : 'translate-y-0.5 opacity-0',
+        )}
+        style={{
+          left: pos?.left ?? 0,
+          top: pos?.top ?? 0,
+          maxWidth:
+            pos?.maxWidth ??
+            clampTooltipMaxWidthPx(
+              typeof document !== 'undefined' ? document.getElementById('root')?.clientWidth ?? 400 : 400,
+            ),
+        }}
+      >
+        {label}
+      </span>,
+      document.body,
+    )
+
   return (
     <span className="relative inline-flex">
       {trigger}
-      {show && (
-        <span
-          ref={tooltipRef}
-          role="tooltip"
-          className={cn(
-            'pointer-events-none fixed z-[60] box-border rounded-lg border border-border/50 bg-foreground px-2.5 py-1.5 text-center text-[10px] font-medium leading-snug text-background shadow-[0_6px_16px_-8px_color-mix(in_oklab,var(--foreground)_35%,transparent)] whitespace-normal wrap-anywhere',
-            'transition-[opacity,transform] duration-200 ease-out',
-            revealed ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0',
-          )}
-          style={{
-            left: pos?.left ?? 0,
-            top: pos?.top ?? 0,
-            maxWidth:
-              pos?.maxWidth ??
-              clampTooltipMaxWidthPx(
-                typeof document !== 'undefined' ? document.getElementById('root')?.clientWidth ?? 400 : 400,
-              ),
-          }}
-        >
-          {label}
-        </span>
-      )}
+      {bubble}
     </span>
   )
+}
+
+/** Bubble only when `when` is true; otherwise plain children (hover styles stay on the child). */
+function OptionalHoverBubble({ when, label, children }) {
+  if (!when) return children
+  return <PopupHoverBubble label={label}>{children}</PopupHoverBubble>
 }
 
 function closePopupSafely() {
@@ -1065,7 +1079,7 @@ export default function Popup() {
           <button
             type="button"
             onClick={handleSelectAll}
-            className="rounded-full px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-gray-200/50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100"
+            className="cursor-pointer rounded-full px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-gray-200/50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100"
           >
             {selectAllLabel}
           </button>
@@ -1222,7 +1236,7 @@ export default function Popup() {
             />
             <div className="flex items-center justify-between px-3 pb-3">
               <div className="flex items-center gap-1.5">
-                <PopupHoverBubble label={t('auto_send_tooltip')}>
+                <OptionalHoverBubble when={!autoSend} label={t('auto_send_tooltip')}>
                   <button
                     type="button"
                     aria-label={t('auto_send')}
@@ -1231,7 +1245,7 @@ export default function Popup() {
                       setAutoSend(v)
                       void setPopupSettingsPatch({ autoSend: v })
                     }}
-                    className={`flex items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
+                    className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
                       autoSend
                         ? 'bg-zinc-200/80 text-zinc-900 px-2.5 py-1.5 dark:bg-zinc-700/80 dark:text-zinc-100'
                         : 'text-gray-500 hover:bg-gray-200/60 hover:text-gray-900 p-1.5 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100'
@@ -1240,8 +1254,8 @@ export default function Popup() {
                     <Zap className="h-4 w-4" />
                     {autoSend && <span className="text-[11px] font-semibold">{t('auto_send')}</span>}
                   </button>
-                </PopupHoverBubble>
-                <PopupHoverBubble label={t('new_chat_tooltip')}>
+                </OptionalHoverBubble>
+                <OptionalHoverBubble when={!newChat} label={t('new_chat_tooltip')}>
                   <button
                     type="button"
                     aria-label={t('new_chat')}
@@ -1250,7 +1264,7 @@ export default function Popup() {
                       setNewChat(v)
                       void setPopupSettingsPatch({ newChat: v })
                     }}
-                    className={`flex items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
+                    className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
                       newChat
                         ? 'bg-zinc-200/80 text-zinc-900 px-2.5 py-1.5 dark:bg-zinc-700/80 dark:text-zinc-100'
                         : 'text-gray-500 hover:bg-gray-200/60 hover:text-gray-900 p-1.5 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100'
@@ -1259,38 +1273,30 @@ export default function Popup() {
                     <MessageSquarePlus className="h-4 w-4" />
                     {newChat && <span className="text-[11px] font-semibold">{t('new_chat')}</span>}
                   </button>
-                </PopupHoverBubble>
+                </OptionalHoverBubble>
               </div>
               <div className="flex items-center gap-2">
-                <PopupHoverBubble
-                  label={
+                <button
+                  type="button"
+                  disabled={sendDisabled}
+                  onClick={handleSend}
+                  aria-label={
                     hasSelection && hasText
                       ? t('send_to_n', [String(selectedTabIds.length)])
                       : t('select_tabs_and_enter_message')
                   }
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+                    !sendDisabled
+                      ? 'cursor-pointer bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:scale-105 hover:shadow-[0_4px_14px_rgba(0,0,0,0.35)] active:scale-95 dark:bg-white dark:text-black dark:shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-500'
+                  }`}
                 >
-                  <button
-                    type="button"
-                    disabled={sendDisabled}
-                    onClick={handleSend}
-                    aria-label={
-                      hasSelection && hasText
-                        ? t('send_to_n', [String(selectedTabIds.length)])
-                        : t('select_tabs_and_enter_message')
-                    }
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
-                      !sendDisabled
-                        ? 'bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:scale-105 hover:shadow-[0_4px_14px_rgba(0,0,0,0.35)] active:scale-95 dark:bg-white dark:text-black dark:shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
-                        : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-500'
-                    }`}
-                  >
-                    {sending ? (
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
-                    ) : (
-                      <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-                    )}
-                  </button>
-                </PopupHoverBubble>
+                  {sending ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+                  ) : (
+                    <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                  )}
+                </button>
               </div>
             </div>
           </div>
