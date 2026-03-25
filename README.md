@@ -70,8 +70,7 @@
 
 1. **下载并解压**
    - 点击本页面绿色的 **<> Code** 按钮 → **Download ZIP**
-   - 下载完成后，右键 ZIP 文件 → **解压到当前文件夹**
-   - 你会得到一个文件夹（名字可能是 `sendol`、`sendol-main` 等，都可以）
+   - 下载完成后解压，得到一个文件夹（名字可能是 `sendol-extension-main`，没关系）
 
 2. **打开浏览器扩展管理**
    - Chrome：地址栏输入 `chrome://extensions/` 回车
@@ -80,7 +79,7 @@
 3. **加载扩展**
    - 开启右上角的 **「开发者模式」** 开关
    - 点击出现的 **「加载已解压的扩展程序」** 按钮
-   - 选择刚才解压的文件夹（里面有 `manifest.json` 文件的那个）
+   - **选择解压后的整个文件夹**（不要点进去选子文件夹）
    - 看到 Sendol 图标出现即表示安装成功！
 
 ### 方式二：Git 克隆（适合开发者）
@@ -255,18 +254,16 @@ This extension is not on the Chrome Web Store yet. Install it manually in **Deve
 
 1. **Download & Extract**
    - Click the green **<> Code** button on this page → **Download ZIP**
-   - After downloading, right-click the ZIP file → **Extract All** (Windows) or double-click to extract (Mac)
-   - You'll get a folder named `sendol` (it may appear as `sendol-main` or `sendol-extension-main` depending on your browser)
+   - Extract the ZIP file to get a folder (it may be named `sendol-extension-main`, that's fine)
 
 2. **Open Browser Extensions**
-   - Chrome users: Type `chrome://extensions/` in address bar and press Enter
-   - Edge users: Type `edge://extensions/` in address bar and press Enter
-   - Or click Menu → More Tools → Extensions
+   - Chrome: Type `chrome://extensions/` in address bar and press Enter
+   - Edge: Type `edge://extensions/` in address bar and press Enter
 
 3. **Load Extension**
-   - Turn on the **"Developer mode"** switch in the top-right corner
-   - Click **"Load unpacked"** that appears in the top-left
-   - Select the `sendol` folder you just extracted (the one containing `manifest.json`)
+   - Turn on **"Developer mode"** switch in the top-right corner
+   - Click **"Load unpacked"** button that appears
+   - **Select the extracted folder** (don't double-click into subfolders)
    - Done! You'll see the Sendol icon appear in your extensions list
 
 ### Option 2: Git Clone (For Developers)
