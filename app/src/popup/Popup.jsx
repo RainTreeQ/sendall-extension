@@ -1021,9 +1021,21 @@ export default function Popup() {
               aria-label={t('open_official_site')}
               onClick={() => {
                 try {
-                  void chrome.tabs.create({ url: SENDOL_OFFICIAL_URL })
+                  if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
+                    const p = chrome.tabs.create({ url: SENDOL_OFFICIAL_URL })
+                    if (p != null && typeof p.catch === 'function') {
+                      p.catch((err) => console.error('tabs.create failed:', err))
+                    }
+                  } else {
+                    window.open(SENDOL_OFFICIAL_URL, '_blank', 'noopener,noreferrer')
+                  }
                 } catch (err) {
                   console.error(err)
+                  try {
+                    window.open(SENDOL_OFFICIAL_URL, '_blank', 'noopener,noreferrer')
+                  } catch (_) {
+                    /* noop */
+                  }
                 }
               }}
               className="flex cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-gray-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-50 dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-950"
