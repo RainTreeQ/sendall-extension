@@ -221,7 +221,7 @@ function PopupHoverBubble({ label, children }) {
         ref={tooltipRef}
         role="tooltip"
         className={cn(
-          'pointer-events-none fixed z-[9999] box-border rounded-md border border-border/50 bg-foreground px-1.5 py-0.5 text-left text-[9px] font-medium leading-tight text-background shadow-sm whitespace-normal wrap-anywhere',
+          'pointer-events-none fixed z-[9999] box-border rounded-md border-0 bg-foreground px-2 py-0.5 text-left text-[10px] font-medium leading-snug text-background shadow-sm whitespace-normal wrap-anywhere',
           'transition-[opacity,transform] duration-200 ease-out',
           revealed ? 'translate-y-0 opacity-100' : 'translate-y-0.5 opacity-0',
         )}
@@ -1236,7 +1236,7 @@ export default function Popup() {
             />
             <div className="flex items-center justify-between px-3 pb-3">
               <div className="flex items-center gap-1.5">
-                <OptionalHoverBubble when={!autoSend} label={t('auto_send_tooltip')}>
+                <OptionalHoverBubble when={!autoSend} label={t('auto_send')}>
                   <button
                     type="button"
                     aria-label={t('auto_send')}
@@ -1255,7 +1255,7 @@ export default function Popup() {
                     {autoSend && <span className="text-[11px] font-semibold">{t('auto_send')}</span>}
                   </button>
                 </OptionalHoverBubble>
-                <OptionalHoverBubble when={!newChat} label={t('new_chat_tooltip')}>
+                <OptionalHoverBubble when={!newChat} label={t('new_chat')}>
                   <button
                     type="button"
                     aria-label={t('new_chat')}
