@@ -569,17 +569,40 @@ const qianwenSend = async (el) => {
   // 人类在输入后通常会停顿一下再发送（200-600ms）
   await sleep(randomDelay(200, 600));
 
+  // 辅助函数：触发完整的鼠标点击事件序列
+  const triggerFullClick = (element) => {
+    const rect = element.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+
+    element.dispatchEvent(new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y
+    }));
+
+    element.dispatchEvent(new MouseEvent('mouseup', {
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y
+    }));
+
+    element.click();
+  };
+
   const tryClickSend = async () => {
     // 策略1: 使用选择器查找发送按钮
     const selectorBtn = await findSendBtnForPlatform('kimi');
     if (selectorBtn && !isNodeDisabled(selectorBtn)) {
       const innerBtn = selectorBtn.tagName !== 'BUTTON' ? selectorBtn.querySelector('button:not([disabled])') : null;
       const target = innerBtn || selectorBtn;
-      
+
       // 人类点击前会有短暂停顿
       await sleep(randomDelay(50, 150));
-      target.click();
-      
+      triggerFullClick(target);
+
       // 点击后等待响应（人类会等待）
       await sleep(randomDelay(400, 800));
       const after = normalizeText(getContent(el));
@@ -592,7 +615,7 @@ const qianwenSend = async (el) => {
     const findSendBtn = () => {
       const precise = container.querySelector?.('div.send-button-container:not(.disabled), [data-testid*="send"]:not([disabled])');
       if (precise && !isNodeDisabled(precise)) return precise;
-      
+
       const buttons = container.querySelectorAll ? container.querySelectorAll('button:not([disabled]), [role="button"]:not([aria-disabled="true"])') : [];
       for (const b of buttons) {
         if (isNodeDisabled(b)) continue;
@@ -606,7 +629,7 @@ const qianwenSend = async (el) => {
     const btn = await waitFor(findSendBtn, 2000, 80);
     if (btn) {
       await sleep(randomDelay(80, 200)); // 找到按钮后停顿一下
-      btn.click();
+      triggerFullClick(btn);
       await sleep(randomDelay(400, 800));
       const after = normalizeText(getContent(el));
       if (!before || after !== before) return true;

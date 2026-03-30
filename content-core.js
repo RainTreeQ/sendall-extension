@@ -1670,12 +1670,31 @@
     }
     invalidate();
     await sleep(150);
+    // \u8F85\u52A9\u51FD\u6570\uFF1A\u89E6\u53D1\u5B8C\u6574\u7684\u9F20\u6807\u70B9\u51FB\u4E8B\u4EF6\u5E8F\u5217
+    const triggerFullClick = (element) => {
+      const rect = element.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      element.dispatchEvent(new MouseEvent("mousedown", {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y
+      }));
+      element.dispatchEvent(new MouseEvent("mouseup", {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y
+      }));
+      element.click();
+    };
     const tryClickSend = async () => {
       const selectorBtn = await findSendBtnForPlatform("kimi");
       if (selectorBtn && !isNodeDisabled(selectorBtn)) {
         const innerBtn = selectorBtn.tagName !== "BUTTON" ? selectorBtn.querySelector("button:not([disabled])") : null;
         const target = innerBtn || selectorBtn;
-        target.click();
+        triggerFullClick(target);
         await sleep(300);
         const after = normalizeText(getContent(el));
         if (!before || after !== before) return true;
@@ -1695,7 +1714,7 @@
       };
       const btn = await waitFor(findSendBtn, 1500, 60);
       if (btn) {
-        btn.click();
+        triggerFullClick(btn);
         await sleep(300);
         const after = normalizeText(getContent(el));
         if (!before || after !== before) return true;

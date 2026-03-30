@@ -112,6 +112,12 @@
           }, 3e3, 50);
         }
         logger?.debug?.("gemini-send-btn", { found: Boolean(btn), hasDirect: Boolean(await findSendBtnForPlatform("gemini")) });
+        // Gemini 按钮点击可能失效，优先使用 Enter 键发送（更可靠）
+        // 仅当 Enter 键失败后才尝试点击按钮作为 fallback
+        const keySendOk = await keySend();
+        logger?.debug?.("gemini-send-keyboard", { success: keySendOk });
+        if (keySendOk) return true;
+        // Fallback: 尝试点击按钮（如果 Enter 键失效）
         if (btn) {
           btn.click();
           await sleep(300);
@@ -128,9 +134,6 @@
         } else {
           logger?.debug?.("gemini-send-btn-not-found");
         }
-        const keySendOk = await keySend();
-        logger?.debug?.("gemini-send-keyboard", { success: keySendOk });
-        if (keySendOk) return true;
         logger?.debug?.("gemini-send-failed");
         return false;
       }

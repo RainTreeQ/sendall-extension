@@ -219,6 +219,20 @@ if (chrome.storage?.onChanged?.addListener) {
     cachedSelectors = null;
     selectorsVersion++;
     invalidate();
+    console.debug('[AIB] Selectors cache invalidated due to storage change');
+  });
+}
+
+// 监听来自 background 的即时刷新指令
+if (chrome.runtime?.onMessage?.addListener) {
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'REFRESH_SELECTORS') {
+      // 立即清除缓存
+      cachedSelectors = null;
+      selectorsVersion++;
+      invalidate();
+      console.debug('[AIB] Selectors cache refreshed on demand, version:', selectorsVersion);
+    }
   });
 }
 

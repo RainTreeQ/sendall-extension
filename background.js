@@ -1,42 +1,112 @@
 const SELECTORS_BASE_URL = "https://raw.githubusercontent.com/RainTreeQ/sendol-selectors/main/selectors/";
 const CACHE_KEY = "aib_dynamic_selectors";
-const CACHE_TTL = 12 * 60 * 60 * 1000;
+const CACHE_TTL = 60 * 60 * 1000; // 1小时（从12小时缩短）
 const SELECTOR_PLATFORMS = [
   'chatgpt', 'claude', 'gemini', 'grok', 'deepseek',
   'doubao', 'qianwen', 'yuanbao', 'kimi'
 ];
-async function updateDynamicSelectors() {
+
+// 全局锁，防止并发更新
+let isUpdatingSelectors = false;
+let lastUpdateTime = 0;
+
+async function updateDynamicSelectors(force = false) {
+  // 防止并发更新
+  if (isUpdatingSelectors) {
+    console.debug("[AIB] Selector update already in progress, skipping");
+    return { success: false, reason: 'in-progress' };
+  }
+
+  // 检查更新频率限制（除非强制更新）
+  const now = Date.now();
+  if (!force && now - lastUpdateTime < 5 * 60 * 1000) { // 最少间隔5分钟
+    console.debug("[AIB] Selector update throttled");
+    return { success: false, reason: 'throttled' };
+  }
+
+  isUpdatingSelectors = true;
+
   try {
     const existing = await chrome.storage.local.get(CACHE_KEY);
     const cached = existing?.[CACHE_KEY] || {};
+
+    // 检查缓存是否仍有效（非强制更新时）
+    if (!force && cached.timestamp && now - cached.timestamp < CACHE_TTL) {
+      isUpdatingSelectors = false;
+      return { success: true, reason: 'cache-valid', updated: false };
+    }
+
     const data = cached.data && typeof cached.data === 'object' ? { ...cached.data } : {};
     const results = await Promise.allSettled(
       SELECTOR_PLATFORMS.map(async (platform) => {
-        const res = await fetch(`${SELECTORS_BASE_URL}${platform}.json`);
+        const res = await fetch(`${SELECTORS_BASE_URL}${platform}.json?t=${now}`); // 加时间戳防缓存
         if (!res.ok) throw new Error(`fetch ${platform} failed: ${res.status}`);
         return { platform, selectors: await res.json() };
       })
     );
+
     let updated = false;
+    const updateLog = [];
+
     for (const result of results) {
       if (result.status === 'fulfilled') {
         const { platform, selectors } = result.value;
-        data[platform] = selectors;
-        updated = true;
+        // 检查是否有实质性更新
+        const existingHash = JSON.stringify(data[platform]);
+        const newHash = JSON.stringify(selectors);
+        if (existingHash !== newHash) {
+          data[platform] = selectors;
+          updated = true;
+          updateLog.push(platform);
+        }
+      } else {
+        console.debug(`[AIB] Failed to fetch selectors for ${result.reason}`);
       }
     }
+
     if (updated) {
-      data._meta = { timestamp: Date.now(), version: 3 };
-      await chrome.storage.local.set({ [CACHE_KEY]: { data, timestamp: Date.now() } });
+      data._meta = { timestamp: now, version: 3 };
+      await chrome.storage.local.set({ [CACHE_KEY]: { data, timestamp: now } });
+      console.debug("[AIB] Selectors updated:", updateLog);
+
+      // 通知所有 content scripts 刷新缓存
+      notifyContentScriptsToRefreshSelectors();
     }
+
+    lastUpdateTime = now;
+    isUpdatingSelectors = false;
+    return { success: true, updated, platforms: updateLog };
   } catch (err) {
+    isUpdatingSelectors = false;
     console.debug("[AIB] Failed to fetch dynamic selectors:", err);
+    return { success: false, error: err.message };
   }
 }
 
+// 通知所有 content scripts 刷新选择器缓存
+async function notifyContentScriptsToRefreshSelectors() {
+  try {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (!tab.id) continue;
+      try {
+        await chrome.tabs.sendMessage(tab.id, {
+          type: 'REFRESH_SELECTORS',
+          timestamp: Date.now()
+        });
+      } catch (e) {
+        // 忽略未注入 content script 的标签页
+      }
+    }
+  } catch (err) {
+    console.debug("[AIB] Failed to notify content scripts:", err);
+  }
+}
+
+// 设置定时更新（1小时一次）
 if (chrome.alarms?.create && chrome.alarms?.onAlarm?.addListener) {
   try {
-    chrome.alarms.create("updateSelectors", { periodInMinutes: 12 * 60 });
+    chrome.alarms.create("updateSelectors", { periodInMinutes: 60 }); // 1小时
     chrome.alarms.onAlarm.addListener((alarm) => {
       if (alarm.name === "updateSelectors") updateDynamicSelectors();
     });
@@ -46,7 +116,240 @@ if (chrome.alarms?.create && chrome.alarms?.onAlarm?.addListener) {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  updateDynamicSelectors();
+  updateDynamicSelectors(true); // 安装时强制更新
+});
+
+// 监听来自 popup 的手动刷新请求
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'FORCE_REFRESH_SELECTORS') {
+    updateDynamicSelectors(true).then(result => {
+      sendResponse(result);
+    });
+    return true; // 保持通道开放
+  }
+});
+
+// Sendol - Platform Stats
+// Simple stats tracking without external dependencies
+const STATS_KEY = 'aib_platform_stats';
+const MAX_STATS_DAYS = 7;
+
+async function recordStatsEvent(platform, stage, success, details = {}) {
+  try {
+    const result = await chrome.storage.local.get(STATS_KEY);
+    const stats = result[STATS_KEY] || {};
+    const today = new Date().toISOString().split('T')[0];
+    
+    if (!stats[platform]) stats[platform] = {};
+    if (!stats[platform][today]) {
+      stats[platform][today] = { inject: { success: 0, fail: 0 }, send: { success: 0, fail: 0 }, details: [] };
+    }
+    
+    const dayStats = stats[platform][today];
+    if (dayStats[stage]) {
+      dayStats[stage][success ? 'success' : 'fail']++;
+    }
+    
+    // Store limited failure details
+    if (!success && dayStats.details.length < 5) {
+      dayStats.details.push({ stage, timestamp: Date.now(), ...details });
+    }
+    
+    // Cleanup old data
+    const dates = Object.keys(stats[platform]).sort();
+    while (dates.length > MAX_STATS_DAYS) {
+      delete stats[platform][dates.shift()];
+    }
+    
+    await chrome.storage.local.set({ [STATS_KEY]: stats });
+  } catch (e) {
+    console.debug('[AIB] Stats recording failed:', e);
+  }
+}
+
+async function getPlatformStats(platform, days = 7) {
+  try {
+    const result = await chrome.storage.local.get(STATS_KEY);
+    const stats = result[STATS_KEY] || {};
+    const platformStats = stats[platform];
+    if (!platformStats) return null;
+    
+    const dates = Object.keys(platformStats).sort().slice(-days);
+    let success = 0, fail = 0;
+    
+    for (const date of dates) {
+      const day = platformStats[date];
+      success += (day.inject?.success || 0) + (day.send?.success || 0);
+      fail += (day.inject?.fail || 0) + (day.send?.fail || 0);
+    }
+    
+    const total = success + fail;
+    return total > 0 ? { rate: success / total, total, success, fail, days: dates.length } : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function checkPlatformHealth(threshold = 0.85) {
+  const alerts = [];
+  for (const platform of SELECTOR_PLATFORMS) {
+    const stats = await getPlatformStats(platform, 3);
+    if (stats && stats.total >= 5 && stats.rate < threshold) {
+      alerts.push({
+        platform,
+        rate: stats.rate,
+        message: `${platform} 成功率 ${(stats.rate * 100).toFixed(1)}% (${stats.success}/${stats.total})`
+      });
+    }
+  }
+  return alerts;
+}
+
+// Listen for stats recording from content scripts
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'RECORD_STATS') {
+    recordStatsEvent(message.platform, message.stage, message.success, message.details);
+    return false;
+  }
+  if (message.type === 'GET_PLATFORM_STATS') {
+    getPlatformStats(message.platform, message.days).then(sendResponse);
+    return true;
+  }
+  if (message.type === 'CHECK_HEALTH') {
+    checkPlatformHealth(message.threshold).then(sendResponse);
+    return true;
+  }
+});
+
+// Daily health check
+if (chrome.alarms?.create) {
+  chrome.alarms.create('healthCheck', { periodInMinutes: 60 * 24 }); // Daily
+  chrome.alarms.onAlarm?.addListener(async (alarm) => {
+    if (alarm.name === 'healthCheck') {
+      const alerts = await checkPlatformHealth(0.85);
+      if (alerts.length > 0) {
+        console.warn('[AIB] Platform health alerts:', alerts);
+        // Could send to analytics or notification here
+      }
+    }
+  });
+}
+
+// Bi-weekly success rate report
+const REPORT_KEY = 'aib_last_report_time';
+
+async function generateBiWeeklyReport() {
+  const now = Date.now();
+  const report = {
+    generatedAt: now,
+    period: '14 days',
+    platforms: {}
+  };
+  
+  for (const platform of SELECTOR_PLATFORMS) {
+    const stats = await getPlatformStats(platform, 14);
+    if (stats && stats.total > 0) {
+      report.platforms[platform] = {
+        rate: (stats.rate * 100).toFixed(1) + '%',
+        total: stats.total,
+        success: stats.success,
+        fail: stats.fail,
+        status: stats.rate >= 0.95 ? 'excellent' : stats.rate >= 0.85 ? 'good' : 'needs_attention'
+      };
+    } else {
+      report.platforms[platform] = { status: 'no_data', message: 'No usage in last 14 days' };
+    }
+  }
+  
+  // Calculate overall health
+  const platformsWithData = Object.values(report.platforms).filter(p => p.total > 0);
+  const avgRate = platformsWithData.length > 0
+    ? platformsWithData.reduce((sum, p) => sum + parseFloat(p.rate), 0) / platformsWithData.length
+    : 0;
+  
+  report.overall = {
+    platformsTracked: platformsWithData.length,
+    averageSuccessRate: avgRate.toFixed(1) + '%',
+    health: avgRate >= 90 ? 'healthy' : avgRate >= 75 ? 'degraded' : 'critical'
+  };
+  
+  return report;
+}
+
+async function sendBiWeeklyReport() {
+  const report = await generateBiWeeklyReport();
+  
+  // Log to console with formatting
+  console.log('%c[AIB] Bi-Weekly Platform Health Report', 'font-size: 16px; font-weight: bold; color: #1772F6;');
+  console.log(`Period: ${report.period} | Generated: ${new Date(report.generatedAt).toLocaleString()}`);
+  console.log(`Overall Health: ${report.overall.health.toUpperCase()} (${report.overall.averageSuccessRate})`);
+  console.log('─'.repeat(60));
+  
+  for (const [platform, data] of Object.entries(report.platforms)) {
+    if (data.status === 'no_data') {
+      console.log(`${platform}: ${data.message}`);
+    } else {
+      const statusEmoji = data.status === 'excellent' ? '✅' : data.status === 'good' ? '⚠️' : '❌';
+      console.log(`${statusEmoji} ${platform}: ${data.rate} (${data.success}/${data.total})`);
+    }
+  }
+  console.log('─'.repeat(60));
+  
+  // Show notification if there are issues
+  const problematic = Object.entries(report.platforms).filter(
+    ([, data]) => data.status === 'needs_attention'
+  );
+  
+  if (problematic.length > 0 && chrome.notifications) {
+    chrome.notifications.create('biweekly-report', {
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'AI Broadcast: Platform Health Report',
+      message: `${problematic.length} platform(s) need attention. Check console for details.`,
+      priority: problematic.length > 2 ? 2 : 1
+    });
+  }
+  
+  // Store report for popup access
+  await chrome.storage.local.set({ 
+    [REPORT_KEY]: now,
+    'aib_latest_report': report 
+  });
+  
+  return report;
+}
+
+// Schedule bi-weekly report (14 days)
+if (chrome.alarms?.create) {
+  chrome.alarms.create('biWeeklyReport', { periodInMinutes: 60 * 24 * 14 }); // 14 days
+  chrome.alarms.onAlarm?.addListener(async (alarm) => {
+    if (alarm.name === 'biWeeklyReport') {
+      await sendBiWeeklyReport();
+    }
+  });
+  
+  // Also check on startup if 14 days have passed
+  chrome.runtime.onStartup?.addListener(async () => {
+    const result = await chrome.storage.local.get(REPORT_KEY);
+    const lastReport = result[REPORT_KEY] || 0;
+    const daysSinceLastReport = (Date.now() - lastReport) / (1000 * 60 * 60 * 24);
+    
+    if (daysSinceLastReport >= 14) {
+      await sendBiWeeklyReport();
+    }
+  });
+}
+
+// Listen for manual report request
+chrome.runtime.onMessage?.addListener((message, sender, sendResponse) => {
+  if (message.type === 'GET_BIWEEKLY_REPORT') {
+    generateBiWeeklyReport().then(sendResponse);
+    return true;
+  }
+  if (message.type === 'FORCE_BIWEEKLY_REPORT') {
+    sendBiWeeklyReport().then(sendResponse);
+    return true;
+  }
 });
 
 // Sendol - Background Service Worker v4
@@ -659,12 +962,14 @@ async function getAITabs() {
     if (!platformName) continue;
 
     const existing = seenPlatforms.get(platformName);
-    const score = (tab.active ? 1e9 : 0) + (tab.lastAccessed || tab.index || 0);
-    const existingScore = existing
-      ? ((existing.active ? 1e9 : 0) + (existing.lastAccessed || existing.index || 0))
-      : -1;
+    
+    // 策略：选择最早打开的标签页（tab.id 越小越早创建）
+    // 如果 id 相同，选择索引更小的（在同一窗口中更靠左）
+    const isEarlier = !existing || 
+                      tab.id < existing.id || 
+                      (tab.id === existing.id && tab.index < existing.index);
 
-    if (!existing || score > existingScore) {
+    if (isEarlier) {
       seenPlatforms.set(platformName, {
         id: tab.id,
         url: tab.url,
@@ -673,7 +978,9 @@ async function getAITabs() {
         windowId: tab.windowId,
         favIconUrl: tab.favIconUrl,
         index: tab.index,
-        active: tab.active
+        active: tab.active,
+        // 记录创建时间用于调试
+        tabId: tab.id
       });
     }
   }

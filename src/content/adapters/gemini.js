@@ -130,8 +130,66 @@ export function createGeminiAdapter(deps) {
         }, 3000, 50);
       }
 
-      logger?.debug?.('gemini-send-btn', { found: Boolean(btn), hasDirect: Boolean(await findSendBtnForPlatform('gemini')) });
+      // 4. 全页面启发式查找（当选择器完全失效时的兜底策略）
+      if (!btn) {
+        btn = await waitFor(() => {
+          // 策略 A: 查找圆形/按钮样式的元素（Gemini 发送按钮通常是圆形图标按钮）
+          const allButtons = document.querySelectorAll('button');
+          for (const b of allButtons) {
+            if (b.disabled || b.getAttribute('aria-disabled') === 'true') continue;
+            const rect = b.getBoundingClientRect();
+            // 圆形按钮通常是正方形的（宽高比接近 1）且尺寸适中
+            const isCircular = rect.width > 30 && rect.height > 30 &&
+                               rect.width < 60 && rect.height < 60 &&
+                               Math.abs(rect.width - rect.height) < 5;
+            if (!isCircular) continue;
 
+            // 检查位置：通常在页面底部附近
+            const isInBottomArea = rect.top > window.innerHeight * 0.7;
+            if (!isInBottomArea) continue;
+
+            // 检查是否有发送相关的子元素或属性
+            const hasSendSvg = b.querySelector('svg');
+            const ariaLabel = b.getAttribute('aria-label') || '';
+            const isSendLike = ariaLabel.includes('发送') ||
+                               ariaLabel.toLowerCase().includes('send') ||
+                               hasSendSvg;
+            if (isSendLike) return b;
+          }
+
+          // 策略 B: 查找包含特定图标模式的按钮
+          for (const b of allButtons) {
+            if (b.disabled || b.getAttribute('aria-disabled') === 'true') continue;
+            const svg = b.querySelector('svg');
+            if (svg) {
+              const svgText = svg.innerHTML || svg.textContent || '';
+              // 检查是否包含向上的箭头（发送图标常见特征）
+              if (svgText.includes('arrow') || svgText.includes('send')) return b;
+            }
+          }
+
+          return null;
+        }, 2000, 100);
+      }
+
+      // 记录诊断信息
+      const diagnosticInfo = {
+        found: Boolean(btn),
+        hasDirectSelector: Boolean(await findSendBtnForPlatform('gemini')),
+        inputExists: Boolean(el),
+        inputConnected: el?.isConnected,
+        quillExists: Boolean(el?.closest('rich-textarea')?.__quill),
+        timestamp: Date.now()
+      };
+      logger?.debug?.('gemini-send-diagnostic', diagnosticInfo);
+
+      // Gemini 按钮点击可能失效，优先使用 Enter 键发送（更可靠）
+      // 仅当 Enter 键失败后才尝试点击按钮作为 fallback
+      const keySendOk = await keySend();
+      logger?.debug?.('gemini-send-keyboard', { success: keySendOk });
+      if (keySendOk) return true;
+
+      // Fallback: 尝试点击按钮（如果 Enter 键失效）
       if (btn) {
         btn.click();
         await sleep(300);
@@ -151,10 +209,6 @@ export function createGeminiAdapter(deps) {
       } else {
         logger?.debug?.('gemini-send-btn-not-found');
       }
-
-      const keySendOk = await keySend();
-      logger?.debug?.('gemini-send-keyboard', { success: keySendOk });
-      if (keySendOk) return true;
 
       logger?.debug?.('gemini-send-failed');
       return false;

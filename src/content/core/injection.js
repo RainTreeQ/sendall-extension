@@ -476,6 +476,48 @@ export function createInjectionTools(deps) {
     if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
     const { logger } = options || {};
 
+    // 策略0: Lexical 编辑器专用（Kimi 2026 新版）- 最优先
+    const tryKimiLexicalInput = async () => {
+      const editor = el.__lexicalEditor;
+      if (!editor) return false;
+
+      el.focus();
+      await sleep(randomDelay(50, 150));
+
+      // 使用 Lexical API 插入文本
+      editor.update(() => {
+        try {
+          const editorState = editor.getEditorState();
+          const selection = editorState._selection;
+          if (selection && typeof selection.insertRawText === 'function') {
+            selection.insertRawText(text);
+          } else {
+            editor.dispatchCommand('INSERT_TEXT', text);
+          }
+        } catch (e) {
+          // Fallback: 直接修改 DOM
+          const root = editor.getRootElement();
+          if (root) {
+            root.innerHTML = `<p>${text}</p>`;
+          }
+        }
+      });
+
+      // 等待 Lexical 更新完成
+      await sleep(randomDelay(150, 250));
+
+      // 触发 input 事件通知 Kimi 更新按钮状态
+      el.dispatchEvent(new InputEvent('input', {
+        inputType: 'insertText',
+        data: text,
+        bubbles: true
+      }));
+
+      await sleep(randomDelay(50, 100));
+
+      return verifyContent(el, text, 400, 30);
+    };
+
     // 策略1: 模拟人类输入 - 使用更自然的输入模式
     const tryKimiHumanLikeInput = async () => {
       el.focus();
@@ -494,7 +536,7 @@ export function createInjectionTools(deps) {
       for (let i = 0; i < text.length; i += chunkSize) {
         const chunk = text.slice(i, i + chunkSize);
         document.execCommand('insertText', false, chunk);
-        
+
         // 随机间隔：30-150ms 模拟人类打字间隔
         // 偶尔停顿更久（模拟思考）
         const thinkPause = Math.random() < 0.05 ? randomDelay(200, 500) : 0;
@@ -604,6 +646,7 @@ export function createInjectionTools(deps) {
 
     // 注意：移除了所有剪贴板相关策略，避免被检测
     return runStrategies(el, [
+      { name: 'kimi-lexical', fallbackUsed: false, run: tryKimiLexicalInput },
       { name: 'kimi-human-like', fallbackUsed: false, run: tryKimiHumanLikeInput },
       { name: 'kimi-slate-input', fallbackUsed: false, run: tryKimiSlateInput },
       { name: 'kimi-insertText', fallbackUsed: false, run: tryKimiInsertText },
